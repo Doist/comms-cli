@@ -253,13 +253,13 @@ describe('skill command', () => {
 
     it('lists agents', async () => {
         const program = createProgram()
-        await program.parseAsync(['node', 'cm', 'skill', 'list', '--local'])
+        await program.parseAsync(['node', 'tdc', 'skill', 'list', '--local'])
         expect(consoleSpy).toHaveBeenCalledWith(expect.stringContaining('Available agents'))
     })
 
     it('installs agent locally', async () => {
         const program = createProgram()
-        await program.parseAsync(['node', 'cm', 'skill', 'install', 'claude-code', '--local'])
+        await program.parseAsync(['node', 'tdc', 'skill', 'install', 'claude-code', '--local'])
         expect(consoleSpy).toHaveBeenCalledWith('✓', expect.stringContaining('Installed'))
 
         const skillPath = join(testDir, '.claude', 'skills', 'comms-cli', 'SKILL.md')
@@ -271,7 +271,7 @@ describe('skill command', () => {
 
     it('installs codex agent locally', async () => {
         const program = createProgram()
-        await program.parseAsync(['node', 'cm', 'skill', 'install', 'codex', '--local'])
+        await program.parseAsync(['node', 'tdc', 'skill', 'install', 'codex', '--local'])
         expect(consoleSpy).toHaveBeenCalledWith('✓', expect.stringContaining('Installed'))
 
         const skillPath = join(testDir, '.codex', 'skills', 'comms-cli', 'SKILL.md')
@@ -281,7 +281,7 @@ describe('skill command', () => {
 
     it('installs cursor agent locally', async () => {
         const program = createProgram()
-        await program.parseAsync(['node', 'cm', 'skill', 'install', 'cursor', '--local'])
+        await program.parseAsync(['node', 'tdc', 'skill', 'install', 'cursor', '--local'])
         expect(consoleSpy).toHaveBeenCalledWith('✓', expect.stringContaining('Installed'))
 
         const skillPath = join(testDir, '.cursor', 'skills', 'comms-cli', 'SKILL.md')
@@ -294,7 +294,7 @@ describe('skill command', () => {
         await installer.install({ local: true })
 
         const program = createProgram()
-        await program.parseAsync(['node', 'cm', 'skill', 'uninstall', 'claude-code', '--local'])
+        await program.parseAsync(['node', 'tdc', 'skill', 'uninstall', 'claude-code', '--local'])
         expect(consoleSpy).toHaveBeenCalledWith('✓', expect.stringContaining('Uninstalled'))
     })
 
@@ -302,7 +302,7 @@ describe('skill command', () => {
         const program = createProgram()
 
         await expect(
-            program.parseAsync(['node', 'cm', 'skill', 'install', 'unknown-agent', '--local']),
+            program.parseAsync(['node', 'tdc', 'skill', 'install', 'unknown-agent', '--local']),
         ).rejects.toHaveProperty('code', 'UNKNOWN_AGENT')
     })
 
@@ -311,7 +311,7 @@ describe('skill command', () => {
         await installer.install({ local: true })
 
         const program = createProgram()
-        await program.parseAsync(['node', 'cm', 'skill', 'update', 'claude-code', '--local'])
+        await program.parseAsync(['node', 'tdc', 'skill', 'update', 'claude-code', '--local'])
         expect(consoleSpy).toHaveBeenCalledWith('✓', expect.stringContaining('Updated'))
     })
 
@@ -319,7 +319,7 @@ describe('skill command', () => {
         const program = createProgram()
 
         await expect(
-            program.parseAsync(['node', 'cm', 'skill', 'update', 'unknown-agent', '--local']),
+            program.parseAsync(['node', 'tdc', 'skill', 'update', 'unknown-agent', '--local']),
         ).rejects.toHaveProperty('code', 'UNKNOWN_AGENT')
     })
 
@@ -328,7 +328,7 @@ describe('skill command', () => {
         await skillInstallers.codex.install({ local: true })
 
         const program = createProgram()
-        await program.parseAsync(['node', 'cm', 'skill', 'update', 'all', '--local'])
+        await program.parseAsync(['node', 'tdc', 'skill', 'update', 'all', '--local'])
         expect(consoleSpy).toHaveBeenCalledWith('✓', expect.stringContaining('Updated claude-code'))
         expect(consoleSpy).toHaveBeenCalledWith('✓', expect.stringContaining('Updated codex'))
     })
@@ -337,7 +337,7 @@ describe('skill command', () => {
         await skillInstallers.cursor.install({ local: true })
 
         const program = createProgram()
-        await program.parseAsync(['node', 'cm', 'skill', 'update', '--local'])
+        await program.parseAsync(['node', 'tdc', 'skill', 'update', '--local'])
         expect(consoleSpy).toHaveBeenCalledWith('✓', expect.stringContaining('Updated cursor'))
     })
 })

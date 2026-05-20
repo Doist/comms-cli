@@ -16,18 +16,18 @@ export async function currentAccount(options: ViewOptions, store: CommsTokenStor
     const snapshot = await store.active()
     if (!snapshot) {
         throw new CliError('NO_TOKEN', 'No stored account is currently active.', [
-            'Run: cm auth login',
+            'Run: tdc auth login',
         ])
     }
     const { account } = snapshot
 
-    // `cm auth token` persists `{ id: '', label: '' }` because manual token
+    // `tdc auth token` persists `{ id: '', label: '' }` because manual token
     // entry has no identity. Render that case explicitly rather than printing
     // blank fields.
     if (!account.id || !account.label) {
         emitView(options, { source: 'token-only' }, () => [
-            'Active token saved via `cm auth token` (no associated identity).',
-            chalk.dim('Run `cm auth login` to attach an account to the token.'),
+            'Active token saved via `tdc auth token` (no associated identity).',
+            chalk.dim('Run `tdc auth login` to attach an account to the token.'),
         ])
         return
     }

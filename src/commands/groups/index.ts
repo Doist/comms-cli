@@ -21,9 +21,9 @@ export function registerGroupsCommand(program: Command): void {
             'after',
             `
 Examples:
-  cm groups
-  cm groups list --search front
-  cm groups --workspace 123 --json`,
+  tdc groups
+  tdc groups list --search front
+  tdc groups --workspace 123 --json`,
         )
         .action(listGroups)
 
@@ -37,9 +37,9 @@ Examples:
             'after',
             `
 Examples:
-  cm groups view 12345
-  cm groups view "Frontend"
-  cm groups view id:12345 --json`,
+  tdc groups view 12345
+  tdc groups view "Frontend"
+  tdc groups view id:12345 --json`,
         )
         .action(viewGroup)
 
@@ -55,9 +55,9 @@ Examples:
             'after',
             `
 Examples:
-  cm groups create "Frontend"
-  cm groups create "Backend" --users alice@doist.com,bob@doist.com
-  cm groups create "Design" --users id:123,id:456 --json`,
+  tdc groups create "Frontend"
+  tdc groups create "Backend" --users alice@doist.com,bob@doist.com
+  tdc groups create "Design" --users id:123,id:456 --json`,
         )
         .action(createGroupCommand)
 
@@ -71,8 +71,8 @@ Examples:
             'after',
             `
 Examples:
-  cm groups rename 12345 "Frontend Team"
-  cm groups rename "Frontend" "Frontend Team" --json`,
+  tdc groups rename 12345 "Frontend Team"
+  tdc groups rename "Frontend" "Frontend Team" --json`,
         )
         .action(renameGroup)
 
@@ -86,8 +86,8 @@ Examples:
             'after',
             `
 Examples:
-  cm groups delete 12345 --yes
-  cm groups delete "Frontend" --dry-run`,
+  tdc groups delete 12345 --yes
+  tdc groups delete "Frontend" --dry-run`,
         )
         .action(deleteGroupCommand)
 
@@ -101,9 +101,9 @@ Examples:
             'after',
             `
 Examples:
-  cm groups add-user 12345 alice@doist.com bob@doist.com
-  cm groups add-user "Frontend" id:123,id:456
-  cm groups add-user 12345 alice bob carol --json
+  tdc groups add-user 12345 alice@doist.com bob@doist.com
+  tdc groups add-user "Frontend" id:123,id:456
+  tdc groups add-user 12345 alice bob carol --json
 
 User references can be passed as space-separated args, comma-separated within a
 single arg, or any mix of the two.`,
@@ -120,8 +120,8 @@ single arg, or any mix of the two.`,
             'after',
             `
 Examples:
-  cm groups remove-user 12345 alice@doist.com
-  cm groups remove-user "Frontend" id:123,id:456`,
+  tdc groups remove-user 12345 alice@doist.com
+  tdc groups remove-user "Frontend" id:123,id:456`,
         )
         .action(removeUsersCommand)
 }

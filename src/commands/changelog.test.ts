@@ -54,7 +54,7 @@ describe('changelog wrapper', () => {
     it('passes the comms CHANGELOG.md path through to cli-core', async () => {
         mockReadFile.mockResolvedValue(SAMPLE_CHANGELOG)
 
-        await createProgram().parseAsync(['node', 'cm', 'changelog', '-n', '1'])
+        await createProgram().parseAsync(['node', 'tdc', 'changelog', '-n', '1'])
 
         expect(mockReadFile).toHaveBeenCalledTimes(1)
         const [path] = mockReadFile.mock.calls[0]
@@ -64,7 +64,7 @@ describe('changelog wrapper', () => {
     it('emits a footer link pointing at the comms repo and current version', async () => {
         mockReadFile.mockResolvedValue(SAMPLE_CHANGELOG)
 
-        await createProgram().parseAsync(['node', 'cm', 'changelog', '-n', '1'])
+        await createProgram().parseAsync(['node', 'tdc', 'changelog', '-n', '1'])
 
         const all = logSpy.mock.calls.map((c: unknown[]) => c[0]).join('\n')
         expect(all).toContain(
@@ -75,7 +75,7 @@ describe('changelog wrapper', () => {
     it('renders both # and ## version headings (headingLevel: flexible)', async () => {
         mockReadFile.mockResolvedValue(SAMPLE_CHANGELOG)
 
-        await createProgram().parseAsync(['node', 'cm', 'changelog', '-n', '5'])
+        await createProgram().parseAsync(['node', 'tdc', 'changelog', '-n', '5'])
 
         const all = logSpy.mock.calls.map((c: unknown[]) => c[0]).join('\n')
         expect(all).toContain('9.9.0')
@@ -89,7 +89,7 @@ describe('changelog wrapper', () => {
     it('drops deps-only versions (filterEmptyVersions: true)', async () => {
         mockReadFile.mockResolvedValue(SAMPLE_CHANGELOG)
 
-        await createProgram().parseAsync(['node', 'cm', 'changelog', '-n', '5'])
+        await createProgram().parseAsync(['node', 'tdc', 'changelog', '-n', '5'])
 
         const all = logSpy.mock.calls.map((c: unknown[]) => c[0]).join('\n')
         expect(all).not.toContain('9.8.5')
@@ -99,7 +99,7 @@ describe('changelog wrapper', () => {
     it('indents continuation lines under bullets (continuationIndent: true)', async () => {
         mockReadFile.mockResolvedValue(SAMPLE_CHANGELOG)
 
-        await createProgram().parseAsync(['node', 'cm', 'changelog', '-n', '1'])
+        await createProgram().parseAsync(['node', 'tdc', 'changelog', '-n', '1'])
 
         const all = logSpy.mock.calls.map((c: unknown[]) => c[0]).join('\n')
         // Continuation line should be indented under the bullet (more

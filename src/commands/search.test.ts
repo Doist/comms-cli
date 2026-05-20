@@ -55,7 +55,7 @@ describe('search --workspace conflict', () => {
         const program = createProgram()
 
         await expect(
-            program.parseAsync(['node', 'cm', 'search', 'query', 'Doist', '--workspace', 'Other']),
+            program.parseAsync(['node', 'tdc', 'search', 'query', 'Doist', '--workspace', 'Other']),
         ).rejects.toThrow('Cannot specify workspace both as argument and --workspace flag')
     })
 
@@ -75,7 +75,7 @@ describe('search --workspace conflict', () => {
         const logSpy = vi.spyOn(console, 'log').mockImplementation(() => {})
         await program.parseAsync([
             'node',
-            'cm',
+            'tdc',
             'search',
             'query',
             '--channel',
@@ -111,7 +111,7 @@ describe('search --workspace conflict', () => {
         const program = createProgram()
         const logSpy = vi.spyOn(console, 'log').mockImplementation(() => {})
 
-        await program.parseAsync(['node', 'cm', 'search', 'query', '--all'])
+        await program.parseAsync(['node', 'tdc', 'search', 'query', '--all'])
 
         expect(searchApiMocks.extendedSearch).toHaveBeenNthCalledWith(
             1,

@@ -8,7 +8,7 @@ export async function uninstall(agentName: string, options: UninstallOptions): P
 
     if (!installer) {
         throw new CliError('UNKNOWN_AGENT', `Unknown agent: ${agentName}`, [
-            'Run `cm skill list` to see available agents',
+            'Run `tdc skill list` to see available agents',
         ])
     }
 

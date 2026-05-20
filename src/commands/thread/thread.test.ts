@@ -208,13 +208,13 @@ describe('thread implicit view', () => {
         apiMocks.getCommsClient.mockRejectedValue(new Error('MOCK_API_REACHED'))
     })
 
-    it('cm thread <ref> routes to view (not unknown command)', async () => {
+    it('tdc thread <ref> routes to view (not unknown command)', async () => {
         const program = createProgram()
         const consoleSpy = vi.spyOn(console, 'log').mockImplementation(() => {})
 
         // If Commander routes to view, it will call getCommsClient which throws MOCK_API_REACHED.
         // If it doesn't route, Commander throws "unknown command '100'".
-        await expect(program.parseAsync(['node', 'cm', 'thread', '100'])).rejects.toThrow(
+        await expect(program.parseAsync(['node', 'tdc', 'thread', '100'])).rejects.toThrow(
             'MOCK_API_REACHED',
         )
 
@@ -231,7 +231,7 @@ describe('thread implicit view', () => {
 
         await program.parseAsync([
             'node',
-            'cm',
+            'tdc',
             'thread',
             'reply',
             '100',
@@ -257,7 +257,7 @@ describe('thread implicit view', () => {
 
         await program.parseAsync([
             'node',
-            'cm',
+            'tdc',
             'thread',
             'reply',
             '100',
@@ -282,7 +282,7 @@ describe('thread implicit view', () => {
 
         await program.parseAsync([
             'node',
-            'cm',
+            'tdc',
             'thread',
             'reply',
             '100',
@@ -305,7 +305,7 @@ describe('thread implicit view', () => {
         const consoleSpy = vi.spyOn(console, 'log').mockImplementation(() => {})
 
         vi.mocked(readStdin).mockResolvedValueOnce('closing comment')
-        await program.parseAsync(['node', 'cm', 'thread', 'reply', '500', '--close'])
+        await program.parseAsync(['node', 'tdc', 'thread', 'reply', '500', '--close'])
 
         expect(client.threads.closeThread).toHaveBeenCalledWith(
             expect.objectContaining({ id: 500, content: 'closing comment' }),
@@ -322,7 +322,7 @@ describe('thread implicit view', () => {
         const consoleSpy = vi.spyOn(console, 'log').mockImplementation(() => {})
 
         vi.mocked(readStdin).mockResolvedValueOnce('reopening comment')
-        await program.parseAsync(['node', 'cm', 'thread', 'reply', '500', '--reopen'])
+        await program.parseAsync(['node', 'tdc', 'thread', 'reply', '500', '--reopen'])
 
         expect(client.threads.reopenThread).toHaveBeenCalledWith(
             expect.objectContaining({ id: 500, content: 'reopening comment' }),
@@ -337,7 +337,7 @@ describe('thread implicit view', () => {
         await expect(
             program.parseAsync([
                 'node',
-                'cm',
+                'tdc',
                 'thread',
                 'reply',
                 '100',
@@ -365,7 +365,7 @@ describe('thread view --unread', () => {
         const program = createProgram()
         const consoleSpy = vi.spyOn(console, 'log').mockImplementation(() => {})
 
-        await program.parseAsync(['node', 'cm', 'thread', 'view', '500', '--unread'])
+        await program.parseAsync(['node', 'tdc', 'thread', 'view', '500', '--unread'])
 
         const output = consoleSpy.mock.calls.map((c) => c[0]).join('\n')
         expect(output).toContain('Test Thread')
@@ -386,7 +386,7 @@ describe('thread view --unread', () => {
         const program = createProgram()
         const consoleSpy = vi.spyOn(console, 'log').mockImplementation(() => {})
 
-        await program.parseAsync(['node', 'cm', 'thread', 'view', '500', '--unread'])
+        await program.parseAsync(['node', 'tdc', 'thread', 'view', '500', '--unread'])
 
         const output = consoleSpy.mock.calls.map((c) => c[0]).join('\n')
         // Should show original post
@@ -413,7 +413,7 @@ describe('thread view --unread', () => {
         const program = createProgram()
         const consoleSpy = vi.spyOn(console, 'log').mockImplementation(() => {})
 
-        await program.parseAsync(['node', 'cm', 'thread', 'view', '500', '--unread', '--json'])
+        await program.parseAsync(['node', 'tdc', 'thread', 'view', '500', '--unread', '--json'])
 
         const jsonOutput = JSON.parse(consoleSpy.mock.calls[0][0])
         expect(jsonOutput.thread.id).toBe(500)
@@ -435,7 +435,7 @@ describe('thread view --unread', () => {
         const program = createProgram()
         const consoleSpy = vi.spyOn(console, 'log').mockImplementation(() => {})
 
-        await program.parseAsync(['node', 'cm', 'thread', 'view', '500', '--unread', '--json'])
+        await program.parseAsync(['node', 'tdc', 'thread', 'view', '500', '--unread', '--json'])
 
         const jsonOutput = JSON.parse(consoleSpy.mock.calls[0][0])
         expect(jsonOutput.thread.id).toBe(500)
@@ -455,7 +455,7 @@ describe('thread view --unread', () => {
         const program = createProgram()
         const consoleSpy = vi.spyOn(console, 'log').mockImplementation(() => {})
 
-        await program.parseAsync(['node', 'cm', 'thread', 'view', '500', '--unread', '--ndjson'])
+        await program.parseAsync(['node', 'tdc', 'thread', 'view', '500', '--unread', '--ndjson'])
 
         const lines = consoleSpy.mock.calls.map((c) => JSON.parse(c[0]))
         // First line is the thread
@@ -480,7 +480,7 @@ describe('thread view --unread', () => {
         const program = createProgram()
         const consoleSpy = vi.spyOn(console, 'log').mockImplementation(() => {})
 
-        await program.parseAsync(['node', 'cm', 'thread', 'view', '500', '--json'])
+        await program.parseAsync(['node', 'tdc', 'thread', 'view', '500', '--json'])
 
         const jsonOutput = JSON.parse(consoleSpy.mock.calls[0][0])
         // Without --unread, all comments are returned
@@ -509,7 +509,7 @@ describe('thread view --since', () => {
 
         await program.parseAsync([
             'node',
-            'cm',
+            'tdc',
             'thread',
             'view',
             '500',
@@ -552,7 +552,7 @@ describe('thread view with failed batch response', () => {
         const consoleSpy = vi.spyOn(console, 'log').mockImplementation(() => {})
 
         await expect(
-            program.parseAsync(['node', 'cm', 'thread', 'view', '500', '--comment', '99999']),
+            program.parseAsync(['node', 'tdc', 'thread', 'view', '500', '--comment', '99999']),
         ).rejects.toThrow('Failed to fetch comment 99999.')
 
         consoleSpy.mockRestore()
@@ -570,7 +570,7 @@ describe('thread view with failed batch response', () => {
         const program = createProgram()
         const consoleSpy = vi.spyOn(console, 'log').mockImplementation(() => {})
 
-        await expect(program.parseAsync(['node', 'cm', 'thread', 'view', '500'])).rejects.toThrow(
+        await expect(program.parseAsync(['node', 'tdc', 'thread', 'view', '500'])).rejects.toThrow(
             'Failed to fetch thread.',
         )
 
@@ -606,7 +606,7 @@ describe('thread view with failed user batch response', () => {
 
         const program = createProgram()
 
-        await expect(program.parseAsync(['node', 'cm', 'thread', 'view', '500'])).rejects.toThrow(
+        await expect(program.parseAsync(['node', 'tdc', 'thread', 'view', '500'])).rejects.toThrow(
             'Failed to fetch user 2: User lookup failed',
         )
     })
@@ -632,7 +632,7 @@ describe('thread view with failed user batch response', () => {
         const program = createProgram()
         const consoleSpy = vi.spyOn(console, 'log').mockImplementation(() => {})
 
-        await program.parseAsync(['node', 'cm', 'thread', 'view', '500'])
+        await program.parseAsync(['node', 'tdc', 'thread', 'view', '500'])
 
         const output = consoleSpy.mock.calls.map((c) => c[0]).join('\n')
         expect(output).toContain('Alice')
@@ -657,7 +657,7 @@ describe('thread create', () => {
 
         await program.parseAsync([
             'node',
-            'cm',
+            'tdc',
             'thread',
             'create',
             '100',
@@ -686,7 +686,7 @@ describe('thread create', () => {
 
         await program.parseAsync([
             'node',
-            'cm',
+            'tdc',
             'thread',
             'create',
             '100',
@@ -711,7 +711,7 @@ describe('thread create', () => {
 
         await program.parseAsync([
             'node',
-            'cm',
+            'tdc',
             'thread',
             'create',
             '100',
@@ -735,7 +735,7 @@ describe('thread create', () => {
         const program = createProgram()
         const consoleSpy = vi.spyOn(console, 'log').mockImplementation(() => {})
 
-        await program.parseAsync(['node', 'cm', 'thread', 'create', '100', 'My Title'])
+        await program.parseAsync(['node', 'tdc', 'thread', 'create', '100', 'My Title'])
 
         expect(client.threads.createThread).toHaveBeenCalledWith(
             expect.objectContaining({
@@ -762,7 +762,7 @@ describe('thread create', () => {
 
         await program.parseAsync([
             'node',
-            'cm',
+            'tdc',
             'thread',
             'create',
             '100',
@@ -796,7 +796,7 @@ describe('thread create', () => {
 
         await program.parseAsync([
             'node',
-            'cm',
+            'tdc',
             'thread',
             'create',
             '100',
@@ -822,7 +822,7 @@ describe('thread create', () => {
         const program = createProgram()
 
         await expect(
-            program.parseAsync(['node', 'cm', 'thread', 'create', '100', 'My Title']),
+            program.parseAsync(['node', 'tdc', 'thread', 'create', '100', 'My Title']),
         ).rejects.toHaveProperty('code', 'MISSING_CONTENT')
     })
 
@@ -833,7 +833,7 @@ describe('thread create', () => {
         const program = createProgram()
         const consoleSpy = vi.spyOn(console, 'log').mockImplementation(() => {})
 
-        await program.parseAsync(['node', 'cm', 'thread', 'create', '100', 'T', 'body'])
+        await program.parseAsync(['node', 'tdc', 'thread', 'create', '100', 'T', 'body'])
 
         expect(client.inbox.unarchiveThread).not.toHaveBeenCalled()
         consoleSpy.mockRestore()
@@ -848,7 +848,7 @@ describe('thread create', () => {
 
         await program.parseAsync([
             'node',
-            'cm',
+            'tdc',
             'thread',
             'create',
             '100',
@@ -871,7 +871,7 @@ describe('thread create', () => {
         const program = createProgram()
         const consoleSpy = vi.spyOn(console, 'log').mockImplementation(() => {})
 
-        await program.parseAsync(['node', 'cm', 'thread', 'create', '100', 'T', 'body'])
+        await program.parseAsync(['node', 'tdc', 'thread', 'create', '100', 'T', 'body'])
 
         expect(client.inbox.unarchiveThread).toHaveBeenCalledWith(999)
         consoleSpy.mockRestore()
@@ -889,7 +889,7 @@ describe('thread create', () => {
 
         await program.parseAsync([
             'node',
-            'cm',
+            'tdc',
             'thread',
             'create',
             '100',
@@ -913,7 +913,7 @@ describe('thread create', () => {
 
         await program.parseAsync([
             'node',
-            'cm',
+            'tdc',
             'thread',
             'create',
             '100',
@@ -942,7 +942,7 @@ describe('thread mute', () => {
         const program = createProgram()
         const consoleSpy = vi.spyOn(console, 'log').mockImplementation(() => {})
 
-        await program.parseAsync(['node', 'cm', 'thread', 'mute', '500'])
+        await program.parseAsync(['node', 'tdc', 'thread', 'mute', '500'])
 
         expect(client.threads.muteThread).toHaveBeenCalledWith({ id: 500, minutes: 60 })
         expect(consoleSpy).toHaveBeenCalledWith('Thread 500 muted for 60 minutes.')
@@ -957,7 +957,7 @@ describe('thread mute', () => {
         const program = createProgram()
         const consoleSpy = vi.spyOn(console, 'log').mockImplementation(() => {})
 
-        await program.parseAsync(['node', 'cm', 'thread', 'mute', '500', '--minutes', '480'])
+        await program.parseAsync(['node', 'tdc', 'thread', 'mute', '500', '--minutes', '480'])
 
         expect(client.threads.muteThread).toHaveBeenCalledWith({ id: 500, minutes: 480 })
         expect(consoleSpy).toHaveBeenCalledWith('Thread 500 muted for 480 minutes.')
@@ -972,7 +972,7 @@ describe('thread mute', () => {
         const program = createProgram()
         const consoleSpy = vi.spyOn(console, 'log').mockImplementation(() => {})
 
-        await program.parseAsync(['node', 'cm', 'thread', 'mute', '500', '--dry-run'])
+        await program.parseAsync(['node', 'tdc', 'thread', 'mute', '500', '--dry-run'])
 
         expect(consoleSpy).toHaveBeenCalledWith(expect.stringContaining('Would mute thread'))
         expect(consoleSpy).toHaveBeenCalledWith('  Thread: Test Thread (500)')
@@ -990,7 +990,7 @@ describe('thread mute', () => {
         const program = createProgram()
 
         await expect(
-            program.parseAsync(['node', 'cm', 'thread', 'mute', '500', '--dry-run']),
+            program.parseAsync(['node', 'tdc', 'thread', 'mute', '500', '--dry-run']),
         ).rejects.toThrow('thread not found')
         expect(client.threads.muteThread).not.toHaveBeenCalled()
     })
@@ -1002,7 +1002,7 @@ describe('thread mute', () => {
         const program = createProgram()
         const consoleSpy = vi.spyOn(console, 'log').mockImplementation(() => {})
 
-        await program.parseAsync(['node', 'cm', 'thread', 'mute', '500', '--json'])
+        await program.parseAsync(['node', 'tdc', 'thread', 'mute', '500', '--json'])
 
         const jsonOutput = JSON.parse(consoleSpy.mock.calls[0][0])
         expect(jsonOutput.id).toBe(500)
@@ -1016,7 +1016,7 @@ describe('thread mute', () => {
         const program = createProgram()
 
         await expect(
-            program.parseAsync(['node', 'cm', 'thread', 'mute', '500', '--minutes', 'foo']),
+            program.parseAsync(['node', 'tdc', 'thread', 'mute', '500', '--minutes', 'foo']),
         ).rejects.toHaveProperty('code', 'INVALID_MINUTES')
     })
 })
@@ -1033,7 +1033,7 @@ describe('thread unmute', () => {
         const program = createProgram()
         const consoleSpy = vi.spyOn(console, 'log').mockImplementation(() => {})
 
-        await program.parseAsync(['node', 'cm', 'thread', 'unmute', '500'])
+        await program.parseAsync(['node', 'tdc', 'thread', 'unmute', '500'])
 
         expect(client.threads.unmuteThread).toHaveBeenCalledWith(500)
         expect(consoleSpy).toHaveBeenCalledWith('Thread 500 unmuted.')
@@ -1048,7 +1048,7 @@ describe('thread unmute', () => {
         const program = createProgram()
         const consoleSpy = vi.spyOn(console, 'log').mockImplementation(() => {})
 
-        await program.parseAsync(['node', 'cm', 'thread', 'unmute', '500', '--dry-run'])
+        await program.parseAsync(['node', 'tdc', 'thread', 'unmute', '500', '--dry-run'])
 
         expect(consoleSpy).toHaveBeenCalledWith(expect.stringContaining('Would unmute thread'))
         expect(consoleSpy).toHaveBeenCalledWith('  Thread: Test Thread (500)')
@@ -1065,7 +1065,7 @@ describe('thread unmute', () => {
         const program = createProgram()
 
         await expect(
-            program.parseAsync(['node', 'cm', 'thread', 'unmute', '500', '--dry-run']),
+            program.parseAsync(['node', 'tdc', 'thread', 'unmute', '500', '--dry-run']),
         ).rejects.toThrow('thread not found')
         expect(client.threads.unmuteThread).not.toHaveBeenCalled()
     })
@@ -1082,7 +1082,7 @@ describe('thread delete', () => {
         const program = createProgram()
         const consoleSpy = vi.spyOn(console, 'log').mockImplementation(() => {})
 
-        await program.parseAsync(['node', 'cm', 'thread', 'delete', '500', '--yes'])
+        await program.parseAsync(['node', 'tdc', 'thread', 'delete', '500', '--yes'])
 
         expect(client.threads.deleteThread).toHaveBeenCalledWith(500)
         expect(consoleSpy).toHaveBeenCalledWith('Thread Test Thread (500) deleted.')
@@ -1095,7 +1095,7 @@ describe('thread delete', () => {
         const program = createProgram()
         const consoleSpy = vi.spyOn(console, 'log').mockImplementation(() => {})
 
-        await program.parseAsync(['node', 'cm', 'thread', 'delete', '500'])
+        await program.parseAsync(['node', 'tdc', 'thread', 'delete', '500'])
 
         expect(consoleSpy).toHaveBeenCalledWith('Would delete: Test Thread')
         expect(consoleSpy).toHaveBeenCalledWith('Use --yes to confirm.')
@@ -1109,7 +1109,7 @@ describe('thread delete', () => {
         const program = createProgram()
         const consoleSpy = vi.spyOn(console, 'log').mockImplementation(() => {})
 
-        await program.parseAsync(['node', 'cm', 'thread', 'delete', '500', '--dry-run'])
+        await program.parseAsync(['node', 'tdc', 'thread', 'delete', '500', '--dry-run'])
 
         expect(consoleSpy).toHaveBeenCalledWith(expect.stringContaining('Would delete thread'))
         expect(consoleSpy).toHaveBeenCalledWith('  Thread: Test Thread (500)')
@@ -1123,7 +1123,7 @@ describe('thread delete', () => {
         const program = createProgram()
         const consoleSpy = vi.spyOn(console, 'log').mockImplementation(() => {})
 
-        await program.parseAsync(['node', 'cm', 'thread', 'delete', '500', '--json', '--yes'])
+        await program.parseAsync(['node', 'tdc', 'thread', 'delete', '500', '--json', '--yes'])
 
         const jsonOutput = JSON.parse(consoleSpy.mock.calls[0][0])
         expect(jsonOutput).toEqual({ id: 500, deleted: true })
@@ -1136,7 +1136,7 @@ describe('thread delete', () => {
         const program = createProgram()
 
         await expect(
-            program.parseAsync(['node', 'cm', 'thread', 'delete', '500', '--json']),
+            program.parseAsync(['node', 'tdc', 'thread', 'delete', '500', '--json']),
         ).rejects.toHaveProperty('code', 'MISSING_YES_FLAG')
 
         expect(client.threads.deleteThread).not.toHaveBeenCalled()
@@ -1148,7 +1148,7 @@ describe('thread delete', () => {
         const program = createProgram()
 
         await expect(
-            program.parseAsync(['node', 'cm', 'thread', 'delete', '500', '--yes']),
+            program.parseAsync(['node', 'tdc', 'thread', 'delete', '500', '--yes']),
         ).rejects.toHaveProperty('code', 'NOT_CREATOR')
 
         expect(client.threads.deleteThread).not.toHaveBeenCalled()
@@ -1167,7 +1167,7 @@ describe('thread rename', () => {
         const program = createProgram()
         const consoleSpy = vi.spyOn(console, 'log').mockImplementation(() => {})
 
-        await program.parseAsync(['node', 'cm', 'thread', 'rename', '500', 'New Title'])
+        await program.parseAsync(['node', 'tdc', 'thread', 'rename', '500', 'New Title'])
 
         expect(client.threads.updateThread).toHaveBeenCalledWith({ id: 500, title: 'New Title' })
         expect(consoleSpy).toHaveBeenCalledWith('Thread 500 renamed to "New Title".')
@@ -1184,7 +1184,7 @@ describe('thread rename', () => {
 
         await program.parseAsync([
             'node',
-            'cm',
+            'tdc',
             'thread',
             'rename',
             '500',
@@ -1208,7 +1208,15 @@ describe('thread rename', () => {
         const program = createProgram()
 
         await expect(
-            program.parseAsync(['node', 'cm', 'thread', 'rename', '500', 'New Title', '--dry-run']),
+            program.parseAsync([
+                'node',
+                'tdc',
+                'thread',
+                'rename',
+                '500',
+                'New Title',
+                '--dry-run',
+            ]),
         ).rejects.toThrow('thread not found')
         expect(client.threads.updateThread).not.toHaveBeenCalled()
     })
@@ -1220,7 +1228,7 @@ describe('thread rename', () => {
         const program = createProgram()
         const consoleSpy = vi.spyOn(console, 'log').mockImplementation(() => {})
 
-        await program.parseAsync(['node', 'cm', 'thread', 'rename', '500', 'New Title', '--json'])
+        await program.parseAsync(['node', 'tdc', 'thread', 'rename', '500', 'New Title', '--json'])
 
         const jsonOutput = JSON.parse(consoleSpy.mock.calls[0][0])
         expect(jsonOutput.id).toBe(500)
@@ -1239,7 +1247,7 @@ describe('thread rename', () => {
 
         await program.parseAsync([
             'node',
-            'cm',
+            'tdc',
             'thread',
             'rename',
             '500',
@@ -1270,7 +1278,7 @@ describe('thread update', () => {
         const program = createProgram()
         const consoleSpy = vi.spyOn(console, 'log').mockImplementation(() => {})
 
-        await program.parseAsync(['node', 'cm', 'thread', 'update', '500', 'New body'])
+        await program.parseAsync(['node', 'tdc', 'thread', 'update', '500', 'New body'])
 
         expect(client.threads.updateThread).toHaveBeenCalledWith({
             id: 500,
@@ -1288,7 +1296,15 @@ describe('thread update', () => {
         const program = createProgram()
         const consoleSpy = vi.spyOn(console, 'log').mockImplementation(() => {})
 
-        await program.parseAsync(['node', 'cm', 'thread', 'update', '500', 'New body', '--dry-run'])
+        await program.parseAsync([
+            'node',
+            'tdc',
+            'thread',
+            'update',
+            '500',
+            'New body',
+            '--dry-run',
+        ])
 
         expect(consoleSpy).toHaveBeenCalledWith(expect.stringContaining('Would update thread'))
         expect(consoleSpy).toHaveBeenCalledWith('  Thread: Test Thread (500)')
@@ -1306,7 +1322,7 @@ describe('thread update', () => {
         const program = createProgram()
         const consoleSpy = vi.spyOn(console, 'log').mockImplementation(() => {})
 
-        await program.parseAsync(['node', 'cm', 'thread', 'update', '500'])
+        await program.parseAsync(['node', 'tdc', 'thread', 'update', '500'])
 
         expect(client.threads.updateThread).toHaveBeenCalledWith({
             id: 500,
@@ -1321,7 +1337,7 @@ describe('thread update', () => {
         const consoleSpy = vi.spyOn(console, 'log').mockImplementation(() => {})
 
         await expect(
-            program.parseAsync(['node', 'cm', 'thread', 'update', '500']),
+            program.parseAsync(['node', 'tdc', 'thread', 'update', '500']),
         ).rejects.toHaveProperty('code', 'MISSING_CONTENT')
 
         consoleSpy.mockRestore()
@@ -1334,7 +1350,7 @@ describe('thread update', () => {
         const program = createProgram()
         const consoleSpy = vi.spyOn(console, 'log').mockImplementation(() => {})
 
-        await program.parseAsync(['node', 'cm', 'thread', 'update', '500', 'New body', '--json'])
+        await program.parseAsync(['node', 'tdc', 'thread', 'update', '500', 'New body', '--json'])
 
         const jsonOutput = JSON.parse(consoleSpy.mock.calls[0][0])
         expect(jsonOutput.id).toBe(500)
@@ -1352,7 +1368,7 @@ describe('thread update', () => {
         const program = createProgram()
 
         await expect(
-            program.parseAsync(['node', 'cm', 'thread', 'update', '500', 'New body', '--dry-run']),
+            program.parseAsync(['node', 'tdc', 'thread', 'update', '500', 'New body', '--dry-run']),
         ).rejects.toThrow('thread not found')
         expect(client.threads.updateThread).not.toHaveBeenCalled()
     })
@@ -1370,7 +1386,7 @@ describe('thread done', () => {
         const program = createProgram()
         const consoleSpy = vi.spyOn(console, 'log').mockImplementation(() => {})
 
-        await program.parseAsync(['node', 'cm', 'thread', 'done', '500'])
+        await program.parseAsync(['node', 'tdc', 'thread', 'done', '500'])
 
         expect(client.inbox.archiveThread).toHaveBeenCalledWith(500)
         expect(consoleSpy).toHaveBeenCalledWith('Thread 500 archived.')
@@ -1385,7 +1401,7 @@ describe('thread done', () => {
         const program = createProgram()
         const consoleSpy = vi.spyOn(console, 'log').mockImplementation(() => {})
 
-        await program.parseAsync(['node', 'cm', 'thread', 'done', '500', '--dry-run'])
+        await program.parseAsync(['node', 'tdc', 'thread', 'done', '500', '--dry-run'])
 
         expect(consoleSpy).toHaveBeenCalledWith(expect.stringContaining('Would archive thread'))
         expect(consoleSpy).toHaveBeenCalledWith('  Thread: Test Thread (500)')
@@ -1402,7 +1418,7 @@ describe('thread done', () => {
         const program = createProgram()
 
         await expect(
-            program.parseAsync(['node', 'cm', 'thread', 'done', '500', '--dry-run']),
+            program.parseAsync(['node', 'tdc', 'thread', 'done', '500', '--dry-run']),
         ).rejects.toThrow('thread not found')
         expect(client.inbox.archiveThread).not.toHaveBeenCalled()
     })

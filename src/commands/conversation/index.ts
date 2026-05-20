@@ -24,8 +24,8 @@ export function registerConversationCommand(program: Command): void {
             'after',
             `
 Examples:
-  cm conversation unread
-  cm conversation unread --json`,
+  tdc conversation unread
+  tdc conversation unread --json`,
         )
         .action(showUnread)
 
@@ -43,9 +43,9 @@ Examples:
             'after',
             `
 Examples:
-  cm conversation 12345
-  cm conversation view 12345 --limit 20
-  cm conversation view 12345 --since 2025-01-01 --json`,
+  tdc conversation 12345
+  tdc conversation view 12345 --limit 20
+  tdc conversation view 12345 --since 2025-01-01 --json`,
         )
         .action((ref, options) => {
             if (!ref) {
@@ -68,9 +68,9 @@ Examples:
             'after',
             `
 Examples:
-  cm conversation with "Jane Smith"
-  cm conversation with id:5678 --json
-  cm conversation with "Jane" --include-groups --snippet`,
+  tdc conversation with "Jane Smith"
+  tdc conversation with id:5678 --json
+  tdc conversation with "Jane" --include-groups --snippet`,
         )
         .action(findConversationWithUser)
 
@@ -84,9 +84,9 @@ Examples:
             'after',
             `
 Examples:
-  cm conversation reply 12345 "Hello!"
-  echo "Message body" | cm conversation reply 12345
-  cm conversation reply 12345 "Update" --json`,
+  tdc conversation reply 12345 "Hello!"
+  echo "Message body" | tdc conversation reply 12345
+  tdc conversation reply 12345 "Update" --json`,
         )
         .action(replyToConversation)
 
@@ -99,8 +99,8 @@ Examples:
             'after',
             `
 Examples:
-  cm conversation done 12345
-  cm conversation done 12345 --dry-run`,
+  tdc conversation done 12345
+  tdc conversation done 12345 --dry-run`,
         )
         .action(markConversationDone)
 
@@ -115,8 +115,8 @@ Examples:
             'after',
             `
 Examples:
-  cm conversation mute 12345
-  cm conversation mute 12345 --minutes 480`,
+  tdc conversation mute 12345
+  tdc conversation mute 12345 --minutes 480`,
         )
         .action(muteConversation)
 
@@ -130,7 +130,7 @@ Examples:
             'after',
             `
 Examples:
-  cm conversation unmute 12345`,
+  tdc conversation unmute 12345`,
         )
         .action(unmuteConversation)
 }

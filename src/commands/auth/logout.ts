@@ -4,7 +4,7 @@ import type { CommsAccount, CommsTokenStore } from '../../lib/auth-provider.js'
 import { logTokenStorageResult } from './helpers.js'
 
 /**
- * Attach `cm auth logout` via cli-core's generic `attachLogoutCommand`. The
+ * Attach `tdc auth logout` via cli-core's generic `attachLogoutCommand`. The
  * registrar emits the success line (`✓ Logged out` / `{ok:true}` / silent
  * ndjson); `onCleared` only surfaces the keyring-fallback warning carried by
  * `TokenStorageResult` — cli-core's `TokenStore.clear: void` contract can't

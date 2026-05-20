@@ -19,8 +19,8 @@ export function registerMsgCommand(program: Command): void {
             'after',
             `
 Examples:
-  cm msg 12345
-  cm msg view 12345 --json`,
+  tdc msg 12345
+  tdc msg view 12345 --json`,
         )
         .action((ref, options) => {
             if (!ref) {
@@ -39,9 +39,9 @@ Examples:
             'after',
             `
 Examples:
-  cm msg update 12345 "Updated text"
-  echo "New content" | cm msg update 12345
-  cm msg update 12345 "Fixed typo" --json`,
+  tdc msg update 12345 "Updated text"
+  echo "New content" | tdc msg update 12345
+  tdc msg update 12345 "Fixed typo" --json`,
         )
         .action(updateMessage)
 
@@ -53,8 +53,8 @@ Examples:
             'after',
             `
 Examples:
-  cm msg delete 12345
-  cm msg delete 12345 --dry-run`,
+  tdc msg delete 12345
+  tdc msg delete 12345 --dry-run`,
         )
         .action(deleteMessage)
 }

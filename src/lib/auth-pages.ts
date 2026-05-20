@@ -398,13 +398,13 @@ export function renderSuccess(): string {
             <div class="terminal-body">
                 <div class="line">
                     <span class="ps">$</span>
-                    <span>cm</span>
+                    <span>tdc</span>
                     <span class="arg">inbox</span>
                 </div>
                 <div class="out out-ok">5 unread threads</div>
                 <div class="line">
                     <span class="ps">$</span>
-                    <span>cm</span>
+                    <span>tdc</span>
                     <span class="arg">compose</span>
                     <span>"Weekly update"</span>
                 </div>
@@ -425,7 +425,7 @@ export function renderSuccess(): string {
             </div>
             <div class="info-text">
                 <h4>Return to your terminal</h4>
-                <p>You can close this window. Run <code>cm --help</code> to see available commands.</p>
+                <p>You can close this window. Run <code>tdc --help</code> to see available commands.</p>
             </div>
         </div>
 
@@ -700,7 +700,7 @@ export function renderError(errorMessage: string): string {
         </div>
         <h1>Authentication failed</h1>
         <p>${errorMessage}</p>
-        <div class="hint">Try again with <code>cm auth login</code></div>
+        <div class="hint">Try again with <code>tdc auth login</code></div>
     </div>
 </body>
 </html>`

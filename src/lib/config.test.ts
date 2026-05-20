@@ -181,7 +181,7 @@ describe('readConfigStrict wrapper', () => {
         await expect(readConfigStrict()).rejects.toMatchObject({
             code: 'CONFIG_READ_FAILED',
             message: expect.stringContaining('EACCES: permission denied'),
-            hints: ['Check file permissions, or run `cm doctor` to diagnose'],
+            hints: ['Check file permissions, or run `tdc doctor` to diagnose'],
         })
     })
 
@@ -194,7 +194,7 @@ describe('readConfigStrict wrapper', () => {
             code: 'CONFIG_INVALID_JSON',
             message: expect.stringContaining('Unexpected token'),
             hints: [
-                'Fix the JSON by hand, or delete the file and re-authenticate with `cm auth login`',
+                'Fix the JSON by hand, or delete the file and re-authenticate with `tdc auth login`',
             ],
         })
     })
@@ -208,7 +208,7 @@ describe('readConfigStrict wrapper', () => {
             code: 'CONFIG_INVALID_SHAPE',
             message: expect.stringContaining('got array'),
             hints: [
-                'Fix the JSON by hand, or delete the file and re-authenticate with `cm auth login`',
+                'Fix the JSON by hand, or delete the file and re-authenticate with `tdc auth login`',
             ],
         })
     })

@@ -188,7 +188,7 @@ function wrapResult(
                 throw new CliError(
                     'INSUFFICIENT_SCOPE',
                     'This action requires permissions your current token does not have.',
-                    ['Run `cm auth login` to re-authenticate with the required scopes'],
+                    ['Run `tdc auth login` to re-authenticate with the required scopes'],
                 )
             }
             throw error

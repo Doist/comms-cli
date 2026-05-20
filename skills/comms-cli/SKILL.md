@@ -4,119 +4,119 @@ description: "Comms messaging CLI. View and respond to inbox threads, channel th
 license: MIT
 metadata:
   author: Doist
-  version: "2.41.2"
+  version: "0.1.0-alpha.1"
 ---
 
-# Comms CLI (cm)
+# Comms CLI (tdc)
 
-Access Comms messaging via the `cm` CLI. Use when the user asks about their Comms workspaces, threads, messages, or wants to interact with Comms in any way.
+Access Comms messaging via the `tdc` CLI. Use when the user asks about their Comms workspaces, threads, messages, or wants to interact with Comms in any way.
 
 ## Setup
 
 ```bash
-cm auth login                    # OAuth login (opens browser, read-write)
-cm auth login --read-only        # OAuth login with read-only scope
-cm auth login --callback-port <n># Override the local OAuth callback port (default 8766)
-cm auth login --json             # Emit a JSON envelope for scripted / agent use
-cm auth login --ndjson           # Emit an NDJSON envelope for scripted / agent use
-cm auth token                    # Save API token manually (prompts securely; scope unknown, assumed write-capable)
-cm auth status                   # Verify authentication + show mode
-cm auth status --json            # Full status payload as JSON (--ndjson also supported)
-cm auth status --user <ref>      # Target a specific stored account (id, id:<n>, or display name)
-cm --user <ref> auth <status|logout|token view>  # Equivalent to passing --user after the subcommand; other commands accept the flag but ignore it
-cm auth logout                   # Remove saved token and auth metadata
-cm auth logout --json            # Emits `{"ok": true}` (--ndjson is silent)
-cm auth logout --user <ref>      # Target a specific stored account; mismatched ref errors with ACCOUNT_NOT_FOUND
-cm auth token view               # Print the saved token to stdout (pipe-safe; refuses if COMMS_API_TOKEN is set)
-cm auth token view --user <ref>  # Print the saved token for a specific stored account
-cm account [list|current|use <ref>|remove <ref>]  # Manage stored accounts; all support --json/--ndjson
+tdc auth login                    # OAuth login (opens browser, read-write)
+tdc auth login --read-only        # OAuth login with read-only scope
+tdc auth login --callback-port <n># Override the local OAuth callback port (default 8766)
+tdc auth login --json             # Emit a JSON envelope for scripted / agent use
+tdc auth login --ndjson           # Emit an NDJSON envelope for scripted / agent use
+tdc auth token                    # Save API token manually (prompts securely; scope unknown, assumed write-capable)
+tdc auth status                   # Verify authentication + show mode
+tdc auth status --json            # Full status payload as JSON (--ndjson also supported)
+tdc auth status --user <ref>      # Target a specific stored account (id, id:<n>, or display name)
+tdc --user <ref> auth <status|logout|token view>  # Equivalent to passing --user after the subcommand; other commands accept the flag but ignore it
+tdc auth logout                   # Remove saved token and auth metadata
+tdc auth logout --json            # Emits `{"ok": true}` (--ndjson is silent)
+tdc auth logout --user <ref>      # Target a specific stored account; mismatched ref errors with ACCOUNT_NOT_FOUND
+tdc auth token view               # Print the saved token to stdout (pipe-safe; refuses if COMMS_API_TOKEN is set)
+tdc auth token view --user <ref>  # Print the saved token for a specific stored account
+tdc account [list|current|use <ref>|remove <ref>]  # Manage stored accounts; all support --json/--ndjson
                                  # current's payload is {id, label, authMode, authScope, source:"config"} | {source:"env"} | {source:"token-only"}
-cm auth login                    # Re-running auth login with a different OAuth grant adds a NEW account; default stays pinned unless none was set
-cm workspaces                    # List available workspaces
-cm workspace use <ref>           # Set current workspace
-cm completion install            # Install shell completions
-cm config view                   # Show the current CLI configuration file (token masked)
-cm config set <key> <value>      # Set a user preference (e.g. unarchive-new-threads true)
-cm doctor                        # Diagnose CLI setup and environment issues
-cm update                        # Update CLI to latest version
-cm changelog                     # Show recent changelog entries
+tdc auth login                    # Re-running auth login with a different OAuth grant adds a NEW account; default stays pinned unless none was set
+tdc workspaces                    # List available workspaces
+tdc workspace use <ref>           # Set current workspace
+tdc completion install            # Install shell completions
+tdc config view                   # Show the current CLI configuration file (token masked)
+tdc config set <key> <value>      # Set a user preference (e.g. unarchive-new-threads true)
+tdc doctor                        # Diagnose CLI setup and environment issues
+tdc update                        # Update CLI to latest version
+tdc changelog                     # Show recent changelog entries
 ```
 
-Stored auth uses the system credential manager when available. If secure storage is unavailable, `cm` warns and falls back to `~/.config/comms-cli/config.json`. `COMMS_API_TOKEN` always takes priority over the stored token, and legacy plaintext config tokens are migrated automatically when secure storage is available.
+Stored auth uses the system credential manager when available. If secure storage is unavailable, `tdc` warns and falls back to `~/.config/comms-cli/config.json`. `COMMS_API_TOKEN` always takes priority over the stored token.
 
-In read-only mode (`cm auth login --read-only`), commands that modify Comms data (reply, archive, react, delete, etc.) are blocked by the CLI. Externally provided tokens (`COMMS_API_TOKEN` or `cm auth token`) are treated as unknown scope and assumed write-capable.
+In read-only mode (`tdc auth login --read-only`), commands that modify Comms data (reply, archive, react, delete, etc.) are blocked by the CLI. Externally provided tokens (`COMMS_API_TOKEN` or `tdc auth token`) are treated as unknown scope and assumed write-capable.
 
 ## View by URL
 
 ```bash
-cm view <url>                    # View any Comms entity by URL
+tdc view <url>                    # View any Comms entity by URL
 ```
 
 Routes automatically based on URL structure:
-- Message URL → `cm msg view`
-- Conversation URL → `cm conversation view`
-- Thread+comment URL → `cm thread view` (comment ID extracted from URL)
-- Thread URL → `cm thread view`
+- Message URL → `tdc msg view`
+- Conversation URL → `tdc conversation view`
+- Thread+comment URL → `tdc thread view` (comment ID extracted from URL)
+- Thread URL → `tdc thread view`
 
 All target command flags pass through (e.g. `--json`, `--raw`, `--full`).
 
 ## Inbox
 
 ```bash
-cm inbox                         # Show inbox threads
-cm inbox --unread                # Only unread threads
-cm inbox --archive-filter all      # Show active + done threads
-cm inbox --archive-filter archived # Show only done threads
-cm inbox --channel <filter>      # Filter by channel name (fuzzy)
-cm inbox --since <date>          # Filter by date (ISO format)
-cm inbox --limit <n>             # Max items (default: 50)
+tdc inbox                         # Show inbox threads
+tdc inbox --unread                # Only unread threads
+tdc inbox --archive-filter all      # Show active + done threads
+tdc inbox --archive-filter archived # Show only done threads
+tdc inbox --channel <filter>      # Filter by channel name (fuzzy)
+tdc inbox --since <date>          # Filter by date (ISO format)
+tdc inbox --limit <n>             # Max items (default: 50)
 ```
 
 ## Threads
 
 ```bash
-cm thread <thread-ref>           # View thread (shorthand for view)
-cm thread view <thread-ref>      # View thread with comments
-cm thread view <ref> --comment <id> # View a specific comment
-cm thread view <url-with-/c/id>  # Comment ID extracted from URL
-cm thread view <ref> --unread    # Show only unread comments
-cm thread view <ref> --context 3 # Include 3 read comments before unread
-cm thread view <ref> --limit 20  # Limit number of comments
-cm thread view <ref> --since <date> # Comments newer than date
-cm thread view <ref> --raw       # Show raw markdown
-cm thread create <channel-ref> "Title" "content"    # Create a new thread
-cm thread create <channel-ref> "Title" "content" --json       # Create and return as JSON
-cm thread create <channel-ref> "Title" "content" --json --full # Include all thread fields
-cm thread create <channel-ref> "Title" "content" --notify 123,456  # Notify specific users
-cm thread create <channel-ref> "Title" "content" --unarchive  # Land thread in author's Inbox (overrides default Comms auto-archive)
-cm thread create <channel-ref> "Title" "content" --no-unarchive  # Force archive even when userSettings.unarchiveNewThreads=true
-cm thread create <channel-ref> "Title" "content" --dry-run  # Preview without posting
-cm thread reply <ref> "content"  # Post a comment (notifies EVERYONE_IN_THREAD by default)
-cm thread reply <ref> "content" --notify EVERYONE  # Notify all workspace members
-cm thread reply <ref> "content" --notify 123,id:456   # Notify specific user IDs
-cm thread reply <ref> "content" --json  # Post and return comment as JSON
-cm thread reply <ref> "content" --json --full  # Include all comment fields
-cm thread reply <ref> "content" --close       # Reply and close the thread
-cm thread reply <ref> "content" --reopen      # Reply and reopen a closed thread
-cm thread done <ref>             # Archive thread (mark done)
-cm thread done <ref> --json      # Archive and return status as JSON
-cm thread mute <ref>             # Mute thread for 60 minutes (default)
-cm thread mute <ref> --minutes 480  # Mute for custom duration
-cm thread mute <ref> --json      # Mute and return { id, mutedUntil } as JSON
-cm thread mute <ref> --json --full  # Mute and return full thread as JSON
-cm thread unmute <ref>           # Unmute a muted thread
-cm thread unmute <ref> --json    # Unmute and return { id, mutedUntil } as JSON
-cm thread delete <ref>             # Preview thread deletion (requires --yes to execute)
-cm thread delete <ref> --yes       # Permanently delete a thread
-cm thread delete <ref> --yes --json # Delete and return status as JSON
-cm thread rename <ref> "New title"  # Rename a thread (change its title)
-cm thread rename <ref> "New title" --json  # Rename and return { id, title } as JSON
-cm thread rename <ref> "New title" --json --full  # Rename and return full thread as JSON
-cm thread update <ref> "New body"   # Update a thread's body (the first post)
-echo "New body" | cm thread update <ref>  # Update body from stdin
-cm thread update <ref> "New body" --dry-run  # Preview without updating
-cm thread update <ref> "New body" --json  # Update and return { id, content } as JSON
-cm thread update <ref> "New body" --json --full  # Update and return full thread as JSON
+tdc thread <thread-ref>           # View thread (shorthand for view)
+tdc thread view <thread-ref>      # View thread with comments
+tdc thread view <ref> --comment <id> # View a specific comment
+tdc thread view <url-with-/c/id>  # Comment ID extracted from URL
+tdc thread view <ref> --unread    # Show only unread comments
+tdc thread view <ref> --context 3 # Include 3 read comments before unread
+tdc thread view <ref> --limit 20  # Limit number of comments
+tdc thread view <ref> --since <date> # Comments newer than date
+tdc thread view <ref> --raw       # Show raw markdown
+tdc thread create <channel-ref> "Title" "content"    # Create a new thread
+tdc thread create <channel-ref> "Title" "content" --json       # Create and return as JSON
+tdc thread create <channel-ref> "Title" "content" --json --full # Include all thread fields
+tdc thread create <channel-ref> "Title" "content" --notify 123,456  # Notify specific users
+tdc thread create <channel-ref> "Title" "content" --unarchive  # Land thread in author's Inbox (overrides default Comms auto-archive)
+tdc thread create <channel-ref> "Title" "content" --no-unarchive  # Force archive even when userSettings.unarchiveNewThreads=true
+tdc thread create <channel-ref> "Title" "content" --dry-run  # Preview without posting
+tdc thread reply <ref> "content"  # Post a comment (notifies EVERYONE_IN_THREAD by default)
+tdc thread reply <ref> "content" --notify EVERYONE  # Notify all workspace members
+tdc thread reply <ref> "content" --notify 123,id:456   # Notify specific user IDs
+tdc thread reply <ref> "content" --json  # Post and return comment as JSON
+tdc thread reply <ref> "content" --json --full  # Include all comment fields
+tdc thread reply <ref> "content" --close       # Reply and close the thread
+tdc thread reply <ref> "content" --reopen      # Reply and reopen a closed thread
+tdc thread done <ref>             # Archive thread (mark done)
+tdc thread done <ref> --json      # Archive and return status as JSON
+tdc thread mute <ref>             # Mute thread for 60 minutes (default)
+tdc thread mute <ref> --minutes 480  # Mute for custom duration
+tdc thread mute <ref> --json      # Mute and return { id, mutedUntil } as JSON
+tdc thread mute <ref> --json --full  # Mute and return full thread as JSON
+tdc thread unmute <ref>           # Unmute a muted thread
+tdc thread unmute <ref> --json    # Unmute and return { id, mutedUntil } as JSON
+tdc thread delete <ref>             # Preview thread deletion (requires --yes to execute)
+tdc thread delete <ref> --yes       # Permanently delete a thread
+tdc thread delete <ref> --yes --json # Delete and return status as JSON
+tdc thread rename <ref> "New title"  # Rename a thread (change its title)
+tdc thread rename <ref> "New title" --json  # Rename and return { id, title } as JSON
+tdc thread rename <ref> "New title" --json --full  # Rename and return full thread as JSON
+tdc thread update <ref> "New body"   # Update a thread's body (the first post)
+echo "New body" | tdc thread update <ref>  # Update body from stdin
+tdc thread update <ref> "New body" --dry-run  # Preview without updating
+tdc thread update <ref> "New body" --json  # Update and return { id, content } as JSON
+tdc thread update <ref> "New body" --json --full  # Update and return full thread as JSON
 ```
 
 Default `--notify` for reply is EVERYONE_IN_THREAD, which may notify more people than intended. Before posting, confirm with the user whether specific people should be notified instead (via `--notify <user-ids>`). Options: EVERYONE, EVERYONE_IN_THREAD, or comma-separated ID refs.
@@ -126,141 +126,141 @@ Default `--notify` for reply is EVERYONE_IN_THREAD, which may notify more people
 ## Thread Comments
 
 ```bash
-cm comment <comment-ref>                       # View a comment (shorthand for view)
-cm comment view <comment-ref>                  # View a single thread comment
-cm comment view <comment-ref> --raw            # Show raw markdown
-cm comment view <comment-ref> --json           # Output as JSON
-cm comment view <comment-ref> --ndjson         # Output as newline-delimited JSON
-cm comment view <comment-ref> --json --full    # Include all fields in JSON output
-cm comment update <comment-ref> "new content"  # Update a thread comment
-cm comment update <comment-ref> "content" --json  # Update and return updated comment as JSON
-cm comment update <comment-ref> "content" --json --full  # Include all comment fields
-cm comment delete <comment-ref>                # Delete a thread comment
-cm comment delete <comment-ref> --json         # Delete and return status as JSON
+tdc comment <comment-ref>                       # View a comment (shorthand for view)
+tdc comment view <comment-ref>                  # View a single thread comment
+tdc comment view <comment-ref> --raw            # Show raw markdown
+tdc comment view <comment-ref> --json           # Output as JSON
+tdc comment view <comment-ref> --ndjson         # Output as newline-delimited JSON
+tdc comment view <comment-ref> --json --full    # Include all fields in JSON output
+tdc comment update <comment-ref> "new content"  # Update a thread comment
+tdc comment update <comment-ref> "content" --json  # Update and return updated comment as JSON
+tdc comment update <comment-ref> "content" --json --full  # Include all comment fields
+tdc comment delete <comment-ref>                # Delete a thread comment
+tdc comment delete <comment-ref> --json         # Delete and return status as JSON
 ```
 
 ## Conversations (DMs/Groups)
 
 ```bash
-cm conversation unread                    # List unread conversations
-cm conversation <conversation-ref>        # View conversation (shorthand for view)
-cm conversation view <conversation-ref>   # View conversation messages
-cm conversation with <user-ref>           # Find your 1:1 DM with a user
-cm conversation with <user-ref> --snippet # Include the latest message preview
-cm conversation with <user-ref> --include-groups # List any conversations with that user
-cm conversation reply <ref> "content"     # Send a message
-cm conversation reply <ref> "content" --json  # Send and return message as JSON
-cm conversation reply <ref> "content" --json --full  # Include all message fields
-cm conversation done <ref>                # Archive conversation
-cm conversation done <ref> --json         # Archive and return status as JSON
-cm conversation mute <ref>               # Mute conversation for 60 minutes (default)
-cm conversation mute <ref> --minutes 480 # Mute for custom duration
-cm conversation mute <ref> --json        # Mute and return { id, mutedUntil } as JSON
-cm conversation mute <ref> --json --full # Mute and return full conversation as JSON
-cm conversation unmute <ref>             # Unmute a muted conversation
-cm conversation unmute <ref> --json      # Unmute and return { id, mutedUntil } as JSON
+tdc conversation unread                    # List unread conversations
+tdc conversation <conversation-ref>        # View conversation (shorthand for view)
+tdc conversation view <conversation-ref>   # View conversation messages
+tdc conversation with <user-ref>           # Find your 1:1 DM with a user
+tdc conversation with <user-ref> --snippet # Include the latest message preview
+tdc conversation with <user-ref> --include-groups # List any conversations with that user
+tdc conversation reply <ref> "content"     # Send a message
+tdc conversation reply <ref> "content" --json  # Send and return message as JSON
+tdc conversation reply <ref> "content" --json --full  # Include all message fields
+tdc conversation done <ref>                # Archive conversation
+tdc conversation done <ref> --json         # Archive and return status as JSON
+tdc conversation mute <ref>               # Mute conversation for 60 minutes (default)
+tdc conversation mute <ref> --minutes 480 # Mute for custom duration
+tdc conversation mute <ref> --json        # Mute and return { id, mutedUntil } as JSON
+tdc conversation mute <ref> --json --full # Mute and return full conversation as JSON
+tdc conversation unmute <ref>             # Unmute a muted conversation
+tdc conversation unmute <ref> --json      # Unmute and return { id, mutedUntil } as JSON
 ```
 
-Alias: `cm convo` works the same as `cm conversation`.
+Alias: `tdc convo` works the same as `tdc conversation`.
 
 ## Conversation Messages
 
 ```bash
-cm msg <message-ref>             # View a message (shorthand for view)
-cm msg view <message-ref>        # View a single conversation message
-cm msg update <ref> "content"    # Edit a conversation message
-cm msg update <ref> "content" --json  # Edit and return updated message as JSON
-cm msg update <ref> "content" --json --full  # Include all message fields
-cm msg delete <ref>              # Delete a conversation message
-cm msg delete <ref> --json       # Delete and return status as JSON
+tdc msg <message-ref>             # View a message (shorthand for view)
+tdc msg view <message-ref>        # View a single conversation message
+tdc msg update <ref> "content"    # Edit a conversation message
+tdc msg update <ref> "content" --json  # Edit and return updated message as JSON
+tdc msg update <ref> "content" --json --full  # Include all message fields
+tdc msg delete <ref>              # Delete a conversation message
+tdc msg delete <ref> --json       # Delete and return status as JSON
 ```
 
-Alias: `cm message` works the same as `cm msg`.
+Alias: `tdc message` works the same as `tdc msg`.
 
 ## Search
 
 ```bash
-cm mentions                      # Show content mentioning current user
-cm mentions --since 2026-04-01 --all # Fetch every mention since a date
-cm mentions --type threads --json # Limit mentions to threads
-cm search "query"                # Search content
-cm search "query" --type threads # Filter: threads, messages, or all
-cm search "query" --author <ref> # Filter by author
-cm search "query" --to <ref>     # Messages sent to user
-cm search "query" --title-only   # Search thread titles only
-cm search "query" --mention-me   # Results mentioning current user
-cm search "query" --conversation <refs> # Limit to conversations (comma-separated refs)
-cm search "query" --since <date> # Content from date
-cm search "query" --until <date> # Content until date
-cm search "query" --channel <refs> # Filter by channel refs (comma-separated)
-cm search "query" --limit <n>    # Max results (default: 50)
-cm search "query" --cursor <cur> # Pagination cursor
-cm search "query" --all          # Fetch all result pages
+tdc mentions                      # Show content mentioning current user
+tdc mentions --since 2026-04-01 --all # Fetch every mention since a date
+tdc mentions --type threads --json # Limit mentions to threads
+tdc search "query"                # Search content
+tdc search "query" --type threads # Filter: threads, messages, or all
+tdc search "query" --author <ref> # Filter by author
+tdc search "query" --to <ref>     # Messages sent to user
+tdc search "query" --title-only   # Search thread titles only
+tdc search "query" --mention-me   # Results mentioning current user
+tdc search "query" --conversation <refs> # Limit to conversations (comma-separated refs)
+tdc search "query" --since <date> # Content from date
+tdc search "query" --until <date> # Content until date
+tdc search "query" --channel <refs> # Filter by channel refs (comma-separated)
+tdc search "query" --limit <n>    # Max results (default: 50)
+tdc search "query" --cursor <cur> # Pagination cursor
+tdc search "query" --all          # Fetch all result pages
 ```
 
 ## Users, Channels & Groups
 
 ```bash
-cm user                          # Show current user info
-cm user --json                   # JSON output
-cm user --json --full            # Include all fields in JSON output
-cm users                         # List workspace users
-cm users --search <text>         # Filter by name/email
-cm channels                      # List active joined workspace channels (alias of: cm channel list)
-cm channels --state all          # Include archived joined channels too
-cm channels --scope discoverable # Active public channels you can see but have not joined
-cm channels --scope public --state all --json # All visible public channels, with joined status
-cm channel threads <channel-ref>  # List threads in a channel (fuzzy name, id:, numeric ID, or URL)
-cm channel threads "general" --unread       # Only unread threads
-cm channel threads <ref> --archive-filter all  # Include archived threads (active|archived|all)
-cm channel threads <ref> --since 2026-01-01 # Filter by last-updated date (ISO)
-cm channel threads <ref> --limit 20         # Max threads per page (default: 50)
-cm channel threads <ref> --limit 20 --cursor <cursor-from-prev> # Paginate
-cm channel threads <ref> --json  # { results, nextCursor } with isUnread + url
-cm groups                        # List workspace groups
-cm groups --search "frontend"    # Filter groups by name (case-insensitive)
-cm groups --json                 # JSON output
-cm groups --json --full          # Include all fields in JSON output
-cm groups view <group-ref>       # Show group with member details
-cm groups view <ref> --json      # JSON output with id, name, workspaceId, members
-cm groups view <ref> --json --full  # Include all fields in JSON output
-cm groups create "Name"          # Create a new group
-cm groups create "Name" --users alice@doist.com,bob@doist.com  # Create with members
-cm groups create "Name" --json   # Output created group as JSON
-cm groups rename <group-ref> "New name"  # Rename a group
-cm groups rename <ref> "Name" --json     # Output renamed group as JSON
-cm groups delete <group-ref> --yes       # Delete a group (requires --yes)
-cm groups delete <ref> --dry-run         # Preview deletion
-cm groups add-user <group-ref> user1 user2   # Add users to a group
-cm groups add-user <ref> a@d.com,b@d.com     # Comma-separated refs
-cm groups add-user <ref> id:123 --json       # Output result as JSON
-cm groups remove-user <group-ref> user1 user2  # Remove users from a group
-cm groups remove-user <ref> id:123,id:456      # Comma-separated ID refs
+tdc user                          # Show current user info
+tdc user --json                   # JSON output
+tdc user --json --full            # Include all fields in JSON output
+tdc users                         # List workspace users
+tdc users --search <text>         # Filter by name/email
+tdc channels                      # List active joined workspace channels (alias of: tdc channel list)
+tdc channels --state all          # Include archived joined channels too
+tdc channels --scope discoverable # Active public channels you can see but have not joined
+tdc channels --scope public --state all --json # All visible public channels, with joined status
+tdc channel threads <channel-ref>  # List threads in a channel (fuzzy name, id:, numeric ID, or URL)
+tdc channel threads "general" --unread       # Only unread threads
+tdc channel threads <ref> --archive-filter all  # Include archived threads (active|archived|all)
+tdc channel threads <ref> --since 2026-01-01 # Filter by last-updated date (ISO)
+tdc channel threads <ref> --limit 20         # Max threads per page (default: 50)
+tdc channel threads <ref> --limit 20 --cursor <cursor-from-prev> # Paginate
+tdc channel threads <ref> --json  # { results, nextCursor } with isUnread + url
+tdc groups                        # List workspace groups
+tdc groups --search "frontend"    # Filter groups by name (case-insensitive)
+tdc groups --json                 # JSON output
+tdc groups --json --full          # Include all fields in JSON output
+tdc groups view <group-ref>       # Show group with member details
+tdc groups view <ref> --json      # JSON output with id, name, workspaceId, members
+tdc groups view <ref> --json --full  # Include all fields in JSON output
+tdc groups create "Name"          # Create a new group
+tdc groups create "Name" --users alice@doist.com,bob@doist.com  # Create with members
+tdc groups create "Name" --json   # Output created group as JSON
+tdc groups rename <group-ref> "New name"  # Rename a group
+tdc groups rename <ref> "Name" --json     # Output renamed group as JSON
+tdc groups delete <group-ref> --yes       # Delete a group (requires --yes)
+tdc groups delete <ref> --dry-run         # Preview deletion
+tdc groups add-user <group-ref> user1 user2   # Add users to a group
+tdc groups add-user <ref> a@d.com,b@d.com     # Comma-separated refs
+tdc groups add-user <ref> id:123 --json       # Output result as JSON
+tdc groups remove-user <group-ref> user1 user2  # Remove users from a group
+tdc groups remove-user <ref> id:123,id:456      # Comma-separated ID refs
 ```
 
-If a channel is not found in `cm channels`, widen with broader listings such as `cm channels --scope public`, then `cm channels --scope public --state all`. Check `cm channels --help` for other available filters.
+If a channel is not found in `tdc channels`, widen with broader listings such as `tdc channels --scope public`, then `tdc channels --scope public --state all`. Check `tdc channels --help` for other available filters.
 
-`cm channel threads` returns every thread in the channel; pagination filters (`--limit`, `--cursor`, `--since`, `--until`, `--unread`) are applied client-side after fetch. `--archive-filter` is applied server-side. Results are sorted newest-first by last activity. In `--json` / `--ndjson`, the response includes a `nextCursor` string (opaque) you can pass via `--cursor` to fetch the next page; NDJSON emits the cursor as a final `{ "_meta": true, "nextCursor": "..." }` line.
+`tdc channel threads` returns every thread in the channel; pagination filters (`--limit`, `--cursor`, `--since`, `--until`, `--unread`) are applied client-side after fetch. `--archive-filter` is applied server-side. Results are sorted newest-first by last activity. In `--json` / `--ndjson`, the response includes a `nextCursor` string (opaque) you can pass via `--cursor` to fetch the next page; NDJSON emits the cursor as a final `{ "_meta": true, "nextCursor": "..." }` line.
 
 ## Away Status
 
 ```bash
-cm away                          # Show current away status
-cm away set <type> [until]       # Set away (type: vacation, parental, sickleave, other)
-cm away set vacation 2026-03-20  # Away until March 20
-cm away set vacation 2026-03-20 --from 2026-03-15  # Custom start date
-cm away clear                    # Clear away status
+tdc away                          # Show current away status
+tdc away set <type> [until]       # Set away (type: vacation, parental, sickleave, other)
+tdc away set vacation 2026-03-20  # Away until March 20
+tdc away set vacation 2026-03-20 --from 2026-03-15  # Custom start date
+tdc away clear                    # Clear away status
 ```
 
 ## Reactions
 
 ```bash
-cm react thread <ref> 👍         # Add reaction to thread
-cm react comment <ref> +1        # Add reaction (shortcode)
-cm react message <ref> heart     # Add reaction to DM message
-cm react thread <ref> 👍 --json  # Output result as JSON
-cm unreact thread <ref> 👍       # Remove reaction
-cm unreact thread <ref> 👍 --json # Output result as JSON
+tdc react thread <ref> 👍         # Add reaction to thread
+tdc react comment <ref> +1        # Add reaction (shortcode)
+tdc react message <ref> heart     # Add reaction to DM message
+tdc react thread <ref> 👍 --json  # Output result as JSON
+tdc unreact thread <ref> 👍       # Remove reaction
+tdc unreact thread <ref> 👍 --json # Output result as JSON
 ```
 
 Supported shortcodes: +1, -1, heart, tada, smile, laughing, thinking, fire, check, x, eyes, pray, clap, rocket, wave
@@ -268,52 +268,52 @@ Supported shortcodes: +1, -1, heart, tada, smile, laughing, thinking, fire, chec
 ## Shell Completions
 
 ```bash
-cm completion install            # Install tab completions (prompts for shell)
-cm completion install bash       # Install for specific shell
-cm completion install zsh
-cm completion install fish
-cm completion uninstall          # Remove completions
+tdc completion install            # Install tab completions (prompts for shell)
+tdc completion install bash       # Install for specific shell
+tdc completion install zsh
+tdc completion install fish
+tdc completion uninstall          # Remove completions
 ```
 
 ### Diagnostics
 
 ```bash
-cm doctor                        # Run local + network diagnostics
-cm doctor --offline              # Skip Comms and npm network checks
-cm doctor --json                 # JSON output with per-check results
+tdc doctor                        # Run local + network diagnostics
+tdc doctor --offline              # Skip Comms and npm network checks
+tdc doctor --json                 # JSON output with per-check results
 ```
 
 ### Configuration
 
 ```bash
-cm config view                   # Pretty-printed config, token masked, labels actual token source
-cm config view --json            # Raw JSON, token masked
-cm config view --show-token      # Include the full token
-cm config set unarchive-new-threads true   # Persist: always unarchive new threads so they land in your Inbox
-cm config set unarchive-new-threads false  # Persist: keep Comms's default (thread auto-archived for author)
+tdc config view                   # Pretty-printed config, token masked, labels actual token source
+tdc config view --json            # Raw JSON, token masked
+tdc config view --show-token      # Include the full token
+tdc config set unarchive-new-threads true   # Persist: always unarchive new threads so they land in your Inbox
+tdc config set unarchive-new-threads false  # Persist: keep Comms's default (thread auto-archived for author)
 ```
 
-User preferences are stored under `userSettings` in the config file. Currently supported keys: `unarchive-new-threads`. The flag on `cm thread create` (`--unarchive` / `--no-unarchive`) overrides this default per-invocation.
+User preferences are stored under `userSettings` in the config file. Currently supported keys: `unarchive-new-threads`. The flag on `tdc thread create` (`--unarchive` / `--no-unarchive`) overrides this default per-invocation.
 
 ### Update
 
 ```bash
-cm update                        # Update CLI to latest version
-cm update --check                # Check for updates without installing, show channel
-cm update --check --json         # Same, JSON envelope
-cm update --check --ndjson       # Same, newline-delimited JSON envelope
-cm update --channel              # Show current update channel
-cm update switch --stable        # Switch to stable release channel
-cm update switch --pre-release   # Switch to pre-release (next) channel
-cm update switch --pre-release --json    # Same, JSON envelope
-cm update switch --pre-release --ndjson  # Same, newline-delimited JSON envelope
+tdc update                        # Update CLI to latest version
+tdc update --check                # Check for updates without installing, show channel
+tdc update --check --json         # Same, JSON envelope
+tdc update --check --ndjson       # Same, newline-delimited JSON envelope
+tdc update --channel              # Show current update channel
+tdc update switch --stable        # Switch to stable release channel
+tdc update switch --pre-release   # Switch to pre-release (next) channel
+tdc update switch --pre-release --json    # Same, JSON envelope
+tdc update switch --pre-release --ndjson  # Same, newline-delimited JSON envelope
 ```
 
 ### Changelog
 ```bash
-cm changelog                     # Show last 5 versions
-cm changelog -n 3                # Show last 3 versions
-cm changelog --count 10          # Show last 10 versions
+tdc changelog                     # Show last 5 versions
+tdc changelog -n 3                # Show last 3 versions
+tdc changelog --count 10          # Show last 10 versions
 ```
 
 ## Global Options
@@ -323,7 +323,7 @@ cm changelog --count 10          # Show last 10 versions
 --progress-jsonl           # Machine-readable progress events (JSONL to stderr)
 --progress-jsonl=<path>    # Same, but write events to <path> instead of stderr
 --progress-jsonl <path>    # Same as above (space-separated form also accepted)
---accessible               # Add text labels to color-coded output (also: TW_ACCESSIBLE=1)
+--accessible               # Add text labels to color-coded output (also: TDC_ACCESSIBLE=1)
 --non-interactive          # Disable interactive prompts (auto-detected when stdin is not a TTY)
 --interactive              # Force interactive mode even when stdin is not a TTY
 ```
@@ -361,9 +361,9 @@ Commands accept flexible references:
 Commands that accept content (`thread create`, `thread reply`, `comment update`, `conversation reply`, `msg update`) auto-detect piped stdin:
 
 ```bash
-cat notes.md | cm thread reply <ref>
-cm thread create <channel-ref> "Title" < body.md
-echo "Quick reply" | cm conversation reply <ref>
+cat notes.md | tdc thread reply <ref>
+tdc thread create <channel-ref> "Title" < body.md
+echo "Quick reply" | tdc conversation reply <ref>
 ```
 
 If no content argument is provided and no stdin is piped, the CLI opens `$EDITOR` for interactive input. In non-TTY environments (e.g. when called by an agent or in a pipeline), the editor is automatically skipped and the command fails fast with an actionable error message. Use `--non-interactive` to force this behavior even in a TTY, or `--interactive` to override auto-detection.
@@ -372,31 +372,31 @@ If no content argument is provided and no stdin is piped, the CLI opens `$EDITOR
 
 **View by URL (auto-routes to the right command):**
 ```bash
-cm view https://comms.todoist.com/a/1585/ch/100/t/200          # View thread
-cm view https://comms.todoist.com/a/1585/ch/100/t/200/c/300     # View comment
-cm view https://comms.todoist.com/a/1585/msg/400                 # View conversation
-cm view https://comms.todoist.com/a/1585/msg/400/m/500 --json    # View message as JSON
+tdc view https://comms.todoist.com/a/1585/ch/100/t/200          # View thread
+tdc view https://comms.todoist.com/a/1585/ch/100/t/200/c/300     # View comment
+tdc view https://comms.todoist.com/a/1585/msg/400                 # View conversation
+tdc view https://comms.todoist.com/a/1585/msg/400/m/500 --json    # View message as JSON
 ```
 
 **Check inbox and respond:**
 ```bash
-cm inbox --unread --json
-cm thread view <id> --unread
-cm thread reply <id> "Thanks, I'll look into this."
-cm thread done <id>
+tdc inbox --unread --json
+tdc thread view <id> --unread
+tdc thread reply <id> "Thanks, I'll look into this."
+tdc thread done <id>
 ```
 
 **Search and review:**
 ```bash
-cm mentions --since 2026-04-01 --all --json
-cm search "deployment" --type threads --json
-cm thread view <thread-id>
+tdc mentions --since 2026-04-01 --all --json
+tdc search "deployment" --type threads --json
+tdc thread view <thread-id>
 ```
 
 **Check DMs:**
 ```bash
-cm conversation unread --json
-cm conversation view <conversation-id>
-cm conversation with "Alice Example"
-cm conversation reply <id> "Got it, thanks!"
+tdc conversation unread --json
+tdc conversation view <conversation-id>
+tdc conversation with "Alice Example"
+tdc conversation reply <id> "Got it, thanks!"
 ```

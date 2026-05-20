@@ -9,7 +9,7 @@ export function registerUpdateCommand(program: Command): void {
         packageName: packageJson.name,
         currentVersion: packageJson.version,
         configPath: getConfigPath(),
-        changelogCommandName: 'cm changelog',
+        changelogCommandName: 'tdc changelog',
         withSpinner,
     })
 }

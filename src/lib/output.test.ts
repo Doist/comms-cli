@@ -10,11 +10,11 @@ describe('isAccessible', () => {
 
     beforeEach(() => {
         resetGlobalArgs()
-        process.argv = ['node', 'cm']
+        process.argv = ['node', 'tdc']
     })
 
     afterEach(() => {
-        delete process.env.CM_ACCESSIBLE
+        delete process.env.TDC_ACCESSIBLE
         process.argv = originalArgv
         resetGlobalArgs()
     })
@@ -23,20 +23,20 @@ describe('isAccessible', () => {
         expect(isAccessible()).toBe(false)
     })
 
-    it('returns true when CM_ACCESSIBLE=1', () => {
-        process.env.CM_ACCESSIBLE = '1'
+    it('returns true when TDC_ACCESSIBLE=1', () => {
+        process.env.TDC_ACCESSIBLE = '1'
         expect(isAccessible()).toBe(true)
     })
 
-    it('returns false when CM_ACCESSIBLE is set to other values', () => {
-        process.env.CM_ACCESSIBLE = '0'
+    it('returns false when TDC_ACCESSIBLE is set to other values', () => {
+        process.env.TDC_ACCESSIBLE = '0'
         expect(isAccessible()).toBe(false)
-        process.env.CM_ACCESSIBLE = 'true'
+        process.env.TDC_ACCESSIBLE = 'true'
         expect(isAccessible()).toBe(false)
     })
 
     it('returns true when --accessible is in argv', () => {
-        process.argv = ['node', 'cm', '--accessible']
+        process.argv = ['node', 'tdc', '--accessible']
         resetGlobalArgs()
         expect(isAccessible()).toBe(true)
     })

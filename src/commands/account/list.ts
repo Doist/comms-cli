@@ -15,7 +15,7 @@ export async function listAccounts(options: ViewOptions, store: CommsTokenStore)
     if (options.ndjson) return console.log(formatNdjson(rows))
 
     if (rows.length === 0) {
-        console.log('No stored accounts. Run `cm auth login` to add one.')
+        console.log('No stored accounts. Run `tdc auth login` to add one.')
         return
     }
 

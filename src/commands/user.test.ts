@@ -38,12 +38,12 @@ describe('users --workspace conflict', () => {
         const program = createProgram()
 
         await expect(
-            program.parseAsync(['node', 'cm', 'users', 'Doist', '--workspace', 'Other']),
+            program.parseAsync(['node', 'tdc', 'users', 'Doist', '--workspace', 'Other']),
         ).rejects.toThrow('Cannot specify workspace both as argument and --workspace flag')
     })
 })
 
-describeEmptyMachineOutput('cm users empty output', {
+describeEmptyMachineOutput('tdc users empty output', {
     setup: () => {
         vi.clearAllMocks()
         apiMocks.getCurrentWorkspaceId.mockResolvedValue(1)
@@ -51,7 +51,7 @@ describeEmptyMachineOutput('cm users empty output', {
     },
     run: async (extraArgs) => {
         const program = createProgram()
-        await program.parseAsync(['node', 'cm', 'users', ...extraArgs])
+        await program.parseAsync(['node', 'tdc', 'users', ...extraArgs])
     },
     humanMessage: 'No users found.',
 })
@@ -78,7 +78,7 @@ describe('user --json', () => {
         const program = createProgram()
         const consoleSpy = vi.spyOn(console, 'log').mockImplementation(() => {})
 
-        await program.parseAsync(['node', 'cm', 'user', '--json'])
+        await program.parseAsync(['node', 'tdc', 'user', '--json'])
 
         expect(consoleSpy).toHaveBeenCalledTimes(1)
         const jsonOutput = JSON.parse(consoleSpy.mock.calls[0][0])
@@ -96,7 +96,7 @@ describe('user --json', () => {
         const program = createProgram()
         const consoleSpy = vi.spyOn(console, 'log').mockImplementation(() => {})
 
-        await program.parseAsync(['node', 'cm', 'user', '--json', '--full'])
+        await program.parseAsync(['node', 'tdc', 'user', '--json', '--full'])
 
         expect(consoleSpy).toHaveBeenCalledTimes(1)
         const jsonOutput = JSON.parse(consoleSpy.mock.calls[0][0])

@@ -253,7 +253,7 @@ async function checkAuthentication(offline: boolean): Promise<DoctorCheck> {
             return {
                 name: 'auth',
                 status: 'warn',
-                message: `No Comms credentials found. Set ${TOKEN_ENV_VAR} or run \`cm auth login\``,
+                message: `No Comms credentials found. Set ${TOKEN_ENV_VAR} or run \`tdc auth login\``,
             }
         }
 

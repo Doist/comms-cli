@@ -107,7 +107,7 @@ function formatConfigView(
 
     // When the mode is 'unknown' and no scope is recorded, the scope is
     // genuinely unintrospectable (env-sourced tokens, or tokens saved via
-    // `cm auth token` without metadata). Render 'unknown' rather than
+    // `tdc auth token` without metadata). Render 'unknown' rather than
     // 'not set' to avoid reading as an explicit empty scope.
     const scopeDisplay =
         effectiveMode === 'unknown' && effectiveScope === undefined

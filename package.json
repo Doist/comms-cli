@@ -5,7 +5,7 @@
     "type": "module",
     "main": "dist/index.js",
     "bin": {
-        "cm": "dist/index.js"
+        "tdc": "dist/index.js"
     },
     "scripts": {
         "build": "tsc -p tsconfig.build.json && chmod +x dist/index.js",

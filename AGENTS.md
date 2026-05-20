@@ -36,7 +36,7 @@ node dist/index.js <command>
 
 ## Architecture
 
-This is a TypeScript CLI (`cm`) for Comms messaging, built with Commander.js.
+This is a TypeScript CLI (`tdc`) for Comms messaging, built with Commander.js.
 
 **Entry point**: `src/index.ts` registers all commands with Commander.
 
@@ -56,7 +56,7 @@ This is a TypeScript CLI (`cm`) for Comms messaging, built with Commander.js.
 
 ## Key Patterns
 
-- **Implicit view subcommand**: `cm thread <ref>` defaults to `cm thread view <ref>` via Commander's `{ isDefault: true }`. Same for `conversation` and `msg`. Edge case: if a ref matches a subcommand name (e.g., "reply"), the subcommand wins — user must use `cm thread view reply`
+- **Implicit view subcommand**: `tdc thread <ref>` defaults to `tdc thread view <ref>` via Commander's `{ isDefault: true }`. Same for `conversation` and `msg`. Edge case: if a ref matches a subcommand name (e.g., "reply"), the subcommand wins — user must use `tdc thread view reply`
 - **Named flag aliases**: Where commands accept positional `[workspace-ref]`, the `--workspace` flag is also accepted. Error if both positional and flag are provided
 - **JSON output on mutating commands**: Mutating commands (create, update, delete, archive) should support `--json` output where it provides scripting value. Commands that return an object from the API (create/update) should also support `--full`. Commands where the API returns void should output a minimal status object (e.g. `{ id, deleted: true }` or `{ id, isArchived: true }`). Extend `MutationOptions` in `src/lib/options.ts` (which already includes `json` and `full`) rather than adding these fields ad hoc. Use `formatJson()` from `src/lib/output.ts` for the output. See `src/commands/away.ts` as the reference implementation.
 - **Spinner messages**: When adding new SDK method calls, add a corresponding entry in the `API_SPINNER_MESSAGES` map in `src/lib/api.ts`. Every user-facing API call should have a spinner message so the CLI shows progress feedback.
@@ -87,7 +87,7 @@ Lefthook runs type-check, oxlint, and oxfmt on pre-commit, tests on pre-push.
 
 ## Skill Content (Agent Command Reference)
 
-The file `src/lib/skills/content.ts` exports `SKILL_CONTENT` — a comprehensive command reference that gets installed into AI agent skill directories via `cm skill install`. This is the source of truth that agents use to understand available CLI commands.
+The file `src/lib/skills/content.ts` exports `SKILL_CONTENT` — a comprehensive command reference that gets installed into AI agent skill directories via `tdc skill install`. This is the source of truth that agents use to understand available CLI commands.
 
 **Whenever commands, subcommands, flags, or options are added, updated, or removed in `src/commands/`, the `SKILL_CONTENT` in `src/lib/skills/content.ts` must be updated to match.** This includes:
 
@@ -99,6 +99,6 @@ The file `src/lib/skills/content.ts` exports `SKILL_CONTENT` — a comprehensive
 After updating `SKILL_CONTENT`:
 
 1. Run `npm run build && npm run sync:skill` to regenerate `skills/comms-cli/SKILL.md` (the standalone skill file used by `npx skills add`)
-2. Run `cm skill update claude-code` (and any other installed agents) to propagate changes to installed skill files
+2. Run `tdc skill update claude-code` (and any other installed agents) to propagate changes to installed skill files
 
 A CI check (`npm run check:skill-sync`) runs on pull requests and will fail if `skills/comms-cli/SKILL.md` is out of sync with `content.ts`.

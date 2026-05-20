@@ -5,13 +5,13 @@
 Currently `--author` and `--to` require numeric user IDs:
 
 ```bash
-cm search "test" --author 440929
+tdc search "test" --author 440929
 ```
 
 Users should be able to pass names:
 
 ```bash
-cm search "test" --author craig
+tdc search "test" --author craig
 ```
 
 ## Behavior

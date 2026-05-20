@@ -42,9 +42,9 @@ export async function loginWithToken(): Promise<void> {
     const trimmed = token.trim()
     if (!trimmed) {
         throw new CliError('NO_TOKEN', 'No token provided', [
-            'Run: cm auth token (interactive prompt)',
+            'Run: tdc auth token (interactive prompt)',
             'Or set COMMS_API_TOKEN environment variable',
-            'Or use OAuth: cm auth login',
+            'Or use OAuth: tdc auth login',
         ])
     }
     // Manual token entry has no identity (no API call to resolve the user).

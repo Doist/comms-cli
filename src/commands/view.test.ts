@@ -37,7 +37,7 @@ function createProgram() {
     return program
 }
 
-describe('cm view <url> routing', () => {
+describe('tdc view <url> routing', () => {
     beforeEach(() => {
         vi.clearAllMocks()
     })
@@ -47,7 +47,7 @@ describe('cm view <url> routing', () => {
         await expect(
             program.parseAsync([
                 'node',
-                'cm',
+                'tdc',
                 'view',
                 'https://comms.todoist.com/a/1585/ch/100/t/200',
             ]),
@@ -59,7 +59,7 @@ describe('cm view <url> routing', () => {
         await expect(
             program.parseAsync([
                 'node',
-                'cm',
+                'tdc',
                 'view',
                 'https://comms.todoist.com/a/1585/ch/100/t/200/c/300',
             ]),
@@ -69,7 +69,7 @@ describe('cm view <url> routing', () => {
     it('routes conversation URL to conversation view', async () => {
         const program = createProgram()
         await expect(
-            program.parseAsync(['node', 'cm', 'view', 'https://comms.todoist.com/a/1585/msg/400']),
+            program.parseAsync(['node', 'tdc', 'view', 'https://comms.todoist.com/a/1585/msg/400']),
         ).rejects.toThrow('ROUTED_TO_CONVERSATION')
     })
 
@@ -78,7 +78,7 @@ describe('cm view <url> routing', () => {
         await expect(
             program.parseAsync([
                 'node',
-                'cm',
+                'tdc',
                 'view',
                 'https://comms.todoist.com/a/1585/msg/400/m/500',
             ]),
@@ -88,14 +88,14 @@ describe('cm view <url> routing', () => {
     it('throws for unrecognized Comms URL', async () => {
         const program = createProgram()
         await expect(
-            program.parseAsync(['node', 'cm', 'view', 'https://comms.todoist.com/a/1585']),
+            program.parseAsync(['node', 'tdc', 'view', 'https://comms.todoist.com/a/1585']),
         ).rejects.toThrow('Not a recognized Comms URL')
     })
 
     it('throws for non-Comms URL', async () => {
         const program = createProgram()
         await expect(
-            program.parseAsync(['node', 'cm', 'view', 'https://google.com/something']),
+            program.parseAsync(['node', 'tdc', 'view', 'https://google.com/something']),
         ).rejects.toThrow('Not a recognized Comms URL')
     })
 })

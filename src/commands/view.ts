@@ -25,7 +25,7 @@ async function runRoutedCommand(
     proxy.exitOverride()
     const register = await loadRegister()
     register(proxy)
-    await proxy.parseAsync(['node', 'cm', ...argv])
+    await proxy.parseAsync(['node', 'tdc', ...argv])
 }
 
 export function registerViewCommand(program: Command): void {
@@ -37,22 +37,22 @@ export function registerViewCommand(program: Command): void {
             'after',
             `
 Route mapping:
-  Message URL      → cm msg view <url>
-  Conversation URL → cm conversation view <url>
-  Comment URL      → cm thread view <url>  (comment ID extracted from URL)
-  Thread URL       → cm thread view <url>
+  Message URL      → tdc msg view <url>
+  Conversation URL → tdc conversation view <url>
+  Comment URL      → tdc thread view <url>  (comment ID extracted from URL)
+  Thread URL       → tdc thread view <url>
 
 Examples:
-  cm view https://comms.todoist.com/a/1585/ch/100/t/200
-  cm view https://comms.todoist.com/a/1585/ch/100/t/200/c/300
-  cm view https://comms.todoist.com/a/1585/msg/400
-  cm view https://comms.todoist.com/a/1585/msg/400/m/500
-  cm view https://comms.todoist.com/a/1585/msg/400/m/500 --json`,
+  tdc view https://comms.todoist.com/a/1585/ch/100/t/200
+  tdc view https://comms.todoist.com/a/1585/ch/100/t/200/c/300
+  tdc view https://comms.todoist.com/a/1585/msg/400
+  tdc view https://comms.todoist.com/a/1585/msg/400/m/500
+  tdc view https://comms.todoist.com/a/1585/msg/400/m/500 --json`,
         )
         .action(async (url: string) => {
             const urlHints = [
                 'Expected: https://comms.todoist.com/a/{workspaceId}/...',
-                'Run: cm view --help for examples',
+                'Run: tdc view --help for examples',
             ]
             if (!looksLikeCommsAppUrl(url)) {
                 throw new CliError('INVALID_URL', `Not a recognized Comms URL: ${url}`, urlHints)

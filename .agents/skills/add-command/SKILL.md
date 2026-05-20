@@ -19,7 +19,7 @@ Color convention:
 
 ## 2. Read-Only Permissions (`src/lib/permissions.ts`)
 
-If the new command uses a **read-only** SDK method (e.g., `getXxx`, `listXxx`), add it to the `KNOWN_SAFE_API_METHODS` set. This set uses a default-deny approach: any method **not** listed is treated as mutating and will be blocked when the CLI is authenticated with a read-only OAuth token (`cm auth login --read-only`).
+If the new command uses a **read-only** SDK method (e.g., `getXxx`, `listXxx`), add it to the `KNOWN_SAFE_API_METHODS` set. This set uses a default-deny approach: any method **not** listed is treated as mutating and will be blocked when the CLI is authenticated with a read-only OAuth token (`tdc auth login --read-only`).
 
 - **Read-only methods** (fetch/list/view): add to `KNOWN_SAFE_API_METHODS`
 - **Mutating methods** (create/update/delete/archive/mute): do NOT add — they are blocked by default, which is the correct behavior
@@ -89,7 +89,7 @@ The variable assignment (`const myCmd = ...`) is needed so the `.action()` callb
 
 ### Implicit view subcommand
 
-For entity commands with a `view` subcommand, mark it as the default so `cm thread 123` maps to `cm thread view 123`:
+For entity commands with a `view` subcommand, mark it as the default so `tdc thread 123` maps to `tdc thread view 123`:
 
 ```typescript
 thread
@@ -128,7 +128,7 @@ const commands: Record<string, [string, () => Promise<(p: Command) => void>]> = 
 
 ## 4. Accessibility (`src/lib/output.ts`)
 
-The CLI supports accessible mode via `isAccessible()` (checks `CM_ACCESSIBLE=1` or `--accessible` flag). When adding output that uses color or visual elements, consider whether information is conveyed **only** by color or decoration.
+The CLI supports accessible mode via `isAccessible()` (checks `TDC_ACCESSIBLE=1` or `--accessible` flag). When adding output that uses color or visual elements, consider whether information is conveyed **only** by color or decoration.
 
 ### When to add accessible alternatives
 

@@ -148,7 +148,7 @@ export async function resolveWorkspaceRef(ref: string): Promise<Workspace> {
         const workspace = workspaces.find((w) => w.id === parsed.id)
         if (!workspace) {
             throw new CliError('WORKSPACE_NOT_FOUND', `Workspace with ID ${parsed.id} not found`, [
-                'Run: cm workspaces to list available workspaces',
+                'Run: tdc workspaces to list available workspaces',
             ])
         }
         return workspace
@@ -160,7 +160,7 @@ export async function resolveWorkspaceRef(ref: string): Promise<Workspace> {
             throw new CliError(
                 'WORKSPACE_NOT_FOUND',
                 `Workspace with ID ${parsed.parsed.workspaceId} not found`,
-                ['Run: cm workspaces to list available workspaces'],
+                ['Run: tdc workspaces to list available workspaces'],
             )
         }
         return workspace
@@ -171,12 +171,12 @@ export async function resolveWorkspaceRef(ref: string): Promise<Workspace> {
             ambiguousCode: 'AMBIGUOUS_WORKSPACE',
             notFoundCode: 'WORKSPACE_NOT_FOUND',
             ref,
-            listHint: 'Run: cm workspaces to list available workspaces',
+            listHint: 'Run: tdc workspaces to list available workspaces',
         })
     }
 
     throw new CliError('WORKSPACE_NOT_FOUND', `Workspace "${ref}" not found`, [
-        'Run: cm workspaces to list available workspaces',
+        'Run: tdc workspaces to list available workspaces',
     ])
 }
 
@@ -235,12 +235,12 @@ export async function resolveChannelRef(ref: string, workspaceId: number): Promi
             ambiguousCode: 'AMBIGUOUS_CHANNEL',
             notFoundCode: 'CHANNEL_NOT_FOUND',
             ref,
-            listHint: 'Run: cm channels to list available channels',
+            listHint: 'Run: tdc channels to list available channels',
         })
     }
 
     throw new CliError('CHANNEL_NOT_FOUND', `Channel "${ref}" not found`, [
-        'Run: cm channels to list available channels',
+        'Run: tdc channels to list available channels',
     ])
 }
 
@@ -378,7 +378,7 @@ export async function resolveGroupRef(ref: string, workspaceId: number): Promise
         } catch (error) {
             if (error instanceof CliError) throw error
             throw new CliError('GROUP_NOT_FOUND', `Group with ID ${parsed.id} not found`, [
-                'Run: cm groups to list available groups',
+                'Run: tdc groups to list available groups',
             ])
         }
     }
@@ -389,12 +389,12 @@ export async function resolveGroupRef(ref: string, workspaceId: number): Promise
             ambiguousCode: 'AMBIGUOUS_GROUP',
             notFoundCode: 'GROUP_NOT_FOUND',
             ref,
-            listHint: 'Run: cm groups to list available groups',
+            listHint: 'Run: tdc groups to list available groups',
         })
     }
 
     throw new CliError('GROUP_NOT_FOUND', `Group "${ref}" not found`, [
-        'Run: cm groups to list available groups',
+        'Run: tdc groups to list available groups',
     ])
 }
 
@@ -419,7 +419,7 @@ export async function resolveUserRefs(refs: string, workspaceId: number): Promis
 
         if (matches.length === 0) {
             throw new CliError('USER_NOT_FOUND', `No user found matching "${ref}"`, [
-                'Run: cm users to list workspace members',
+                'Run: tdc users to list workspace members',
             ])
         }
 

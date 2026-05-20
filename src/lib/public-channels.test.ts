@@ -30,7 +30,7 @@ describe('includePrivateChannels', () => {
 
     beforeEach(() => {
         resetGlobalArgs()
-        process.argv = ['node', 'cm']
+        process.argv = ['node', 'tdc']
         delete process.env.COMMS_INCLUDE_PRIVATE_CHANNELS
     })
 
@@ -49,7 +49,7 @@ describe('includePrivateChannels', () => {
     })
 
     it('returns true when --include-private-channels is in argv', () => {
-        process.argv = ['node', 'cm', 'channels', '--include-private-channels']
+        process.argv = ['node', 'tdc', 'channels', '--include-private-channels']
         resetGlobalArgs()
         expect(includePrivateChannels()).toBe(true)
     })
@@ -126,7 +126,7 @@ describe('assertChannelIsPublic', () => {
     beforeEach(() => {
         clearPublicChannelCache()
         resetGlobalArgs()
-        process.argv = ['node', 'cm']
+        process.argv = ['node', 'tdc']
         delete process.env.COMMS_INCLUDE_PRIVATE_CHANNELS
     })
 
@@ -158,7 +158,7 @@ describe('assertChannelIsPublic', () => {
     })
 
     it('allows private channels when --include-private-channels is set', async () => {
-        process.argv = ['node', 'cm', '--include-private-channels']
+        process.argv = ['node', 'tdc', '--include-private-channels']
         resetGlobalArgs()
         await expect(assertChannelIsPublic(999, 100)).resolves.toBeUndefined()
     })

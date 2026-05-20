@@ -68,7 +68,7 @@ describe('account command', () => {
         it('renders all stored accounts with the default marker', async () => {
             seedStore([ACCOUNT_ALAN, 'default'], ACCOUNT_ELLIE)
 
-            await createProgram().parseAsync(['node', 'cm', 'account', 'list'])
+            await createProgram().parseAsync(['node', 'tdc', 'account', 'list'])
 
             const output = stdout()
             expect(output).toContain('Stored accounts (2)')
@@ -79,10 +79,10 @@ describe('account command', () => {
             expect(output).toContain('Default: id:1  Alan Grant')
         })
 
-        it('runs by default when no subcommand is given (cm account)', async () => {
+        it('runs by default when no subcommand is given (tdc account)', async () => {
             seedStore([ACCOUNT_ALAN, 'default'])
 
-            await createProgram().parseAsync(['node', 'cm', 'account'])
+            await createProgram().parseAsync(['node', 'tdc', 'account'])
 
             expect(stdout()).toContain('Stored accounts (1)')
         })
@@ -90,17 +90,17 @@ describe('account command', () => {
         it('reports the empty state when no accounts are stored', async () => {
             seedStore()
 
-            await createProgram().parseAsync(['node', 'cm', 'account', 'list'])
+            await createProgram().parseAsync(['node', 'tdc', 'account', 'list'])
 
             expect(consoleSpy).toHaveBeenCalledWith(
-                'No stored accounts. Run `cm auth login` to add one.',
+                'No stored accounts. Run `tdc auth login` to add one.',
             )
         })
 
         it('emits a JSON envelope with id, label, isDefault', async () => {
             seedStore([ACCOUNT_ALAN, 'default'], ACCOUNT_ELLIE)
 
-            await createProgram().parseAsync(['node', 'cm', 'account', 'list', '--json'])
+            await createProgram().parseAsync(['node', 'tdc', 'account', 'list', '--json'])
 
             expect(JSON.parse(consoleSpy.mock.calls[0][0] as string)).toEqual([
                 { id: '1', label: 'Alan Grant', isDefault: true },
@@ -114,7 +114,7 @@ describe('account command', () => {
             vi.stubEnv(TOKEN_ENV_VAR, '')
             storeMocks.active.mockResolvedValue({ token: 'tk_abc', account: ACCOUNT_ALAN })
 
-            await createProgram().parseAsync(['node', 'cm', 'account', 'current'])
+            await createProgram().parseAsync(['node', 'tdc', 'account', 'current'])
 
             const output = stdout()
             expect(output).toContain('Active account: id:1  Alan Grant')
@@ -127,7 +127,7 @@ describe('account command', () => {
             async (flag) => {
                 vi.stubEnv(TOKEN_ENV_VAR, 'tk_env_supplied')
 
-                await createProgram().parseAsync(['node', 'cm', 'account', 'current', flag])
+                await createProgram().parseAsync(['node', 'tdc', 'account', 'current', flag])
 
                 expect(consoleSpy).toHaveBeenCalledTimes(1)
                 expect(JSON.parse(consoleSpy.mock.calls[0][0] as string)).toEqual({ source: 'env' })
@@ -140,7 +140,7 @@ describe('account command', () => {
             storeMocks.active.mockResolvedValue(null)
 
             await expect(
-                createProgram().parseAsync(['node', 'cm', 'account', 'current']),
+                createProgram().parseAsync(['node', 'tdc', 'account', 'current']),
             ).rejects.toHaveProperty('code', 'NO_TOKEN')
         })
 
@@ -148,7 +148,7 @@ describe('account command', () => {
             vi.stubEnv(TOKEN_ENV_VAR, '')
             storeMocks.active.mockResolvedValue({ token: 'tk_abc', account: ACCOUNT_ALAN })
 
-            await createProgram().parseAsync(['node', 'cm', 'account', 'current', '--json'])
+            await createProgram().parseAsync(['node', 'tdc', 'account', 'current', '--json'])
 
             expect(JSON.parse(consoleSpy.mock.calls[0][0] as string)).toEqual({
                 id: '1',
@@ -159,7 +159,7 @@ describe('account command', () => {
             })
         })
 
-        // `cm auth token` persists `{ id: '', label: '' }` since manual
+        // `tdc auth token` persists `{ id: '', label: '' }` since manual
         // token entry has no identity. `account current` must render that
         // shape as a distinct "token-only" source, not as a regular account
         // with blank fields.
@@ -172,10 +172,10 @@ describe('account command', () => {
             vi.stubEnv(TOKEN_ENV_VAR, '')
             storeMocks.active.mockResolvedValue(EMPTY_ID_SNAPSHOT)
 
-            await createProgram().parseAsync(['node', 'cm', 'account', 'current'])
+            await createProgram().parseAsync(['node', 'tdc', 'account', 'current'])
 
             const output = stdout()
-            expect(output).toContain('saved via `cm auth token`')
+            expect(output).toContain('saved via `tdc auth token`')
             expect(output).not.toMatch(/Active account: id: {2}/)
         })
 
@@ -183,7 +183,7 @@ describe('account command', () => {
             vi.stubEnv(TOKEN_ENV_VAR, '')
             storeMocks.active.mockResolvedValue(EMPTY_ID_SNAPSHOT)
 
-            await createProgram().parseAsync(['node', 'cm', 'account', 'current', '--json'])
+            await createProgram().parseAsync(['node', 'tdc', 'account', 'current', '--json'])
 
             expect(JSON.parse(consoleSpy.mock.calls[0][0] as string)).toEqual({
                 source: 'token-only',
@@ -195,7 +195,7 @@ describe('account command', () => {
         it('sets the default account by canonical id when the ref matches', async () => {
             seedStore(ACCOUNT_ALAN, [ACCOUNT_ELLIE, 'default'])
 
-            await createProgram().parseAsync(['node', 'cm', 'account', 'use', '1'])
+            await createProgram().parseAsync(['node', 'tdc', 'account', 'use', '1'])
 
             expect(storeMocks.setDefault).toHaveBeenCalledTimes(1)
             expect(storeMocks.setDefault).toHaveBeenCalledWith('1')
@@ -208,7 +208,7 @@ describe('account command', () => {
             seedStore([ACCOUNT_ALAN, 'default'])
 
             await expect(
-                createProgram().parseAsync(['node', 'cm', 'account', 'use', '999']),
+                createProgram().parseAsync(['node', 'tdc', 'account', 'use', '999']),
             ).rejects.toHaveProperty('code', 'ACCOUNT_NOT_FOUND')
 
             expect(storeMocks.setDefault).not.toHaveBeenCalled()
@@ -217,7 +217,7 @@ describe('account command', () => {
         it('matches refs by display name and resolves to the canonical id', async () => {
             seedStore(ACCOUNT_ALAN, [ACCOUNT_ELLIE, 'default'])
 
-            await createProgram().parseAsync(['node', 'cm', 'account', 'use', 'alan grant'])
+            await createProgram().parseAsync(['node', 'tdc', 'account', 'use', 'alan grant'])
 
             expect(storeMocks.setDefault).toHaveBeenCalledTimes(1)
             const output = stdout()
@@ -230,7 +230,7 @@ describe('account command', () => {
         it('clears the account by canonical id and prints the removed label', async () => {
             seedStore([ACCOUNT_ALAN, 'default'], ACCOUNT_ELLIE)
 
-            await createProgram().parseAsync(['node', 'cm', 'account', 'remove', 'ellie sattler'])
+            await createProgram().parseAsync(['node', 'tdc', 'account', 'remove', 'ellie sattler'])
 
             expect(storeMocks.clear).toHaveBeenCalledTimes(1)
             expect(storeMocks.clear).toHaveBeenCalledWith('2')
@@ -243,7 +243,7 @@ describe('account command', () => {
             seedStore([ACCOUNT_ALAN, 'default'])
 
             await expect(
-                createProgram().parseAsync(['node', 'cm', 'account', 'remove', '999']),
+                createProgram().parseAsync(['node', 'tdc', 'account', 'remove', '999']),
             ).rejects.toHaveProperty('code', 'ACCOUNT_NOT_FOUND')
 
             expect(storeMocks.clear).not.toHaveBeenCalled()
@@ -256,7 +256,7 @@ describe('account command', () => {
                 warning: 'system credential manager unavailable; local auth state cleared',
             })
 
-            await createProgram().parseAsync(['node', 'cm', 'account', 'remove', '1'])
+            await createProgram().parseAsync(['node', 'tdc', 'account', 'remove', '1'])
 
             expect(errorSpy).toHaveBeenCalledWith(
                 'Warning:',
@@ -267,7 +267,7 @@ describe('account command', () => {
         it('emits a JSON envelope and suppresses the plain confirmation', async () => {
             seedStore([ACCOUNT_ALAN, 'default'])
 
-            await createProgram().parseAsync(['node', 'cm', 'account', 'remove', '1', '--json'])
+            await createProgram().parseAsync(['node', 'tdc', 'account', 'remove', '1', '--json'])
 
             expect(consoleSpy).toHaveBeenCalledTimes(1)
             expect(JSON.parse(consoleSpy.mock.calls[0][0] as string)).toEqual({

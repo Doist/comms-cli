@@ -60,7 +60,7 @@ type CommsLocalFlags = {
      * `=path`, space-separated `<path>`). `false` = absent, `true` = bare,
      * string = path. Comms parses this locally — and ignores cli-core's
      * `progressJsonl` field — so that "last occurrence wins" stays correct
-     * when the forms are mixed (`cm --progress-jsonl=/a --progress-jsonl /b`
+     * when the forms are mixed (`tdc --progress-jsonl=/a --progress-jsonl /b`
      * → `/b`). cli-core deliberately drops the space form cross-CLI because
      * it can swallow positionals; comms re-adds it because the flag is
      * global, not subcommand-attached.
@@ -148,7 +148,7 @@ export function isNdjsonMode(): boolean {
     return store.get().ndjson
 }
 
-/** Pre-subcommand `cm --user <ref>` (see `stripUserFlag` in `src/index.ts`). */
+/** Pre-subcommand `tdc --user <ref>` (see `stripUserFlag` in `src/index.ts`). */
 export function getRequestedUserRef(): string | undefined {
     return store.get().user
 }
@@ -177,12 +177,12 @@ export function getProgressJsonlPath(): string | undefined {
 }
 
 export const isAccessible = createAccessibleGate({
-    envVar: 'CM_ACCESSIBLE',
+    envVar: 'TDC_ACCESSIBLE',
     getArgs: store.get,
 })
 
 export const shouldDisableSpinner = createSpinnerGate({
-    envVar: 'CM_SPINNER',
+    envVar: 'TDC_SPINNER',
     getArgs: store.get,
     extraTriggers: () => store.get().nonInteractive,
 })

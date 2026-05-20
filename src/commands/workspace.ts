@@ -54,8 +54,8 @@ export function registerWorkspaceCommand(program: Command): void {
             'after',
             `
 Examples:
-  cm workspaces
-  cm workspaces --json`,
+  tdc workspaces
+  tdc workspaces --json`,
         )
         .action(listWorkspaces)
 
@@ -68,8 +68,8 @@ Examples:
             'after',
             `
 Examples:
-  cm workspace use "My Workspace"
-  cm workspace use id:1585`,
+  tdc workspace use "My Workspace"
+  tdc workspace use id:1585`,
         )
         .action(useWorkspace)
 }

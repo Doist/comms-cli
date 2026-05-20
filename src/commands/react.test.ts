@@ -39,7 +39,7 @@ describe('react refs', () => {
 
         await program.parseAsync([
             'node',
-            'cm',
+            'tdc',
             'react',
             'thread',
             'https://comms.todoist.com/a/1/ch/2/t/99',
@@ -56,7 +56,7 @@ describe('react refs', () => {
 
         await program.parseAsync([
             'node',
-            'cm',
+            'tdc',
             'unreact',
             'message',
             'https://comms.todoist.com/a/1/msg/33/m/44',
@@ -71,7 +71,7 @@ describe('react refs', () => {
         const program = createProgram()
         const logSpy = vi.spyOn(console, 'log').mockImplementation(() => {})
 
-        await program.parseAsync(['node', 'cm', 'react', 'thread', '99', '+1', '--json'])
+        await program.parseAsync(['node', 'tdc', 'react', 'thread', '99', '+1', '--json'])
 
         expect(apiMocks.addReaction).toHaveBeenCalledWith({ threadId: 99, reaction: '👍' })
         const output = JSON.parse(logSpy.mock.calls[0][0])
@@ -88,7 +88,7 @@ describe('react refs', () => {
         const program = createProgram()
         const logSpy = vi.spyOn(console, 'log').mockImplementation(() => {})
 
-        await program.parseAsync(['node', 'cm', 'unreact', 'comment', '42', 'heart', '--json'])
+        await program.parseAsync(['node', 'tdc', 'unreact', 'comment', '42', 'heart', '--json'])
 
         expect(apiMocks.removeReaction).toHaveBeenCalledWith({ commentId: 42, reaction: '❤️' })
         const output = JSON.parse(logSpy.mock.calls[0][0])
@@ -107,7 +107,7 @@ describe('react refs', () => {
 
         await program.parseAsync([
             'node',
-            'cm',
+            'tdc',
             'react',
             'message',
             '77',

@@ -55,7 +55,7 @@ export const READ_ONLY_SCOPES = [
     'notifications:read',
 ]
 
-const AUTH_HINTS = ['Try again: cm auth login', 'Or set COMMS_API_TOKEN environment variable']
+const AUTH_HINTS = ['Try again: tdc auth login', 'Or set COMMS_API_TOKEN environment variable']
 
 /**
  * Narrow account shape: only fields that round-trip through the local token
@@ -276,7 +276,7 @@ const TOKEN_ENV_VAR = 'COMMS_API_TOKEN'
 
 /**
  * Resolve a `ref` against the local store, returning the canonical account.
- * Throws `ACCOUNT_NOT_FOUND` on a miss. Shared between the `cm account ...`
+ * Throws `ACCOUNT_NOT_FOUND` on a miss. Shared between the `tdc account ...`
  * commands and `withUserRefAware` so the same hint reaches every caller.
  */
 export async function findAccountInStore(
@@ -287,7 +287,7 @@ export async function findAccountInStore(
     const match = records.find(({ account }) => matchCommsAccount(account, ref))
     if (!match) {
         throw new CliError('ACCOUNT_NOT_FOUND', `No stored account matches "${ref}".`, [
-            'Run: cm account list',
+            'Run: tdc account list',
         ])
     }
     return match.account

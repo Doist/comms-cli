@@ -91,11 +91,11 @@ describe('comment implicit view', () => {
         apiMocks.getCommsClient.mockRejectedValue(new Error('MOCK_API_REACHED'))
     })
 
-    it('cm comment <ref> routes to view (not unknown command)', async () => {
+    it('tdc comment <ref> routes to view (not unknown command)', async () => {
         const program = createProgram()
         const consoleSpy = vi.spyOn(console, 'log').mockImplementation(() => {})
 
-        await expect(program.parseAsync(['node', 'cm', 'comment', '300'])).rejects.toThrow(
+        await expect(program.parseAsync(['node', 'tdc', 'comment', '300'])).rejects.toThrow(
             'MOCK_API_REACHED',
         )
 
@@ -114,7 +114,7 @@ describe('comment view', () => {
         const program = createProgram()
         const consoleSpy = vi.spyOn(console, 'log').mockImplementation(() => {})
 
-        await program.parseAsync(['node', 'cm', 'comment', 'view', '300'])
+        await program.parseAsync(['node', 'tdc', 'comment', 'view', '300'])
 
         expect(client.comments.getComment).toHaveBeenCalledWith(300)
         expect(consoleSpy).toHaveBeenCalledWith(expect.stringContaining('Comment 300'))
@@ -127,7 +127,7 @@ describe('comment view', () => {
         const program = createProgram()
         const consoleSpy = vi.spyOn(console, 'log').mockImplementation(() => {})
 
-        await program.parseAsync(['node', 'cm', 'comment', 'view', '300', '--json'])
+        await program.parseAsync(['node', 'tdc', 'comment', 'view', '300', '--json'])
 
         const jsonOutput = JSON.parse(consoleSpy.mock.calls[0][0])
         expect(jsonOutput.id).toBe(300)
@@ -141,7 +141,7 @@ describe('comment view', () => {
         const program = createProgram()
         const consoleSpy = vi.spyOn(console, 'log').mockImplementation(() => {})
 
-        await program.parseAsync(['node', 'cm', 'comment', 'view', '300', '--ndjson'])
+        await program.parseAsync(['node', 'tdc', 'comment', 'view', '300', '--ndjson'])
 
         const line = consoleSpy.mock.calls[0][0]
         expect(line).not.toContain('\n')
@@ -157,7 +157,7 @@ describe('comment view', () => {
         const program = createProgram()
         const consoleSpy = vi.spyOn(console, 'log').mockImplementation(() => {})
 
-        await program.parseAsync(['node', 'cm', 'comment', 'view', '300', '--json', '--full'])
+        await program.parseAsync(['node', 'tdc', 'comment', 'view', '300', '--json', '--full'])
 
         const jsonOutput = JSON.parse(consoleSpy.mock.calls[0][0])
         expect(jsonOutput.id).toBe(300)
@@ -177,7 +177,7 @@ describe('comment update', () => {
         const program = createProgram()
         const consoleSpy = vi.spyOn(console, 'log').mockImplementation(() => {})
 
-        await program.parseAsync(['node', 'cm', 'comment', 'update', '300', 'Updated content'])
+        await program.parseAsync(['node', 'tdc', 'comment', 'update', '300', 'Updated content'])
 
         expect(client.comments.updateComment).toHaveBeenCalledWith({
             id: 300,
@@ -193,7 +193,7 @@ describe('comment update', () => {
 
         await program.parseAsync([
             'node',
-            'cm',
+            'tdc',
             'comment',
             'update',
             '300',
@@ -213,7 +213,7 @@ describe('comment update', () => {
         const program = createProgram()
         const consoleSpy = vi.spyOn(console, 'log').mockImplementation(() => {})
 
-        await program.parseAsync(['node', 'cm', 'comment', 'update', '300', 'Updated', '--json'])
+        await program.parseAsync(['node', 'tdc', 'comment', 'update', '300', 'Updated', '--json'])
 
         const jsonOutput = JSON.parse(consoleSpy.mock.calls[0][0])
         expect(jsonOutput.id).toBe(300)
@@ -228,7 +228,7 @@ describe('comment update', () => {
         const program = createProgram()
         const consoleSpy = vi.spyOn(console, 'log').mockImplementation(() => {})
 
-        await program.parseAsync(['node', 'cm', 'comment', 'update', '300'])
+        await program.parseAsync(['node', 'tdc', 'comment', 'update', '300'])
 
         expect(client.comments.updateComment).toHaveBeenCalledWith({
             id: 300,
@@ -242,7 +242,7 @@ describe('comment update', () => {
         const consoleSpy = vi.spyOn(console, 'log').mockImplementation(() => {})
 
         await expect(
-            program.parseAsync(['node', 'cm', 'comment', 'update', '300']),
+            program.parseAsync(['node', 'tdc', 'comment', 'update', '300']),
         ).rejects.toHaveProperty('code', 'MISSING_CONTENT')
 
         consoleSpy.mockRestore()
@@ -260,7 +260,7 @@ describe('comment delete', () => {
         const program = createProgram()
         const consoleSpy = vi.spyOn(console, 'log').mockImplementation(() => {})
 
-        await program.parseAsync(['node', 'cm', 'comment', 'delete', '300'])
+        await program.parseAsync(['node', 'tdc', 'comment', 'delete', '300'])
 
         expect(client.comments.deleteComment).toHaveBeenCalledWith(300)
         expect(consoleSpy).toHaveBeenCalledWith('Comment 300 deleted.')
@@ -273,7 +273,7 @@ describe('comment delete', () => {
         const program = createProgram()
         const consoleSpy = vi.spyOn(console, 'log').mockImplementation(() => {})
 
-        await program.parseAsync(['node', 'cm', 'comment', 'delete', '300', '--dry-run'])
+        await program.parseAsync(['node', 'tdc', 'comment', 'delete', '300', '--dry-run'])
 
         expect(consoleSpy).toHaveBeenCalledWith(expect.stringContaining('Would delete comment'))
         expect(consoleSpy).toHaveBeenCalledWith('  Comment: 300')
@@ -288,7 +288,7 @@ describe('comment delete', () => {
         const program = createProgram()
 
         await expect(
-            program.parseAsync(['node', 'cm', 'comment', 'delete', '300', '--dry-run']),
+            program.parseAsync(['node', 'tdc', 'comment', 'delete', '300', '--dry-run']),
         ).rejects.toHaveProperty('code', 'NOT_CREATOR')
         expect(client.comments.deleteComment).not.toHaveBeenCalled()
     })
@@ -302,7 +302,7 @@ describe('comment delete', () => {
         const program = createProgram()
 
         await expect(
-            program.parseAsync(['node', 'cm', 'comment', 'delete', '300', '--dry-run']),
+            program.parseAsync(['node', 'tdc', 'comment', 'delete', '300', '--dry-run']),
         ).rejects.toThrow('channel is private')
         expect(client.comments.deleteComment).not.toHaveBeenCalled()
     })
@@ -313,7 +313,7 @@ describe('comment delete', () => {
         const program = createProgram()
         const consoleSpy = vi.spyOn(console, 'log').mockImplementation(() => {})
 
-        await program.parseAsync(['node', 'cm', 'comment', 'delete', '300', '--json'])
+        await program.parseAsync(['node', 'tdc', 'comment', 'delete', '300', '--json'])
 
         const jsonOutput = JSON.parse(consoleSpy.mock.calls[0][0])
         expect(jsonOutput).toEqual({ id: 300, deleted: true })

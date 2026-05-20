@@ -49,7 +49,7 @@ describe('update wrapper', () => {
             packageName: packageJson.name,
             currentVersion: packageJson.version,
             configPath: tmpConfigPath,
-            changelogCommandName: 'cm changelog',
+            changelogCommandName: 'tdc changelog',
             withSpinner,
         })
     })
@@ -67,7 +67,7 @@ describe('update wrapper', () => {
         program.exitOverride()
         registerUpdateCommand(program)
 
-        await program.parseAsync(['node', 'cm', 'update', '--check'])
+        await program.parseAsync(['node', 'tdc', 'update', '--check'])
 
         expect(fetchMock).toHaveBeenCalledTimes(1)
         const [url] = fetchMock.mock.calls[0]
@@ -87,8 +87,8 @@ describe('update wrapper', () => {
         program.exitOverride()
         registerUpdateCommand(program)
 
-        await expect(program.parseAsync(['node', 'cm', 'update', '--check'])).rejects.toMatchObject(
-            { code: 'INVALID_UPDATE_CHANNEL' },
-        )
+        await expect(
+            program.parseAsync(['node', 'tdc', 'update', '--check']),
+        ).rejects.toMatchObject({ code: 'INVALID_UPDATE_CHANNEL' })
     })
 })

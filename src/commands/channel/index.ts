@@ -28,13 +28,13 @@ export function registerChannelCommand(program: Command): void {
             'after',
             `
 Examples:
-  cm channels
-  cm channels --state all
-  cm channels --scope discoverable
-  cm channels --scope public --state archived
-  cm channels --scope public --state all --json
-  cm channels --json
-  cm channels "My Workspace" --scope discoverable --json
+  tdc channels
+  tdc channels --state all
+  tdc channels --scope discoverable
+  tdc channels --scope public --state archived
+  tdc channels --scope public --state all --json
+  tdc channels --json
+  tdc channels "My Workspace" --scope discoverable --json
 
 Notes:
   Defaults to active channels that you have joined.
@@ -74,12 +74,12 @@ Notes:
             'after',
             `
 Examples:
-  cm channel threads 12345
-  cm channel threads "general"
-  cm channel threads id:12345 --unread
-  cm channel threads 12345 --archive-filter all --since 2026-01-01
-  cm channel threads 12345 --limit 20 --json
-  cm channel threads 12345 --limit 20 --cursor <cursor-from-previous>
+  tdc channel threads 12345
+  tdc channel threads "general"
+  tdc channel threads id:12345 --unread
+  tdc channel threads 12345 --archive-filter all --since 2026-01-01
+  tdc channel threads 12345 --limit 20 --json
+  tdc channel threads 12345 --limit 20 --cursor <cursor-from-previous>
 
 Notes:
   Sorted newest-first by last activity. --limit, --cursor, --since, --until,

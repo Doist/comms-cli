@@ -126,14 +126,14 @@ export async function readConfigStrict(): Promise<StrictReadResult> {
             throw new CliError(
                 'CONFIG_READ_FAILED',
                 `Could not read config file ${path}: ${result.error.message}`,
-                ['Check file permissions, or run `cm doctor` to diagnose'],
+                ['Check file permissions, or run `tdc doctor` to diagnose'],
             )
         case 'invalid-json':
             throw new CliError(
                 'CONFIG_INVALID_JSON',
                 `Config file at ${path} is not valid JSON: ${result.error.message}`,
                 [
-                    'Fix the JSON by hand, or delete the file and re-authenticate with `cm auth login`',
+                    'Fix the JSON by hand, or delete the file and re-authenticate with `tdc auth login`',
                 ],
             )
         case 'invalid-shape':
@@ -141,7 +141,7 @@ export async function readConfigStrict(): Promise<StrictReadResult> {
                 'CONFIG_INVALID_SHAPE',
                 `Config file at ${path} must contain a JSON object (got ${result.actual})`,
                 [
-                    'Fix the JSON by hand, or delete the file and re-authenticate with `cm auth login`',
+                    'Fix the JSON by hand, or delete the file and re-authenticate with `tdc auth login`',
                 ],
             )
     }
@@ -154,7 +154,7 @@ export async function setConfig(config: Config): Promise<void> {
 
 /**
  * Atomic partial-write wrapper around cli-core's `updateConfig`. Preserves
- * cli-core's read-merge-write atomicity so two concurrent `cm` processes
+ * cli-core's read-merge-write atomicity so two concurrent `tdc` processes
  * can't lose each other's updates.
  */
 export async function updateConfig(updates: Partial<Config>): Promise<void> {

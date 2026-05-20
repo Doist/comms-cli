@@ -43,7 +43,7 @@ __tests__/                   # Test suite
 ## Package & Binary
 
 - **Package name**: `@doist/comms-cli`
-- **Binary**: `cm`
+- **Binary**: `tdc`
 
 ## Authentication
 
@@ -58,7 +58,7 @@ Token resolution (priority order):
 Commands that require a workspace context use this resolution order:
 
 1. `--workspace <ref>` flag (if provided)
-2. Config-stored current workspace (`cm workspace use <ref>`)
+2. Config-stored current workspace (`tdc workspace use <ref>`)
 3. User's default workspace from API (auto-stored to config on first use)
 
 ---
@@ -67,7 +67,7 @@ Commands that require a workspace context use this resolution order:
 
 ### Workspace Commands
 
-#### `cm workspaces`
+#### `tdc workspaces`
 
 List all workspaces the user belongs to.
 
@@ -75,7 +75,7 @@ Options:
 
 - `--json` / `--ndjson` - Machine-readable output
 
-#### `cm workspace use <workspace-ref>`
+#### `tdc workspace use <workspace-ref>`
 
 Set the current workspace for subsequent commands.
 
@@ -87,11 +87,11 @@ Arguments:
 
 ### User Commands
 
-#### `cm user`
+#### `tdc user`
 
 Display current user info (name, email, timezone, default workspace).
 
-#### `cm users [workspace-ref]`
+#### `tdc users [workspace-ref]`
 
 List users in a workspace.
 
@@ -108,7 +108,7 @@ Options:
 
 ### Channel Commands
 
-#### `cm channels [workspace-ref]`
+#### `tdc channels [workspace-ref]`
 
 List channels in a workspace.
 
@@ -124,7 +124,7 @@ Options:
 
 ### Inbox Commands
 
-#### `cm inbox [workspace-ref]`
+#### `tdc inbox [workspace-ref]`
 
 Show inbox threads (mirrors Comms UI inbox - threads only, not DMs).
 
@@ -150,7 +150,7 @@ Output format (human-readable):
 
 ### Thread Commands
 
-#### `cm thread view <thread-ref>`
+#### `tdc thread view <thread-ref>`
 
 Display a thread with its comments.
 
@@ -171,7 +171,7 @@ Output:
 - Full thread content with markdown rendered (unless `--raw`)
 - Comments with full content (detail view = no truncation)
 
-#### `cm thread reply <thread-ref> [content]`
+#### `tdc thread reply <thread-ref> [content]`
 
 Post a comment to a thread.
 
@@ -182,7 +182,7 @@ Arguments:
 
 Content input priority:
 
-1. Stdin (if piped: `echo "text" | cm thread reply id:123`)
+1. Stdin (if piped: `echo "text" | tdc thread reply id:123`)
 2. Argument (if provided)
 3. Opens `$EDITOR` (if neither stdin nor argument)
 
@@ -194,7 +194,7 @@ Output:
 
 - Minimal confirmation with comment-specific URL
 
-#### `cm thread done <thread-ref>`
+#### `tdc thread done <thread-ref>`
 
 Archive a thread (mark as done).
 
@@ -212,7 +212,7 @@ Options:
 
 Alias: `convo`. Conversations are DM/group containers.
 
-#### `cm conversation unread [workspace-ref]`
+#### `tdc conversation unread [workspace-ref]`
 
 List unread conversations.
 
@@ -230,7 +230,7 @@ Output format:
 - URL on second line
 - No message preview (privacy)
 
-#### `cm conversation view <conversation-ref>`
+#### `tdc conversation view <conversation-ref>`
 
 Display a conversation with its messages.
 
@@ -246,7 +246,7 @@ Options:
 - `--raw` - Show raw markdown instead of rendered
 - `--json` / `--ndjson` - Machine-readable output
 
-#### `cm conversation reply <conversation-ref> [content]`
+#### `tdc conversation reply <conversation-ref> [content]`
 
 Send a message in a conversation.
 
@@ -255,7 +255,7 @@ Arguments:
 - `conversation-ref` - Conversation ID or Comms URL
 - `content` - Message content (optional if using stdin or editor)
 
-Content input: Same as `cm thread reply` (stdin → arg → $EDITOR)
+Content input: Same as `tdc thread reply` (stdin → arg → $EDITOR)
 
 Options:
 
@@ -265,7 +265,7 @@ Output:
 
 - Minimal confirmation with message-specific URL
 
-#### `cm conversation done <conversation-ref>`
+#### `tdc conversation done <conversation-ref>`
 
 Archive a conversation.
 
@@ -283,7 +283,7 @@ Options:
 
 Alias: `message`. Operations on individual messages within conversations.
 
-#### `cm msg view <message-ref>`
+#### `tdc msg view <message-ref>`
 
 View a single conversation message.
 
@@ -296,7 +296,7 @@ Options:
 - `--raw` - Show raw markdown instead of rendered
 - `--json` / `--ndjson` - Machine-readable output
 
-#### `cm msg update <message-ref> [content]`
+#### `tdc msg update <message-ref> [content]`
 
 Edit a conversation message.
 
@@ -305,13 +305,13 @@ Arguments:
 - `message-ref` - Message ID or Comms URL
 - `content` - New message content (optional if using stdin or editor)
 
-Content input: Same as `cm thread reply` (stdin → arg → $EDITOR)
+Content input: Same as `tdc thread reply` (stdin → arg → $EDITOR)
 
 Options:
 
 - `--dry-run` - Show what would be updated without updating
 
-#### `cm msg delete <message-ref>`
+#### `tdc msg delete <message-ref>`
 
 Delete a conversation message.
 
@@ -327,7 +327,7 @@ Options:
 
 ### Search Commands
 
-#### `cm search <query> [workspace-ref]`
+#### `tdc search <query> [workspace-ref]`
 
 Search content across a workspace.
 
@@ -351,7 +351,7 @@ Options:
 
 ### Reaction Commands
 
-#### `cm react <target-type> <target-ref> <emoji>`
+#### `tdc react <target-type> <target-ref> <emoji>`
 
 Add an emoji reaction.
 
@@ -367,13 +367,13 @@ Options:
 
 Output displays actual emoji character.
 
-#### `cm unreact <target-type> <target-ref> <emoji>`
+#### `tdc unreact <target-type> <target-ref> <emoji>`
 
 Remove an emoji reaction.
 
 Arguments:
 
-- Same as `cm react`
+- Same as `tdc react`
 
 Options:
 
@@ -482,63 +482,63 @@ Location: `~/.config/comms-cli/config.json`
 
 ```bash
 # Set current workspace
-cm workspace use "My Team"
+tdc workspace use "My Team"
 
 # View inbox
-cm inbox
-cm inbox --unread
+tdc inbox
+tdc inbox --unread
 
 # View a thread
-cm thread view id:123456
-cm thread view https://comms.todoist.com/a/12345/ch/67890/t/123456
+tdc thread view id:123456
+tdc thread view https://comms.todoist.com/a/12345/ch/67890/t/123456
 
 # Reply to a thread
-cm thread reply id:123456 "Great idea!"
-echo "Multiline\nreply" | cm thread reply id:123456
-cm thread reply id:123456  # opens $EDITOR
+tdc thread reply id:123456 "Great idea!"
+echo "Multiline\nreply" | tdc thread reply id:123456
+tdc thread reply id:123456  # opens $EDITOR
 
 # Mark thread as done
-cm thread done id:123456
+tdc thread done id:123456
 
 # List unread conversations
-cm conversation unread
+tdc conversation unread
 
 # View and reply to a conversation
-cm conversation view id:456789
-cm conversation reply id:456789 "Thanks!"
+tdc conversation view id:456789
+tdc conversation reply id:456789 "Thanks!"
 
 # Search
-cm search "quarterly report"
-cm search "bug fix" --author id:123 --since 2024-01-01
+tdc search "quarterly report"
+tdc search "bug fix" --author id:123 --since 2024-01-01
 
 # React to content
-cm react thread id:123456 +1
-cm react comment id:789 👍
-cm unreact message id:456 heart
+tdc react thread id:123456 +1
+tdc react comment id:789 👍
+tdc unreact message id:456 heart
 
 # List channels and users
-cm channels
-cm users --search "john"
+tdc channels
+tdc users --search "john"
 
 # Dry run before mutating
-cm thread reply id:123 "test" --dry-run
-cm thread done id:123 --dry-run
+tdc thread reply id:123 "test" --dry-run
+tdc thread done id:123 --dry-run
 
 # JSON output for scripting
-cm inbox --json
-cm search "project" --ndjson
+tdc inbox --json
+tdc search "project" --ndjson
 ```
 
 ---
 
 ## Not in MVP (Future Considerations)
 
-- `cm conversation start` - Start new conversations
-- `cm thread done --all` - Bulk archive
-- `cm link` command - URLs shown in output instead
-- `cm open` - Open in browser
-- `cm star` / `cm mute` - Star/mute content
-- `cm unread` - Unified unread view (threads + messages)
+- `tdc conversation start` - Start new conversations
+- `tdc thread done --all` - Bulk archive
+- `tdc link` command - URLs shown in output instead
+- `tdc open` - Open in browser
+- `tdc star` / `tdc mute` - Star/mute content
+- `tdc unread` - Unified unread view (threads + messages)
 
 ---
 

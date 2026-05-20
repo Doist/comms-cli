@@ -43,8 +43,8 @@ export class NoTokenError extends CliError {
     constructor() {
         super(
             'NO_TOKEN',
-            `No API token found. Set ${TOKEN_ENV_VAR} or run \`cm auth login\` or \`cm auth token <token>\`.`,
-            ['Set COMMS_API_TOKEN or run: cm auth login'],
+            `No API token found. Set ${TOKEN_ENV_VAR} or run \`tdc auth login\` or \`tdc auth token <token>\`.`,
+            ['Set COMMS_API_TOKEN or run: tdc auth login'],
             'info',
         )
         this.name = 'NoTokenError'
@@ -58,7 +58,7 @@ export async function getApiToken(): Promise<string> {
     return snapshot.token
 }
 
-/** Token + metadata in one round-trip for `cm config view` / `cm doctor`. */
+/** Token + metadata in one round-trip for `tdc config view` / `tdc doctor`. */
 export async function probeApiToken(): Promise<AuthProbeResult> {
     const snapshot = await createCommsTokenStore().active()
     if (!snapshot) throw new NoTokenError()
@@ -72,7 +72,7 @@ export async function probeApiToken(): Promise<AuthProbeResult> {
     }
 }
 
-/** Auth metadata for `cm auth status` and `ensureWriteAllowed`. */
+/** Auth metadata for `tdc auth status` and `ensureWriteAllowed`. */
 export async function getAuthMetadata(): Promise<AuthMetadata> {
     if (process.env[TOKEN_ENV_VAR]) return { authMode: 'unknown', source: 'env' }
     const config = await getConfig()

@@ -72,7 +72,7 @@ beforeEach(() => {
     })
 })
 
-describeEmptyMachineOutput('cm groups list empty output', {
+describeEmptyMachineOutput('tdc groups list empty output', {
     setup: () => {
         vi.clearAllMocks()
         apiMocks.getCurrentWorkspaceId.mockResolvedValue(1)
@@ -80,17 +80,17 @@ describeEmptyMachineOutput('cm groups list empty output', {
     },
     run: async (extraArgs) => {
         const program = createProgram()
-        await program.parseAsync(['node', 'cm', 'groups', ...extraArgs])
+        await program.parseAsync(['node', 'tdc', 'groups', ...extraArgs])
     },
     humanMessage: 'No groups found.',
 })
 
-describe('cm groups list (default)', () => {
+describe('tdc groups list (default)', () => {
     it('lists all groups', async () => {
         const program = createProgram()
         const consoleSpy = vi.spyOn(console, 'log').mockImplementation(() => {})
 
-        await program.parseAsync(['node', 'cm', 'groups'])
+        await program.parseAsync(['node', 'tdc', 'groups'])
 
         expect(consoleSpy).toHaveBeenCalledTimes(3)
         expect(consoleSpy.mock.calls[0][0]).toContain('Frontend')
@@ -100,7 +100,7 @@ describe('cm groups list (default)', () => {
         const program = createProgram()
         const consoleSpy = vi.spyOn(console, 'log').mockImplementation(() => {})
 
-        await program.parseAsync(['node', 'cm', 'groups', '--json'])
+        await program.parseAsync(['node', 'tdc', 'groups', '--json'])
 
         const output = JSON.parse(consoleSpy.mock.calls[0][0])
         expect(output).toHaveLength(3)
@@ -111,7 +111,7 @@ describe('cm groups list (default)', () => {
         const program = createProgram()
         const consoleSpy = vi.spyOn(console, 'log').mockImplementation(() => {})
 
-        await program.parseAsync(['node', 'cm', 'groups', 'list'])
+        await program.parseAsync(['node', 'tdc', 'groups', 'list'])
 
         expect(consoleSpy).toHaveBeenCalledTimes(3)
     })
@@ -120,7 +120,7 @@ describe('cm groups list (default)', () => {
         const program = createProgram()
         const consoleSpy = vi.spyOn(console, 'log').mockImplementation(() => {})
 
-        await program.parseAsync(['node', 'cm', 'groups', '--search', 'front'])
+        await program.parseAsync(['node', 'tdc', 'groups', '--search', 'front'])
 
         expect(consoleSpy).toHaveBeenCalledTimes(1)
         expect(consoleSpy.mock.calls[0][0]).toContain('Frontend')
@@ -131,7 +131,7 @@ describe('cm groups list (default)', () => {
         const program = createProgram()
         const consoleSpy = vi.spyOn(console, 'log').mockImplementation(() => {})
 
-        await program.parseAsync(['node', 'cm', 'groups'])
+        await program.parseAsync(['node', 'tdc', 'groups'])
 
         expect(consoleSpy).toHaveBeenCalledTimes(1)
         expect(consoleSpy.mock.calls[0][0]).toContain('No groups')
@@ -141,7 +141,7 @@ describe('cm groups list (default)', () => {
         const program = createProgram()
         const consoleSpy = vi.spyOn(console, 'log').mockImplementation(() => {})
 
-        await program.parseAsync(['node', 'cm', 'groups', '--ndjson'])
+        await program.parseAsync(['node', 'tdc', 'groups', '--ndjson'])
 
         // NDJSON emits all lines via formatNdjson in a single console.log call
         expect(consoleSpy).toHaveBeenCalledTimes(1)
@@ -154,7 +154,7 @@ describe('cm groups list (default)', () => {
         const program = createProgram()
         const consoleSpy = vi.spyOn(console, 'log').mockImplementation(() => {})
 
-        await program.parseAsync(['node', 'cm', 'groups', '--json', '--full'])
+        await program.parseAsync(['node', 'tdc', 'groups', '--json', '--full'])
 
         const output = JSON.parse(consoleSpy.mock.calls[0][0])
         expect(output[0]).toHaveProperty('description')
@@ -166,14 +166,14 @@ describe('cm groups list (default)', () => {
         const program = createProgram()
         const consoleSpy = vi.spyOn(console, 'log').mockImplementation(() => {})
 
-        await program.parseAsync(['node', 'cm', 'groups', 'list', '1'])
+        await program.parseAsync(['node', 'tdc', 'groups', 'list', '1'])
 
         expect(refsMocks.resolveWorkspaceRef).toHaveBeenCalledWith('1')
         expect(consoleSpy).toHaveBeenCalled()
     })
 })
 
-describe('cm groups view', () => {
+describe('tdc groups view', () => {
     const batchUserResponses = [
         { code: 200, data: { id: 1, name: 'Alice', email: 'a@d.com' } },
         { code: 200, data: { id: 2, name: 'Bob', email: 'b@d.com' } },
@@ -189,7 +189,7 @@ describe('cm groups view', () => {
         const program = createProgram()
         const consoleSpy = vi.spyOn(console, 'log').mockImplementation(() => {})
 
-        await program.parseAsync(['node', 'cm', 'groups', 'view', 'Frontend'])
+        await program.parseAsync(['node', 'tdc', 'groups', 'view', 'Frontend'])
 
         expect(refsMocks.resolveGroupRef).toHaveBeenCalledWith('Frontend', 1)
         // Should batch-fetch users, not load all workspace users
@@ -204,7 +204,7 @@ describe('cm groups view', () => {
         const program = createProgram()
         const consoleSpy = vi.spyOn(console, 'log').mockImplementation(() => {})
 
-        await program.parseAsync(['node', 'cm', 'groups', 'view', 'id:100', '--json'])
+        await program.parseAsync(['node', 'tdc', 'groups', 'view', 'id:100', '--json'])
 
         const output = JSON.parse(consoleSpy.mock.calls[0][0])
         expect(output.id).toBe(100)
@@ -220,7 +220,7 @@ describe('cm groups view', () => {
         const program = createProgram()
         const consoleSpy = vi.spyOn(console, 'log').mockImplementation(() => {})
 
-        await program.parseAsync(['node', 'cm', 'groups', 'view', 'id:100', '--json', '--full'])
+        await program.parseAsync(['node', 'tdc', 'groups', 'view', 'id:100', '--json', '--full'])
 
         const output = JSON.parse(consoleSpy.mock.calls[0][0])
         expect(output.id).toBe(100)
@@ -230,7 +230,7 @@ describe('cm groups view', () => {
     })
 })
 
-describe('cm groups create', () => {
+describe('tdc groups create', () => {
     beforeEach(() => {
         apiMocks.createGroup.mockResolvedValue({ ...frontend, id: 999, name: 'Design' })
     })
@@ -239,7 +239,7 @@ describe('cm groups create', () => {
         const program = createProgram()
         const consoleSpy = vi.spyOn(console, 'log').mockImplementation(() => {})
 
-        await program.parseAsync(['node', 'cm', 'groups', 'create', 'Design'])
+        await program.parseAsync(['node', 'tdc', 'groups', 'create', 'Design'])
 
         expect(apiMocks.createGroup).toHaveBeenCalledWith({
             workspaceId: 1,
@@ -256,7 +256,7 @@ describe('cm groups create', () => {
 
         await program.parseAsync([
             'node',
-            'cm',
+            'tdc',
             'groups',
             'create',
             'Design',
@@ -275,12 +275,12 @@ describe('cm groups create', () => {
     it('rejects empty name', async () => {
         const program = createProgram()
         await expect(
-            program.parseAsync(['node', 'cm', 'groups', 'create', '   ']),
+            program.parseAsync(['node', 'tdc', 'groups', 'create', '   ']),
         ).rejects.toMatchObject({ code: 'INVALID_NAME' })
     })
 })
 
-describe('cm groups rename', () => {
+describe('tdc groups rename', () => {
     beforeEach(() => {
         refsMocks.resolveGroupRef.mockResolvedValue(frontend)
         apiMocks.updateGroup.mockResolvedValue({ ...frontend, name: 'FE Team' })
@@ -290,14 +290,14 @@ describe('cm groups rename', () => {
         const program = createProgram()
         const consoleSpy = vi.spyOn(console, 'log').mockImplementation(() => {})
 
-        await program.parseAsync(['node', 'cm', 'groups', 'rename', 'Frontend', 'FE Team'])
+        await program.parseAsync(['node', 'tdc', 'groups', 'rename', 'Frontend', 'FE Team'])
 
         expect(apiMocks.updateGroup).toHaveBeenCalledWith({ id: 100, name: 'FE Team' })
         expect(consoleSpy.mock.calls[0][0]).toContain('FE Team')
     })
 })
 
-describe('cm groups delete', () => {
+describe('tdc groups delete', () => {
     beforeEach(() => {
         refsMocks.resolveGroupRef.mockResolvedValue(frontend)
     })
@@ -306,7 +306,7 @@ describe('cm groups delete', () => {
         const program = createProgram()
         const consoleSpy = vi.spyOn(console, 'log').mockImplementation(() => {})
 
-        await program.parseAsync(['node', 'cm', 'groups', 'delete', 'Frontend'])
+        await program.parseAsync(['node', 'tdc', 'groups', 'delete', 'Frontend'])
 
         expect(apiMocks.deleteGroup).not.toHaveBeenCalled()
         expect(consoleSpy.mock.calls.some((c) => String(c[0]).includes('Use --yes'))).toBe(true)
@@ -316,7 +316,7 @@ describe('cm groups delete', () => {
         const program = createProgram()
         vi.spyOn(console, 'log').mockImplementation(() => {})
 
-        await program.parseAsync(['node', 'cm', 'groups', 'delete', 'Frontend', '--yes'])
+        await program.parseAsync(['node', 'tdc', 'groups', 'delete', 'Frontend', '--yes'])
 
         expect(apiMocks.deleteGroup).toHaveBeenCalledWith(100)
     })
@@ -324,12 +324,12 @@ describe('cm groups delete', () => {
     it('errors in --json mode without --yes', async () => {
         const program = createProgram()
         await expect(
-            program.parseAsync(['node', 'cm', 'groups', 'delete', 'Frontend', '--json']),
+            program.parseAsync(['node', 'tdc', 'groups', 'delete', 'Frontend', '--json']),
         ).rejects.toMatchObject({ code: 'MISSING_YES_FLAG' })
     })
 })
 
-describe('cm groups add-user', () => {
+describe('tdc groups add-user', () => {
     beforeEach(() => {
         refsMocks.resolveGroupRef.mockResolvedValue({ ...frontend, userIds: [1, 2] })
     })
@@ -341,7 +341,7 @@ describe('cm groups add-user', () => {
 
         await program.parseAsync([
             'node',
-            'cm',
+            'tdc',
             'groups',
             'add-user',
             'Frontend',
@@ -360,7 +360,7 @@ describe('cm groups add-user', () => {
 
         await program.parseAsync([
             'node',
-            'cm',
+            'tdc',
             'groups',
             'add-user',
             'id:100',
@@ -376,7 +376,7 @@ describe('cm groups add-user', () => {
         const program = createProgram()
         vi.spyOn(console, 'log').mockImplementation(() => {})
 
-        await program.parseAsync(['node', 'cm', 'groups', 'add-user', 'Frontend', 'id:1,id:3'])
+        await program.parseAsync(['node', 'tdc', 'groups', 'add-user', 'Frontend', 'id:1,id:3'])
 
         expect(apiMocks.addUsersToGroup).toHaveBeenCalledWith(100, [3])
     })
@@ -386,7 +386,7 @@ describe('cm groups add-user', () => {
         const program = createProgram()
         vi.spyOn(console, 'log').mockImplementation(() => {})
 
-        await program.parseAsync(['node', 'cm', 'groups', 'add-user', 'Frontend', 'id:1,id:2'])
+        await program.parseAsync(['node', 'tdc', 'groups', 'add-user', 'Frontend', 'id:1,id:2'])
 
         expect(apiMocks.addUsersToGroup).not.toHaveBeenCalled()
     })
@@ -394,7 +394,7 @@ describe('cm groups add-user', () => {
     it('errors when no user refs given', async () => {
         const program = createProgram()
         await expect(
-            program.parseAsync(['node', 'cm', 'groups', 'add-user', 'Frontend']),
+            program.parseAsync(['node', 'tdc', 'groups', 'add-user', 'Frontend']),
         ).rejects.toMatchObject({ code: 'MISSING_USERS' })
     })
 
@@ -405,7 +405,7 @@ describe('cm groups add-user', () => {
 
         await program.parseAsync([
             'node',
-            'cm',
+            'tdc',
             'groups',
             'add-user',
             'Frontend',
@@ -418,7 +418,7 @@ describe('cm groups add-user', () => {
     })
 })
 
-describe('cm groups remove-user', () => {
+describe('tdc groups remove-user', () => {
     beforeEach(() => {
         refsMocks.resolveGroupRef.mockResolvedValue({ ...frontend, userIds: [1, 2, 3] })
     })
@@ -430,7 +430,7 @@ describe('cm groups remove-user', () => {
 
         await program.parseAsync([
             'node',
-            'cm',
+            'tdc',
             'groups',
             'remove-user',
             'Frontend',
@@ -447,7 +447,7 @@ describe('cm groups remove-user', () => {
 
         await program.parseAsync([
             'node',
-            'cm',
+            'tdc',
             'groups',
             'remove-user',
             'Frontend',
@@ -460,7 +460,7 @@ describe('cm groups remove-user', () => {
     it('errors when no user refs given', async () => {
         const program = createProgram()
         await expect(
-            program.parseAsync(['node', 'cm', 'groups', 'remove-user', 'Frontend']),
+            program.parseAsync(['node', 'tdc', 'groups', 'remove-user', 'Frontend']),
         ).rejects.toMatchObject({ code: 'MISSING_USERS' })
     })
 
@@ -471,7 +471,7 @@ describe('cm groups remove-user', () => {
 
         await program.parseAsync([
             'node',
-            'cm',
+            'tdc',
             'groups',
             'remove-user',
             'Frontend',

@@ -19,7 +19,7 @@ export function registerAuthCommand(program: Command): void {
     attachCommsLogoutCommand(auth, refAware)
     attachCommsStatusCommand(auth, refAware)
 
-    // `token` is a hybrid: bare `cm auth token` prompts interactively to save
+    // `token` is a hybrid: bare `tdc auth token` prompts interactively to save
     // a token, and the `view` subcommand prints it. Tokens are never accepted
     // as positional/CLI arguments — that would leak them via process lists
     // and shell history (Doist Secrets Management Standard).

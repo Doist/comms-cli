@@ -110,7 +110,7 @@ describe('doctor command', () => {
         mockFetch('1.0.0')
 
         const program = createProgram()
-        await program.parseAsync(['node', 'cm', 'doctor'])
+        await program.parseAsync(['node', 'tdc', 'doctor'])
 
         expect(consoleSpy).not.toHaveBeenCalledWith(expect.stringContaining('Node.js v20.19.0'))
         expect(consoleSpy).toHaveBeenCalledWith(
@@ -139,7 +139,7 @@ describe('doctor command', () => {
         mockFetch('2.0.0')
 
         const program = createProgram()
-        await program.parseAsync(['node', 'cm', 'doctor'])
+        await program.parseAsync(['node', 'tdc', 'doctor'])
 
         expect(consoleSpy).toHaveBeenCalledWith(
             expect.stringContaining(
@@ -167,7 +167,7 @@ describe('doctor command', () => {
         mockFetch('1.0.0')
 
         const program = createProgram()
-        await program.parseAsync(['node', 'cm', 'doctor'])
+        await program.parseAsync(['node', 'tdc', 'doctor'])
 
         const configWarning = consoleSpy.mock.calls.find(
             (call: unknown[]) =>
@@ -197,7 +197,7 @@ describe('doctor command', () => {
         mockFetch('1.0.0')
 
         const program = createProgram()
-        await program.parseAsync(['node', 'cm', 'doctor'])
+        await program.parseAsync(['node', 'tdc', 'doctor'])
 
         expect(consoleSpy).toHaveBeenCalledWith(
             expect.stringContaining('PASS CLI is up to date on stable (v1.0.0)'),
@@ -209,7 +209,7 @@ describe('doctor command', () => {
         mockProbeApiToken.mockRejectedValue(new NoTokenError())
 
         const program = createProgram()
-        await program.parseAsync(['node', 'cm', 'doctor', '--json', '--offline'])
+        await program.parseAsync(['node', 'tdc', 'doctor', '--json', '--offline'])
 
         const output = consoleSpy.mock.calls.at(-1)?.[0]
         expect(typeof output).toBe('string')
@@ -233,7 +233,7 @@ describe('doctor command', () => {
 
     it('marks secure-store auth as skipped in offline mode', async () => {
         const program = createProgram()
-        await program.parseAsync(['node', 'cm', 'doctor', '--offline'])
+        await program.parseAsync(['node', 'tdc', 'doctor', '--offline'])
 
         expect(consoleSpy).toHaveBeenCalledWith(
             expect.stringContaining(
@@ -245,7 +245,7 @@ describe('doctor command', () => {
 
     it('does not instantiate the API client in offline mode', async () => {
         const program = createProgram()
-        await program.parseAsync(['node', 'cm', 'doctor', '--offline'])
+        await program.parseAsync(['node', 'tdc', 'doctor', '--offline'])
 
         expect(mockCreateWrappedCommsClient).not.toHaveBeenCalled()
     })
@@ -259,7 +259,7 @@ describe('doctor command', () => {
         mockFetch('1.0.0')
 
         const program = createProgram()
-        await program.parseAsync(['node', 'cm', 'doctor'])
+        await program.parseAsync(['node', 'tdc', 'doctor'])
 
         expect(consoleSpy).toHaveBeenCalledWith(
             expect.stringContaining('FAIL Node.js v18.0.0 does not satisfy ^20.19.0 || >=22.12.0'),
