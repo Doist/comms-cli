@@ -20,8 +20,8 @@ describe('markdown', () => {
         expect(result).toContain('•')
     })
 
-    it('preprocesses twist-mention links into @mentions', async () => {
-        const result = await renderMarkdown('hello [Alice](twist-mention://12345)')
+    it('preprocesses comms-mention links into @mentions', async () => {
+        const result = await renderMarkdown('hello [Alice](comms-mention://12345)')
         expect(result).toContain('@Alice')
     })
 

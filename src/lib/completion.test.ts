@@ -10,7 +10,7 @@ import {
 
 function createTestProgram(): Command {
     const program = new Command()
-    program.name('tw')
+    program.name('tdc')
 
     const thread = program.command('thread').description('Thread operations')
     thread.command('view').description('View thread').option('--json', 'Output as JSON')
@@ -98,12 +98,12 @@ describe('getCompletions', () => {
 
 describe('parseCompLine quoted argument limitation', () => {
     it('splits quoted multi-word arguments into separate tokens', () => {
-        const result = parseCompLine('tw thread reply "hello world"')
+        const result = parseCompLine('tdc thread reply "hello world"')
         expect(result).toEqual(['thread', 'reply', '"hello', 'world"'])
     })
 
     it('strips completion-server token', () => {
-        const result = parseCompLine('tw completion-server thread rep')
+        const result = parseCompLine('tdc completion-server thread rep')
         expect(result).toEqual(['thread', 'rep'])
     })
 })

@@ -45,7 +45,7 @@ describe('inbox --workspace conflict', () => {
         const program = createProgram()
 
         await expect(
-            program.parseAsync(['node', 'tw', 'inbox', 'Doist', '--workspace', 'Other']),
+            program.parseAsync(['node', 'tdc', 'inbox', 'Doist', '--workspace', 'Other']),
         ).rejects.toThrow('Cannot specify workspace both as argument and --workspace flag')
     })
 })
@@ -73,7 +73,7 @@ describe('inbox --archive-filter', () => {
 
     it('passes archiveFilter to SDK getInbox', async () => {
         const program = createProgram()
-        await program.parseAsync(['node', 'tw', 'inbox', '--archive-filter', 'all', '--json'])
+        await program.parseAsync(['node', 'tdc', 'inbox', '--archive-filter', 'all', '--json'])
 
         expect(mockGetInbox).toHaveBeenCalledWith(
             expect.objectContaining({ archiveFilter: 'all' }),
@@ -83,7 +83,7 @@ describe('inbox --archive-filter', () => {
 
     it('defaults archiveFilter to active when not provided', async () => {
         const program = createProgram()
-        await program.parseAsync(['node', 'tw', 'inbox', '--json'])
+        await program.parseAsync(['node', 'tdc', 'inbox', '--json'])
 
         expect(mockGetInbox).toHaveBeenCalledWith(
             expect.objectContaining({ archiveFilter: 'active' }),
@@ -95,7 +95,7 @@ describe('inbox --archive-filter', () => {
         const program = createProgram()
         await program.parseAsync([
             'node',
-            'tw',
+            'tdc',
             'inbox',
             '--since',
             '2026-01-01',
@@ -138,7 +138,7 @@ describeEmptyMachineOutput('inbox empty output', {
     },
     run: async (extraArgs) => {
         const program = createProgram()
-        await program.parseAsync(['node', 'tw', 'inbox', ...extraArgs])
+        await program.parseAsync(['node', 'tdc', 'inbox', ...extraArgs])
     },
     humanMessage: 'No threads in inbox.',
 })
@@ -174,7 +174,7 @@ describe('inbox empty output (channel filter)', () => {
 
     it('outputs [] for --json when --channel filter matches nothing', async () => {
         const program = createProgram()
-        await program.parseAsync(['node', 'tw', 'inbox', '--channel', 'nonexistent', '--json'])
+        await program.parseAsync(['node', 'tdc', 'inbox', '--channel', 'nonexistent', '--json'])
 
         expect(logSpy).toHaveBeenCalledTimes(1)
         expect(logSpy).toHaveBeenCalledWith('[]')
@@ -209,7 +209,7 @@ describe('inbox batch errors', () => {
         const program = createProgram()
 
         await expect(
-            program.parseAsync(['node', 'tw', 'inbox', '--unread', '--limit', '1000']),
+            program.parseAsync(['node', 'tdc', 'inbox', '--unread', '--limit', '1000']),
         ).rejects.toThrow('Failed to fetch inbox threads: limit must be less than or equal to 500')
     })
 
@@ -245,7 +245,7 @@ describe('inbox batch errors', () => {
         const consoleSpy = vi.spyOn(console, 'log').mockImplementation(() => {})
         const program = createProgram()
 
-        await program.parseAsync(['node', 'tw', 'inbox', '--json'])
+        await program.parseAsync(['node', 'tdc', 'inbox', '--json'])
 
         const output = JSON.parse(consoleSpy.mock.calls[0][0])
         expect(output).toHaveLength(1)

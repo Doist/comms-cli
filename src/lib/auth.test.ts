@@ -137,29 +137,4 @@ describe('auth shims over the cli-core keyring store', () => {
 
         await expect(getAuthMetadata()).resolves.toEqual({ authMode: 'unknown', source: 'config' })
     })
-
-    it('getAuthMetadata falls back to v1 flat fields when users[] is empty but legacy state is on disk', async () => {
-        // Preserves real authMode so ensureWriteAllowed's READ_ONLY guard fires.
-        mocks.getConfigMock.mockResolvedValueOnce({
-            token: 'tk_legacy',
-            authMode: 'read-only',
-            authScope: 'user:read',
-            authUserId: 42,
-            authUserName: 'Ada',
-        } satisfies Config)
-        await expect(getAuthMetadata()).resolves.toEqual({
-            authMode: 'read-only',
-            authScope: 'user:read',
-            authUserId: 42,
-            authUserName: 'Ada',
-            source: 'config',
-        })
-
-        // `tw auth token` users have no authMode → defaults to 'unknown'.
-        mocks.getConfigMock.mockResolvedValueOnce({ token: 'tk_token_only' } satisfies Config)
-        await expect(getAuthMetadata()).resolves.toEqual({
-            authMode: 'unknown',
-            source: 'config',
-        })
-    })
 })

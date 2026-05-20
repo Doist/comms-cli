@@ -6,7 +6,7 @@ import {
 let preloadPromise: Promise<void> | null = null
 
 function preprocessMentions(content: string): string {
-    return content.replace(/\[([^\]]+)\]\((twist-mention:\/\/\d+)\)/g, '[@$1]($2)')
+    return content.replace(/\[([^\]]+)\]\((comms-mention:\/\/\d+)\)/g, '[@$1]($2)')
 }
 
 export async function preloadMarkdown(): Promise<void> {

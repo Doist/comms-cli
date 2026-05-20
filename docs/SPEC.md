@@ -1,6 +1,6 @@
-# twist-cli Specification
+# comms-cli Specification
 
-A command-line interface for Twist, following the architecture and patterns established by `todoist-cli`.
+A command-line interface for Comms, following the architecture and patterns established by `todoist-cli`.
 
 ## Tech Stack
 
@@ -8,7 +8,7 @@ A command-line interface for Twist, following the architecture and patterns esta
 - **Language**: TypeScript 5.x (strict mode)
 - **CLI Framework**: Commander.js
 - **Terminal Styling**: chalk
-- **API Client**: `@doist/twist-sdk`
+- **API Client**: `@doist/comms-sdk`
 - **Testing**: vitest
 - **Formatting**: prettier
 - **Git Hooks**: lefthook
@@ -42,24 +42,23 @@ __tests__/                   # Test suite
 
 ## Package & Binary
 
-- **Package name**: `@doist/twist-cli`
-- **Binary**: `tw`
+- **Package name**: `@doist/comms-cli`
+- **Binary**: `tdc`
 
 ## Authentication
 
 Token resolution (priority order):
 
-1. Environment variable: `TWIST_API_TOKEN`
+1. Environment variable: `COMMS_API_TOKEN`
 2. System credential manager (Keychain, Credential Manager, or Secret Service)
-3. Legacy plaintext token in `~/.config/twist-cli/config.json` during auto-migration
-4. Plaintext config fallback when the OS credential store is unavailable
+3. Plaintext config fallback when the OS credential store is unavailable
 
 ## Workspace Scoping
 
 Commands that require a workspace context use this resolution order:
 
 1. `--workspace <ref>` flag (if provided)
-2. Config-stored current workspace (`tw workspace use <ref>`)
+2. Config-stored current workspace (`tdc workspace use <ref>`)
 3. User's default workspace from API (auto-stored to config on first use)
 
 ---
@@ -68,7 +67,7 @@ Commands that require a workspace context use this resolution order:
 
 ### Workspace Commands
 
-#### `tw workspaces`
+#### `tdc workspaces`
 
 List all workspaces the user belongs to.
 
@@ -76,7 +75,7 @@ Options:
 
 - `--json` / `--ndjson` - Machine-readable output
 
-#### `tw workspace use <workspace-ref>`
+#### `tdc workspace use <workspace-ref>`
 
 Set the current workspace for subsequent commands.
 
@@ -88,11 +87,11 @@ Arguments:
 
 ### User Commands
 
-#### `tw user`
+#### `tdc user`
 
 Display current user info (name, email, timezone, default workspace).
 
-#### `tw users [workspace-ref]`
+#### `tdc users [workspace-ref]`
 
 List users in a workspace.
 
@@ -109,7 +108,7 @@ Options:
 
 ### Channel Commands
 
-#### `tw channels [workspace-ref]`
+#### `tdc channels [workspace-ref]`
 
 List channels in a workspace.
 
@@ -125,9 +124,9 @@ Options:
 
 ### Inbox Commands
 
-#### `tw inbox [workspace-ref]`
+#### `tdc inbox [workspace-ref]`
 
-Show inbox threads (mirrors Twist UI inbox - threads only, not DMs).
+Show inbox threads (mirrors Comms UI inbox - threads only, not DMs).
 
 Arguments:
 
@@ -151,13 +150,13 @@ Output format (human-readable):
 
 ### Thread Commands
 
-#### `tw thread view <thread-ref>`
+#### `tdc thread view <thread-ref>`
 
 Display a thread with its comments.
 
 Arguments:
 
-- `thread-ref` - Thread ID or Twist URL
+- `thread-ref` - Thread ID or Comms URL
 
 Options:
 
@@ -172,18 +171,18 @@ Output:
 - Full thread content with markdown rendered (unless `--raw`)
 - Comments with full content (detail view = no truncation)
 
-#### `tw thread reply <thread-ref> [content]`
+#### `tdc thread reply <thread-ref> [content]`
 
 Post a comment to a thread.
 
 Arguments:
 
-- `thread-ref` - Thread ID or Twist URL
+- `thread-ref` - Thread ID or Comms URL
 - `content` - Comment content (optional if using stdin or editor)
 
 Content input priority:
 
-1. Stdin (if piped: `echo "text" | tw thread reply id:123`)
+1. Stdin (if piped: `echo "text" | tdc thread reply id:123`)
 2. Argument (if provided)
 3. Opens `$EDITOR` (if neither stdin nor argument)
 
@@ -195,13 +194,13 @@ Output:
 
 - Minimal confirmation with comment-specific URL
 
-#### `tw thread done <thread-ref>`
+#### `tdc thread done <thread-ref>`
 
 Archive a thread (mark as done).
 
 Arguments:
 
-- `thread-ref` - Thread ID or Twist URL
+- `thread-ref` - Thread ID or Comms URL
 
 Options:
 
@@ -213,7 +212,7 @@ Options:
 
 Alias: `convo`. Conversations are DM/group containers.
 
-#### `tw conversation unread [workspace-ref]`
+#### `tdc conversation unread [workspace-ref]`
 
 List unread conversations.
 
@@ -231,13 +230,13 @@ Output format:
 - URL on second line
 - No message preview (privacy)
 
-#### `tw conversation view <conversation-ref>`
+#### `tdc conversation view <conversation-ref>`
 
 Display a conversation with its messages.
 
 Arguments:
 
-- `conversation-ref` - Conversation ID or Twist URL
+- `conversation-ref` - Conversation ID or Comms URL
 
 Options:
 
@@ -247,16 +246,16 @@ Options:
 - `--raw` - Show raw markdown instead of rendered
 - `--json` / `--ndjson` - Machine-readable output
 
-#### `tw conversation reply <conversation-ref> [content]`
+#### `tdc conversation reply <conversation-ref> [content]`
 
 Send a message in a conversation.
 
 Arguments:
 
-- `conversation-ref` - Conversation ID or Twist URL
+- `conversation-ref` - Conversation ID or Comms URL
 - `content` - Message content (optional if using stdin or editor)
 
-Content input: Same as `tw thread reply` (stdin → arg → $EDITOR)
+Content input: Same as `tdc thread reply` (stdin → arg → $EDITOR)
 
 Options:
 
@@ -266,13 +265,13 @@ Output:
 
 - Minimal confirmation with message-specific URL
 
-#### `tw conversation done <conversation-ref>`
+#### `tdc conversation done <conversation-ref>`
 
 Archive a conversation.
 
 Arguments:
 
-- `conversation-ref` - Conversation ID or Twist URL
+- `conversation-ref` - Conversation ID or Comms URL
 
 Options:
 
@@ -284,41 +283,41 @@ Options:
 
 Alias: `message`. Operations on individual messages within conversations.
 
-#### `tw msg view <message-ref>`
+#### `tdc msg view <message-ref>`
 
 View a single conversation message.
 
 Arguments:
 
-- `message-ref` - Message ID or Twist URL
+- `message-ref` - Message ID or Comms URL
 
 Options:
 
 - `--raw` - Show raw markdown instead of rendered
 - `--json` / `--ndjson` - Machine-readable output
 
-#### `tw msg update <message-ref> [content]`
+#### `tdc msg update <message-ref> [content]`
 
 Edit a conversation message.
 
 Arguments:
 
-- `message-ref` - Message ID or Twist URL
+- `message-ref` - Message ID or Comms URL
 - `content` - New message content (optional if using stdin or editor)
 
-Content input: Same as `tw thread reply` (stdin → arg → $EDITOR)
+Content input: Same as `tdc thread reply` (stdin → arg → $EDITOR)
 
 Options:
 
 - `--dry-run` - Show what would be updated without updating
 
-#### `tw msg delete <message-ref>`
+#### `tdc msg delete <message-ref>`
 
 Delete a conversation message.
 
 Arguments:
 
-- `message-ref` - Message ID or Twist URL
+- `message-ref` - Message ID or Comms URL
 
 Options:
 
@@ -328,7 +327,7 @@ Options:
 
 ### Search Commands
 
-#### `tw search <query> [workspace-ref]`
+#### `tdc search <query> [workspace-ref]`
 
 Search content across a workspace.
 
@@ -352,7 +351,7 @@ Options:
 
 ### Reaction Commands
 
-#### `tw react <target-type> <target-ref> <emoji>`
+#### `tdc react <target-type> <target-ref> <emoji>`
 
 Add an emoji reaction.
 
@@ -368,13 +367,13 @@ Options:
 
 Output displays actual emoji character.
 
-#### `tw unreact <target-type> <target-ref> <emoji>`
+#### `tdc unreact <target-type> <target-ref> <emoji>`
 
 Remove an emoji reaction.
 
 Arguments:
 
-- Same as `tw react`
+- Same as `tdc react`
 
 Options:
 
@@ -388,7 +387,7 @@ Commands support these reference formats:
 
 - `id:123456` - Direct ID lookup
 - `123456` - Bare ID (when unambiguous context)
-- Full Twist URLs - Parsed to extract IDs
+- Full Comms URLs - Parsed to extract IDs
 - `"Workspace Name"` - Name matching for workspaces only (case-insensitive)
 
 Threads, comments, messages, and conversations: **ID or URL only** (no name lookup).
@@ -467,7 +466,7 @@ Cursor-based pagination for search:
 
 ## Config File
 
-Location: `~/.config/twist-cli/config.json`
+Location: `~/.config/comms-cli/config.json`
 
 ```json
 {
@@ -483,73 +482,73 @@ Location: `~/.config/twist-cli/config.json`
 
 ```bash
 # Set current workspace
-tw workspace use "My Team"
+tdc workspace use "My Team"
 
 # View inbox
-tw inbox
-tw inbox --unread
+tdc inbox
+tdc inbox --unread
 
 # View a thread
-tw thread view id:123456
-tw thread view https://twist.com/a/12345/ch/67890/t/123456
+tdc thread view id:123456
+tdc thread view https://comms.todoist.com/a/12345/ch/67890/t/123456
 
 # Reply to a thread
-tw thread reply id:123456 "Great idea!"
-echo "Multiline\nreply" | tw thread reply id:123456
-tw thread reply id:123456  # opens $EDITOR
+tdc thread reply id:123456 "Great idea!"
+echo "Multiline\nreply" | tdc thread reply id:123456
+tdc thread reply id:123456  # opens $EDITOR
 
 # Mark thread as done
-tw thread done id:123456
+tdc thread done id:123456
 
 # List unread conversations
-tw conversation unread
+tdc conversation unread
 
 # View and reply to a conversation
-tw conversation view id:456789
-tw conversation reply id:456789 "Thanks!"
+tdc conversation view id:456789
+tdc conversation reply id:456789 "Thanks!"
 
 # Search
-tw search "quarterly report"
-tw search "bug fix" --author id:123 --since 2024-01-01
+tdc search "quarterly report"
+tdc search "bug fix" --author id:123 --since 2024-01-01
 
 # React to content
-tw react thread id:123456 +1
-tw react comment id:789 👍
-tw unreact message id:456 heart
+tdc react thread id:123456 +1
+tdc react comment id:789 👍
+tdc unreact message id:456 heart
 
 # List channels and users
-tw channels
-tw users --search "john"
+tdc channels
+tdc users --search "john"
 
 # Dry run before mutating
-tw thread reply id:123 "test" --dry-run
-tw thread done id:123 --dry-run
+tdc thread reply id:123 "test" --dry-run
+tdc thread done id:123 --dry-run
 
 # JSON output for scripting
-tw inbox --json
-tw search "project" --ndjson
+tdc inbox --json
+tdc search "project" --ndjson
 ```
 
 ---
 
 ## Not in MVP (Future Considerations)
 
-- `tw conversation start` - Start new conversations
-- `tw thread done --all` - Bulk archive
-- `tw link` command - URLs shown in output instead
-- `tw open` - Open in browser
-- `tw star` / `tw mute` - Star/mute content
-- `tw unread` - Unified unread view (threads + messages)
+- `tdc conversation start` - Start new conversations
+- `tdc thread done --all` - Bulk archive
+- `tdc link` command - URLs shown in output instead
+- `tdc open` - Open in browser
+- `tdc star` / `tdc mute` - Star/mute content
+- `tdc unread` - Unified unread view (threads + messages)
 
 ---
 
 ## Implementation Notes
 
-1. **API Client Singleton**: Lazy-initialize `TwistClient` on first use
+1. **API Client Singleton**: Lazy-initialize `CommsClient` on first use
 
 2. **Workspace Caching**: Cache current workspace in config, auto-fetch from API default if not set
 
-3. **URL Parsing**: Support full Twist URLs, extract workspace/channel/thread/comment/conversation/message IDs
+3. **URL Parsing**: Support full Comms URLs, extract workspace/channel/thread/comment/conversation/message IDs
 
 4. **Batch Operations**: Use `client.batch()` for parallel API calls when fetching related data (channels, users for display)
 

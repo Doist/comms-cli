@@ -30,7 +30,7 @@ export default {
                               'CHANGELOG.md',
                               'package.json',
                               'package-lock.json',
-                              'skills/twist-cli/SKILL.md',
+                              'skills/comms-cli/SKILL.md',
                           ],
                           message:
                               'chore(release): ${nextRelease.version} [skip ci]\n\n${nextRelease.notes}',

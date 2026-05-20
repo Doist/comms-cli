@@ -97,15 +97,17 @@ function formatConfigView(
 
     // When a token is present, its metadata is the ground truth for the active
     // mode/scope — this matters most for env-sourced tokens, whose scope the CLI
-    // does not know and where config.auth* may be stale from an unrelated
-    // `tw auth login`. For missing/unavailable tokens, fall back to the config
-    // file values (what the CLI would attempt once auth recovers).
-    const effectiveMode = token.state === 'present' ? token.metadata.authMode : config.authMode
-    const effectiveScope = token.state === 'present' ? token.metadata.authScope : config.authScope
+    // does not know. For missing/unavailable tokens, fall back to the default
+    // user record (what the CLI would attempt once auth recovers).
+    const defaultRecord = getDefaultUserRecord(config)
+    const effectiveMode =
+        token.state === 'present' ? token.metadata.authMode : defaultRecord?.account.authMode
+    const effectiveScope =
+        token.state === 'present' ? token.metadata.authScope : defaultRecord?.account.authScope
 
     // When the mode is 'unknown' and no scope is recorded, the scope is
     // genuinely unintrospectable (env-sourced tokens, or tokens saved via
-    // `tw auth token` without metadata). Render 'unknown' rather than
+    // `tdc auth token` without metadata). Render 'unknown' rather than
     // 'not set' to avoid reading as an explicit empty scope.
     const scopeDisplay =
         effectiveMode === 'unknown' && effectiveScope === undefined
@@ -138,9 +140,6 @@ export async function viewConfig(options: ViewConfigOptions): Promise<void> {
 
     if (options.json) {
         const output: Config = { ...config }
-        if (output.token && !options.showToken) {
-            output.token = maskToken(output.token)
-        }
         if (output.users && !options.showToken) {
             output.users = output.users.map((user) =>
                 user.token ? { ...user, token: maskToken(user.token) } : user,

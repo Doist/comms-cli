@@ -1,14 +1,14 @@
 /**
  * Per-CLI extension of `@doist/cli-core`'s global-args parser.
  *
- * Layers twist's `--include-private-channels`, `--non-interactive`,
+ * Layers comms's `--include-private-channels`, `--non-interactive`,
  * `--interactive`, and the `--progress-jsonl <path>` space form on top of
- * the subset of cli-core's canonical shape that twist actually registers
+ * the subset of cli-core's canonical shape that comms actually registers
  * with Commander (`--json`, `--ndjson`, `--accessible`, `--no-spinner`,
  * `--progress-jsonl[=path]`).
  *
  * cli-core's parser also surfaces `quiet` and `verbose` from argv, but
- * twist does not register `--quiet` or `--verbose` globally (Commander
+ * comms does not register `--quiet` or `--verbose` globally (Commander
  * would reject them) — so we drop them from the exported shape to avoid
  * the type/API leak where helpers believe the binary supports them.
  */
@@ -21,8 +21,8 @@ import {
     parseGlobalArgs as parseCoreGlobalArgs,
 } from '@doist/cli-core'
 
-type TwSpecificFlags = {
-    /** Bare/string/false — see `TwLocalFlags.progressJsonl` for semantics. */
+type CommsSpecificFlags = {
+    /** Bare/string/false — see `CommsLocalFlags.progressJsonl` for semantics. */
     progressJsonl: string | true | false
     /** Resolved path for `--progress-jsonl` (any form). `undefined` when bare or absent. */
     progressJsonlPath: string | undefined
@@ -32,46 +32,43 @@ type TwSpecificFlags = {
 }
 
 /**
- * Public shape exposed to twist callers. Drops cli-core's `quiet` and
- * `verbose` because twist does not register `--quiet` / `--verbose` with
+ * Public shape exposed to comms callers. Drops cli-core's `quiet` and
+ * `verbose` because comms does not register `--quiet` / `--verbose` with
  * Commander — exposing them in the type would lie about what the binary
  * supports.
  */
-export type TwGlobalArgs = Pick<
+export type GlobalArgs = Pick<
     CoreGlobalArgs,
     'json' | 'ndjson' | 'accessible' | 'noSpinner' | 'user'
 > &
-    TwSpecificFlags
-
-/** Back-compat alias — pre-cli-core twist code imported `GlobalArgs` from this module. */
-export type GlobalArgs = TwGlobalArgs
+    CommsSpecificFlags
 
 /**
  * Internal store shape — keeps the full cli-core surface so the shared
  * `createGlobalArgsStore` / `createAccessibleGate` / `createSpinnerGate`
- * helpers still typecheck against `T extends GlobalArgs`. Twist callers
- * see the narrower {@link TwGlobalArgs} via `parseGlobalArgs`.
+ * helpers still typecheck against `T extends GlobalArgs`. Comms callers
+ * see the narrower {@link GlobalArgs} via `parseGlobalArgs`.
  */
-type FullArgs = CoreGlobalArgs & TwSpecificFlags
+type FullArgs = CoreGlobalArgs & CommsSpecificFlags
 
-type TwLocalFlags = {
+type CommsLocalFlags = {
     includePrivateChannels: boolean
     nonInteractive: boolean
     interactive: boolean
     /**
      * Resolved value for `--progress-jsonl` across all three forms (bare,
      * `=path`, space-separated `<path>`). `false` = absent, `true` = bare,
-     * string = path. Twist parses this locally — and ignores cli-core's
+     * string = path. Comms parses this locally — and ignores cli-core's
      * `progressJsonl` field — so that "last occurrence wins" stays correct
-     * when the forms are mixed (`tw --progress-jsonl=/a --progress-jsonl /b`
+     * when the forms are mixed (`tdc --progress-jsonl=/a --progress-jsonl /b`
      * → `/b`). cli-core deliberately drops the space form cross-CLI because
-     * it can swallow positionals (`td task add --progress-jsonl "Buy milk"`);
-     * twist re-adds it because the flag is global, not subcommand-attached.
+     * it can swallow positionals; comms re-adds it because the flag is
+     * global, not subcommand-attached.
      */
     progressJsonl: string | true | false
 }
 
-function parseTwLocalFlags(argv: string[]): TwLocalFlags {
+function parseCommsLocalFlags(argv: string[]): CommsLocalFlags {
     let includePrivate = false
     let nonInteractive = false
     let interactive = false
@@ -110,7 +107,7 @@ function parseTwLocalFlags(argv: string[]): TwLocalFlags {
 function parseFullArgs(argv?: string[]): FullArgs {
     const args = argv ?? process.argv
     const base = parseCoreGlobalArgs(args)
-    const local = parseTwLocalFlags(args)
+    const local = parseCommsLocalFlags(args)
 
     return {
         ...base,
@@ -126,10 +123,10 @@ function parseFullArgs(argv?: string[]): FullArgs {
 /**
  * Parse well-known global flags from an argv array. Pure — pass an explicit
  * array for testing, or omit to read `process.argv`. Returns the narrowed
- * twist surface; cli-core's `quiet` and `verbose` are intentionally
- * dropped (see {@link TwGlobalArgs}).
+ * comms surface; cli-core's `quiet` and `verbose` are intentionally
+ * dropped (see {@link GlobalArgs}).
  */
-export function parseGlobalArgs(argv?: string[]): TwGlobalArgs {
+export function parseGlobalArgs(argv?: string[]): GlobalArgs {
     const { quiet: _quiet, verbose: _verbose, ...rest } = parseFullArgs(argv)
     return rest
 }
@@ -151,7 +148,7 @@ export function isNdjsonMode(): boolean {
     return store.get().ndjson
 }
 
-/** Pre-subcommand `tw --user <ref>` (see `stripUserFlag` in `src/index.ts`). */
+/** Pre-subcommand `tdc --user <ref>` (see `stripUserFlag` in `src/index.ts`). */
 export function getRequestedUserRef(): string | undefined {
     return store.get().user
 }
@@ -164,7 +161,7 @@ export function isNonInteractive(): boolean {
 }
 
 export function includePrivateChannels(): boolean {
-    const envVal = process.env.TWIST_INCLUDE_PRIVATE_CHANNELS
+    const envVal = process.env.COMMS_INCLUDE_PRIVATE_CHANNELS
     if (envVal === '1' || envVal === 'true') {
         return true
     }
@@ -180,12 +177,12 @@ export function getProgressJsonlPath(): string | undefined {
 }
 
 export const isAccessible = createAccessibleGate({
-    envVar: 'TW_ACCESSIBLE',
+    envVar: 'TDC_ACCESSIBLE',
     getArgs: store.get,
 })
 
 export const shouldDisableSpinner = createSpinnerGate({
-    envVar: 'TW_SPINNER',
+    envVar: 'TDC_SPINNER',
     getArgs: store.get,
     extraTriggers: () => store.get().nonInteractive,
 })

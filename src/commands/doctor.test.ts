@@ -44,7 +44,7 @@ import { getConfig } from '../lib/config.js'
 import { registerDoctorCommand } from './doctor.js'
 
 const mockReadFile = vi.mocked(readFile)
-const mockCreateWrappedTwistClient = vi.mocked(createWrappedCommsClient)
+const mockCreateWrappedCommsClient = vi.mocked(createWrappedCommsClient)
 const mockProbeApiToken = vi.mocked(probeApiToken)
 const mockGetConfig = vi.mocked(getConfig)
 
@@ -81,7 +81,7 @@ describe('doctor command', () => {
             token: 'test_token_123456789',
             metadata: { authMode: 'read-write', source: 'secure-store' },
         })
-        mockCreateWrappedTwistClient.mockReturnValue({
+        mockCreateWrappedCommsClient.mockReturnValue({
             users: {
                 getSessionUser: vi.fn().mockResolvedValue({
                     id: 1,
@@ -110,7 +110,7 @@ describe('doctor command', () => {
         mockFetch('1.0.0')
 
         const program = createProgram()
-        await program.parseAsync(['node', 'tw', 'doctor'])
+        await program.parseAsync(['node', 'tdc', 'doctor'])
 
         expect(consoleSpy).not.toHaveBeenCalledWith(expect.stringContaining('Node.js v20.19.0'))
         expect(consoleSpy).toHaveBeenCalledWith(
@@ -126,7 +126,8 @@ describe('doctor command', () => {
     it('warns when plaintext config fallback is in use and an update is available', async () => {
         mockReadFile.mockResolvedValue(
             JSON.stringify({
-                token: 'plaintext-token',
+                users: [{ id: '1', name: 'Person', token: 'plaintext-token' }],
+                defaultUserId: '1',
                 update_channel: 'pre-release',
             }),
         )
@@ -138,7 +139,7 @@ describe('doctor command', () => {
         mockFetch('2.0.0')
 
         const program = createProgram()
-        await program.parseAsync(['node', 'tw', 'doctor'])
+        await program.parseAsync(['node', 'tdc', 'doctor'])
 
         expect(consoleSpy).toHaveBeenCalledWith(
             expect.stringContaining(
@@ -158,9 +159,7 @@ describe('doctor command', () => {
     it('warns when config fields are invalid or unrecognized', async () => {
         mockReadFile.mockResolvedValue(
             JSON.stringify({
-                pendingSecureStoreClear: 'yes',
                 currentWorkspace: 'abc',
-                authMode: 'admin',
                 update_channel: 'beta',
                 extraSetting: true,
             }),
@@ -168,7 +167,7 @@ describe('doctor command', () => {
         mockFetch('1.0.0')
 
         const program = createProgram()
-        await program.parseAsync(['node', 'tw', 'doctor'])
+        await program.parseAsync(['node', 'tdc', 'doctor'])
 
         const configWarning = consoleSpy.mock.calls.find(
             (call: unknown[]) =>
@@ -181,9 +180,7 @@ describe('doctor command', () => {
             expect.stringContaining('WARN Config file is readable but'),
         )
         expect(configWarning).toContain('contains unrecognized key "extraSetting"')
-        expect(configWarning).toContain('pendingSecureStoreClear must be a boolean')
         expect(configWarning).toContain('currentWorkspace must be a positive integer')
-        expect(configWarning).toContain('authMode must be one of: read-only, read-write, unknown')
         expect(configWarning).toContain('update_channel must be one of: stable, pre-release')
         expect(consoleSpy).toHaveBeenCalledWith(
             expect.stringContaining('PASS Authenticated as person@example.com via secure-store'),
@@ -195,63 +192,12 @@ describe('doctor command', () => {
         expect(process.exitCode).toBeUndefined()
     })
 
-    it('reads legacy updateChannel from on-disk config and reports the channel', async () => {
-        // Disk still has the legacy camelCase key; read-seam translates it,
-        // so doctor reports the configured channel exactly as it would for
-        // a canonical `update_channel` file. No "unrecognized key" warning.
-        mockReadFile.mockResolvedValue(
-            JSON.stringify({
-                token: 'plaintext-token',
-                updateChannel: 'pre-release',
-            }),
-        )
-        mockGetConfig.mockResolvedValue({ updateChannel: 'pre-release' })
-        mockProbeApiToken.mockResolvedValue({
-            token: 'plaintext-token',
-            metadata: { authMode: 'read-write', source: 'config-file' },
-        })
-        mockFetch('1.0.0')
-
-        const program = createProgram()
-        await program.parseAsync(['node', 'tw', 'doctor'])
-
-        expect(consoleSpy).toHaveBeenCalledWith(
-            expect.stringContaining('PASS CLI is up to date on pre-release (v1.0.0)'),
-        )
-        const configWarning = consoleSpy.mock.calls.find(
-            (call: unknown[]) =>
-                typeof call[0] === 'string' &&
-                (call[0] as string).includes('WARN Config file is readable but'),
-        )?.[0]
-        // updateChannel is a known legacy key — must not show as unrecognized.
-        expect(configWarning ?? '').not.toContain('unrecognized key "updateChannel"')
-    })
-
-    it('flags invalid legacy updateChannel value in the validator', async () => {
-        mockReadFile.mockResolvedValue(
-            JSON.stringify({
-                updateChannel: 'beta',
-            }),
-        )
-        mockFetch('1.0.0')
-
-        const program = createProgram()
-        await program.parseAsync(['node', 'tw', 'doctor'])
-
-        const configWarning = consoleSpy.mock.calls.find(
-            (call: unknown[]) =>
-                typeof call[0] === 'string' &&
-                (call[0] as string).includes('WARN Config file is readable but'),
-        )?.[0]
-        expect(configWarning).toContain('updateChannel must be one of: stable, pre-release')
-    })
-
     it('normalizes invalid update channel values to stable', async () => {
         mockGetConfig.mockResolvedValue({ updateChannel: 'beta' as never })
         mockFetch('1.0.0')
 
         const program = createProgram()
-        await program.parseAsync(['node', 'tw', 'doctor'])
+        await program.parseAsync(['node', 'tdc', 'doctor'])
 
         expect(consoleSpy).toHaveBeenCalledWith(
             expect.stringContaining('PASS CLI is up to date on stable (v1.0.0)'),
@@ -263,7 +209,7 @@ describe('doctor command', () => {
         mockProbeApiToken.mockRejectedValue(new NoTokenError())
 
         const program = createProgram()
-        await program.parseAsync(['node', 'tw', 'doctor', '--json', '--offline'])
+        await program.parseAsync(['node', 'tdc', 'doctor', '--json', '--offline'])
 
         const output = consoleSpy.mock.calls.at(-1)?.[0]
         expect(typeof output).toBe('string')
@@ -287,7 +233,7 @@ describe('doctor command', () => {
 
     it('marks secure-store auth as skipped in offline mode', async () => {
         const program = createProgram()
-        await program.parseAsync(['node', 'tw', 'doctor', '--offline'])
+        await program.parseAsync(['node', 'tdc', 'doctor', '--offline'])
 
         expect(consoleSpy).toHaveBeenCalledWith(
             expect.stringContaining(
@@ -299,9 +245,9 @@ describe('doctor command', () => {
 
     it('does not instantiate the API client in offline mode', async () => {
         const program = createProgram()
-        await program.parseAsync(['node', 'tw', 'doctor', '--offline'])
+        await program.parseAsync(['node', 'tdc', 'doctor', '--offline'])
 
-        expect(mockCreateWrappedTwistClient).not.toHaveBeenCalled()
+        expect(mockCreateWrappedCommsClient).not.toHaveBeenCalled()
     })
 
     it('fails when node or config are invalid', async () => {
@@ -313,7 +259,7 @@ describe('doctor command', () => {
         mockFetch('1.0.0')
 
         const program = createProgram()
-        await program.parseAsync(['node', 'tw', 'doctor'])
+        await program.parseAsync(['node', 'tdc', 'doctor'])
 
         expect(consoleSpy).toHaveBeenCalledWith(
             expect.stringContaining('FAIL Node.js v18.0.0 does not satisfy ^20.19.0 || >=22.12.0'),

@@ -22,8 +22,8 @@ Settable keys:
 ${listSettableKeys()}
 
 Examples:
-  $ tw config set unarchive-new-threads true
-  $ tw config set unarchive-new-threads false`,
+  $ tdc config set unarchive-new-threads true
+  $ tdc config set unarchive-new-threads false`,
         )
         .action(setConfigValue)
 
@@ -31,9 +31,9 @@ Examples:
         'after',
         `
 Examples:
-  $ tw config view                              # pretty-printed, token masked
-  $ tw config view --json                       # raw JSON, token masked
-  $ tw config view --show-token                 # include the full token
-  $ tw config set unarchive-new-threads true    # change a user preference`,
+  $ tdc config view                              # pretty-printed, token masked
+  $ tdc config view --json                       # raw JSON, token masked
+  $ tdc config view --show-token                 # include the full token
+  $ tdc config set unarchive-new-threads true    # change a user preference`,
     )
 }

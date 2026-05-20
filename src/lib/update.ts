@@ -9,10 +9,10 @@ export async function fetchLatestVersion(channel: UpdateChannel): Promise<string
 }
 
 /**
- * Tolerant channel read for `tw doctor`. Returns the persisted value when
+ * Tolerant channel read for `tdc doctor`. Returns the persisted value when
  * valid, otherwise `'stable'`. cli-core's strict `getConfiguredUpdateChannel`
  * throws `INVALID_UPDATE_CHANNEL` — right behaviour for the user-facing
- * `tw update` command (handled by cli-core internally), wrong behaviour for
+ * `tdc update` command (handled by cli-core internally), wrong behaviour for
  * diagnostics which should surface the problem as a doctor warning rather
  * than crash.
  */

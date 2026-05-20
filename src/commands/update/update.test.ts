@@ -1,4 +1,4 @@
-import { mkdtempSync, readFileSync, writeFileSync } from 'node:fs'
+import { mkdtempSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { Command } from 'commander'
@@ -9,7 +9,7 @@ describe('update wrapper', () => {
     let tmpConfigPath: string
 
     beforeEach(() => {
-        tmpConfigPath = join(mkdtempSync(join(tmpdir(), 'twist-update-test-')), 'config.json')
+        tmpConfigPath = join(mkdtempSync(join(tmpdir(), 'comms-update-test-')), 'config.json')
         vi.doMock('../../lib/config.js', async (importOriginal) => {
             const actual = await importOriginal<typeof import('../../lib/config.js')>()
             return { ...actual, getConfigPath: () => tmpConfigPath }
@@ -49,34 +49,8 @@ describe('update wrapper', () => {
             packageName: packageJson.name,
             currentVersion: packageJson.version,
             configPath: tmpConfigPath,
-            changelogCommandName: 'tw changelog',
+            changelogCommandName: 'tdc changelog',
             withSpinner,
-        })
-    })
-
-    it('migrates a legacy-only updateChannel on disk so cli-core can read it', async () => {
-        writeFileSync(tmpConfigPath, JSON.stringify({ updateChannel: 'pre-release' }))
-        vi.stubGlobal(
-            'fetch',
-            vi.fn().mockResolvedValue({
-                ok: true,
-                json: () => Promise.resolve({ version: packageJson.version }),
-            }),
-        )
-
-        const { registerUpdateCommand } = await import('./index.js')
-        const program = new Command()
-        program.exitOverride()
-        registerUpdateCommand(program)
-
-        await program.parseAsync(['node', 'tw', 'update', '--check'])
-
-        // After the preAction hook ran, the on-disk file should carry both
-        // keys so cli-core's `update_channel` read succeeds going forward.
-        const onDisk = JSON.parse(readFileSync(tmpConfigPath, 'utf-8'))
-        expect(onDisk).toMatchObject({
-            updateChannel: 'pre-release',
-            update_channel: 'pre-release',
         })
     })
 
@@ -93,7 +67,7 @@ describe('update wrapper', () => {
         program.exitOverride()
         registerUpdateCommand(program)
 
-        await program.parseAsync(['node', 'tw', 'update', '--check'])
+        await program.parseAsync(['node', 'tdc', 'update', '--check'])
 
         expect(fetchMock).toHaveBeenCalledTimes(1)
         const [url] = fetchMock.mock.calls[0]
@@ -113,8 +87,8 @@ describe('update wrapper', () => {
         program.exitOverride()
         registerUpdateCommand(program)
 
-        await expect(program.parseAsync(['node', 'tw', 'update', '--check'])).rejects.toMatchObject(
-            { code: 'INVALID_UPDATE_CHANNEL' },
-        )
+        await expect(
+            program.parseAsync(['node', 'tdc', 'update', '--check']),
+        ).rejects.toMatchObject({ code: 'INVALID_UPDATE_CHANNEL' })
     })
 })

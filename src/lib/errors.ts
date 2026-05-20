@@ -11,7 +11,6 @@ export type { ErrorType } from '@doist/cli-core'
 export type ErrorCode =
     // Auth & permissions
     | 'AUTH_FAILED'
-    | 'AUTH_MIGRATION_PENDING'
     | 'INSUFFICIENT_SCOPE'
     | 'INVALID_TOKEN'
     | 'NO_TOKEN'

@@ -83,7 +83,7 @@ const commandAliases: Record<string, string> = {
 }
 
 program
-    .name('tw')
+    .name('tdc')
     .description('Comms CLI')
     .version(pkg.version)
     .option('--no-spinner', 'Disable loading animations')
@@ -92,7 +92,7 @@ program
         '--include-private-channels',
         'Include joined private channels in output when explicitly needed (env: COMMS_INCLUDE_PRIVATE_CHANNELS)',
     )
-    .option('--accessible', 'Add text labels to color-coded output (also: TW_ACCESSIBLE=1)')
+    .option('--accessible', 'Add text labels to color-coded output (also: TDC_ACCESSIBLE=1)')
     .option(
         '--non-interactive',
         'Disable interactive prompts (auto-detected when stdin is not a TTY)',

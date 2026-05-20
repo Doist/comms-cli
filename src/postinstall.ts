@@ -1,7 +1,4 @@
-import { runMigrateLegacyAuth } from './lib/migrate-auth.js'
 import { updateAllInstalledSkills } from './lib/skills/update-installed.js'
 
-// Failures must not break `npm install`. `createCommsTokenStore` re-runs the
-// migration lazily for users who installed with `--ignore-scripts`.
+// Failures must not break `npm install`.
 updateAllInstalledSkills({ local: false }).catch(() => {})
-runMigrateLegacyAuth({ silent: true }).catch(() => {})

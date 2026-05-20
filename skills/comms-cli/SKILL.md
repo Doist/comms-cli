@@ -1,23 +1,19 @@
-import packageJson from '../../../package.json' with { type: 'json' }
+---
+name: comms-cli
+description: "Comms messaging CLI. View and respond to inbox threads, channel threads, direct messages, mentions, and group conversations; search, react, archive, mute, and manage workspaces. Use when the user mentions Comms, asks about their inbox, mentions, threads, DMs, channels, or wants to read or send Comms messages."
+license: MIT
+metadata:
+  author: Doist
+  version: "0.1.0-alpha.1"
+---
 
-export const SKILL_NAME = 'comms-cli'
+# Comms CLI (tdc)
 
-export const SKILL_DESCRIPTION =
-    'Comms messaging CLI. View and respond to inbox threads, channel threads, direct messages, mentions, and group conversations; search, react, archive, mute, and manage workspaces. Use when the user mentions Comms, asks about their inbox, mentions, threads, DMs, channels, or wants to read or send Comms messages.'
-
-export const SKILL_AUTHOR = 'Doist'
-
-export const SKILL_LICENSE = 'MIT'
-
-export const SKILL_VERSION = packageJson.version
-
-export const SKILL_CONTENT = `# Comms CLI (tdc)
-
-Access Comms messaging via the \`tdc\` CLI. Use when the user asks about their Comms workspaces, threads, messages, or wants to interact with Comms in any way.
+Access Comms messaging via the `tdc` CLI. Use when the user asks about their Comms workspaces, threads, messages, or wants to interact with Comms in any way.
 
 ## Setup
 
-\`\`\`bash
+```bash
 tdc auth login                    # OAuth login (opens browser, read-write)
 tdc auth login --read-only        # OAuth login with read-only scope
 tdc auth login --callback-port <n># Override the local OAuth callback port (default 8766)
@@ -29,7 +25,7 @@ tdc auth status --json            # Full status payload as JSON (--ndjson also s
 tdc auth status --user <ref>      # Target a specific stored account (id, id:<n>, or display name)
 tdc --user <ref> auth <status|logout|token view>  # Equivalent to passing --user after the subcommand; other commands accept the flag but ignore it
 tdc auth logout                   # Remove saved token and auth metadata
-tdc auth logout --json            # Emits \`{"ok": true}\` (--ndjson is silent)
+tdc auth logout --json            # Emits `{"ok": true}` (--ndjson is silent)
 tdc auth logout --user <ref>      # Target a specific stored account; mismatched ref errors with ACCOUNT_NOT_FOUND
 tdc auth token view               # Print the saved token to stdout (pipe-safe; refuses if COMMS_API_TOKEN is set)
 tdc auth token view --user <ref>  # Print the saved token for a specific stored account
@@ -44,29 +40,29 @@ tdc config set <key> <value>      # Set a user preference (e.g. unarchive-new-th
 tdc doctor                        # Diagnose CLI setup and environment issues
 tdc update                        # Update CLI to latest version
 tdc changelog                     # Show recent changelog entries
-\`\`\`
+```
 
-Stored auth uses the system credential manager when available. If secure storage is unavailable, \`tdc\` warns and falls back to \`~/.config/comms-cli/config.json\`. \`COMMS_API_TOKEN\` always takes priority over the stored token.
+Stored auth uses the system credential manager when available. If secure storage is unavailable, `tdc` warns and falls back to `~/.config/comms-cli/config.json`. `COMMS_API_TOKEN` always takes priority over the stored token.
 
-In read-only mode (\`tdc auth login --read-only\`), commands that modify Comms data (reply, archive, react, delete, etc.) are blocked by the CLI. Externally provided tokens (\`COMMS_API_TOKEN\` or \`tdc auth token\`) are treated as unknown scope and assumed write-capable.
+In read-only mode (`tdc auth login --read-only`), commands that modify Comms data (reply, archive, react, delete, etc.) are blocked by the CLI. Externally provided tokens (`COMMS_API_TOKEN` or `tdc auth token`) are treated as unknown scope and assumed write-capable.
 
 ## View by URL
 
-\`\`\`bash
+```bash
 tdc view <url>                    # View any Comms entity by URL
-\`\`\`
+```
 
 Routes automatically based on URL structure:
-- Message URL → \`tdc msg view\`
-- Conversation URL → \`tdc conversation view\`
-- Thread+comment URL → \`tdc thread view\` (comment ID extracted from URL)
-- Thread URL → \`tdc thread view\`
+- Message URL → `tdc msg view`
+- Conversation URL → `tdc conversation view`
+- Thread+comment URL → `tdc thread view` (comment ID extracted from URL)
+- Thread URL → `tdc thread view`
 
-All target command flags pass through (e.g. \`--json\`, \`--raw\`, \`--full\`).
+All target command flags pass through (e.g. `--json`, `--raw`, `--full`).
 
 ## Inbox
 
-\`\`\`bash
+```bash
 tdc inbox                         # Show inbox threads
 tdc inbox --unread                # Only unread threads
 tdc inbox --archive-filter all      # Show active + done threads
@@ -74,11 +70,11 @@ tdc inbox --archive-filter archived # Show only done threads
 tdc inbox --channel <filter>      # Filter by channel name (fuzzy)
 tdc inbox --since <date>          # Filter by date (ISO format)
 tdc inbox --limit <n>             # Max items (default: 50)
-\`\`\`
+```
 
 ## Threads
 
-\`\`\`bash
+```bash
 tdc thread <thread-ref>           # View thread (shorthand for view)
 tdc thread view <thread-ref>      # View thread with comments
 tdc thread view <ref> --comment <id> # View a specific comment
@@ -121,15 +117,15 @@ echo "New body" | tdc thread update <ref>  # Update body from stdin
 tdc thread update <ref> "New body" --dry-run  # Preview without updating
 tdc thread update <ref> "New body" --json  # Update and return { id, content } as JSON
 tdc thread update <ref> "New body" --json --full  # Update and return full thread as JSON
-\`\`\`
+```
 
-Default \`--notify\` for reply is EVERYONE_IN_THREAD, which may notify more people than intended. Before posting, confirm with the user whether specific people should be notified instead (via \`--notify <user-ids>\`). Options: EVERYONE, EVERYONE_IN_THREAD, or comma-separated ID refs.
+Default `--notify` for reply is EVERYONE_IN_THREAD, which may notify more people than intended. Before posting, confirm with the user whether specific people should be notified instead (via `--notify <user-ids>`). Options: EVERYONE, EVERYONE_IN_THREAD, or comma-separated ID refs.
 
-\`--notify\` automatically resolves IDs: group IDs are routed to the \`groups\` API field, user IDs to \`recipients\`. No special syntax needed.
+`--notify` automatically resolves IDs: group IDs are routed to the `groups` API field, user IDs to `recipients`. No special syntax needed.
 
 ## Thread Comments
 
-\`\`\`bash
+```bash
 tdc comment <comment-ref>                       # View a comment (shorthand for view)
 tdc comment view <comment-ref>                  # View a single thread comment
 tdc comment view <comment-ref> --raw            # Show raw markdown
@@ -141,11 +137,11 @@ tdc comment update <comment-ref> "content" --json  # Update and return updated c
 tdc comment update <comment-ref> "content" --json --full  # Include all comment fields
 tdc comment delete <comment-ref>                # Delete a thread comment
 tdc comment delete <comment-ref> --json         # Delete and return status as JSON
-\`\`\`
+```
 
 ## Conversations (DMs/Groups)
 
-\`\`\`bash
+```bash
 tdc conversation unread                    # List unread conversations
 tdc conversation <conversation-ref>        # View conversation (shorthand for view)
 tdc conversation view <conversation-ref>   # View conversation messages
@@ -163,13 +159,13 @@ tdc conversation mute <ref> --json        # Mute and return { id, mutedUntil } a
 tdc conversation mute <ref> --json --full # Mute and return full conversation as JSON
 tdc conversation unmute <ref>             # Unmute a muted conversation
 tdc conversation unmute <ref> --json      # Unmute and return { id, mutedUntil } as JSON
-\`\`\`
+```
 
-Alias: \`tdc convo\` works the same as \`tdc conversation\`.
+Alias: `tdc convo` works the same as `tdc conversation`.
 
 ## Conversation Messages
 
-\`\`\`bash
+```bash
 tdc msg <message-ref>             # View a message (shorthand for view)
 tdc msg view <message-ref>        # View a single conversation message
 tdc msg update <ref> "content"    # Edit a conversation message
@@ -177,13 +173,13 @@ tdc msg update <ref> "content" --json  # Edit and return updated message as JSON
 tdc msg update <ref> "content" --json --full  # Include all message fields
 tdc msg delete <ref>              # Delete a conversation message
 tdc msg delete <ref> --json       # Delete and return status as JSON
-\`\`\`
+```
 
-Alias: \`tdc message\` works the same as \`tdc msg\`.
+Alias: `tdc message` works the same as `tdc msg`.
 
 ## Search
 
-\`\`\`bash
+```bash
 tdc mentions                      # Show content mentioning current user
 tdc mentions --since 2026-04-01 --all # Fetch every mention since a date
 tdc mentions --type threads --json # Limit mentions to threads
@@ -200,11 +196,11 @@ tdc search "query" --channel <refs> # Filter by channel refs (comma-separated)
 tdc search "query" --limit <n>    # Max results (default: 50)
 tdc search "query" --cursor <cur> # Pagination cursor
 tdc search "query" --all          # Fetch all result pages
-\`\`\`
+```
 
 ## Users, Channels & Groups
 
-\`\`\`bash
+```bash
 tdc user                          # Show current user info
 tdc user --json                   # JSON output
 tdc user --json --full            # Include all fields in JSON output
@@ -240,68 +236,68 @@ tdc groups add-user <ref> a@d.com,b@d.com     # Comma-separated refs
 tdc groups add-user <ref> id:123 --json       # Output result as JSON
 tdc groups remove-user <group-ref> user1 user2  # Remove users from a group
 tdc groups remove-user <ref> id:123,id:456      # Comma-separated ID refs
-\`\`\`
+```
 
-If a channel is not found in \`tdc channels\`, widen with broader listings such as \`tdc channels --scope public\`, then \`tdc channels --scope public --state all\`. Check \`tdc channels --help\` for other available filters.
+If a channel is not found in `tdc channels`, widen with broader listings such as `tdc channels --scope public`, then `tdc channels --scope public --state all`. Check `tdc channels --help` for other available filters.
 
-\`tdc channel threads\` returns every thread in the channel; pagination filters (\`--limit\`, \`--cursor\`, \`--since\`, \`--until\`, \`--unread\`) are applied client-side after fetch. \`--archive-filter\` is applied server-side. Results are sorted newest-first by last activity. In \`--json\` / \`--ndjson\`, the response includes a \`nextCursor\` string (opaque) you can pass via \`--cursor\` to fetch the next page; NDJSON emits the cursor as a final \`{ "_meta": true, "nextCursor": "..." }\` line.
+`tdc channel threads` returns every thread in the channel; pagination filters (`--limit`, `--cursor`, `--since`, `--until`, `--unread`) are applied client-side after fetch. `--archive-filter` is applied server-side. Results are sorted newest-first by last activity. In `--json` / `--ndjson`, the response includes a `nextCursor` string (opaque) you can pass via `--cursor` to fetch the next page; NDJSON emits the cursor as a final `{ "_meta": true, "nextCursor": "..." }` line.
 
 ## Away Status
 
-\`\`\`bash
+```bash
 tdc away                          # Show current away status
 tdc away set <type> [until]       # Set away (type: vacation, parental, sickleave, other)
 tdc away set vacation 2026-03-20  # Away until March 20
 tdc away set vacation 2026-03-20 --from 2026-03-15  # Custom start date
 tdc away clear                    # Clear away status
-\`\`\`
+```
 
 ## Reactions
 
-\`\`\`bash
+```bash
 tdc react thread <ref> 👍         # Add reaction to thread
 tdc react comment <ref> +1        # Add reaction (shortcode)
 tdc react message <ref> heart     # Add reaction to DM message
 tdc react thread <ref> 👍 --json  # Output result as JSON
 tdc unreact thread <ref> 👍       # Remove reaction
 tdc unreact thread <ref> 👍 --json # Output result as JSON
-\`\`\`
+```
 
 Supported shortcodes: +1, -1, heart, tada, smile, laughing, thinking, fire, check, x, eyes, pray, clap, rocket, wave
 
 ## Shell Completions
 
-\`\`\`bash
+```bash
 tdc completion install            # Install tab completions (prompts for shell)
 tdc completion install bash       # Install for specific shell
 tdc completion install zsh
 tdc completion install fish
 tdc completion uninstall          # Remove completions
-\`\`\`
+```
 
 ### Diagnostics
 
-\`\`\`bash
+```bash
 tdc doctor                        # Run local + network diagnostics
 tdc doctor --offline              # Skip Comms and npm network checks
 tdc doctor --json                 # JSON output with per-check results
-\`\`\`
+```
 
 ### Configuration
 
-\`\`\`bash
+```bash
 tdc config view                   # Pretty-printed config, token masked, labels actual token source
 tdc config view --json            # Raw JSON, token masked
 tdc config view --show-token      # Include the full token
 tdc config set unarchive-new-threads true   # Persist: always unarchive new threads so they land in your Inbox
 tdc config set unarchive-new-threads false  # Persist: keep Comms's default (thread auto-archived for author)
-\`\`\`
+```
 
-User preferences are stored under \`userSettings\` in the config file. Currently supported keys: \`unarchive-new-threads\`. The flag on \`tdc thread create\` (\`--unarchive\` / \`--no-unarchive\`) overrides this default per-invocation.
+User preferences are stored under `userSettings` in the config file. Currently supported keys: `unarchive-new-threads`. The flag on `tdc thread create` (`--unarchive` / `--no-unarchive`) overrides this default per-invocation.
 
 ### Update
 
-\`\`\`bash
+```bash
 tdc update                        # Update CLI to latest version
 tdc update --check                # Check for updates without installing, show channel
 tdc update --check --json         # Same, JSON envelope
@@ -311,18 +307,18 @@ tdc update switch --stable        # Switch to stable release channel
 tdc update switch --pre-release   # Switch to pre-release (next) channel
 tdc update switch --pre-release --json    # Same, JSON envelope
 tdc update switch --pre-release --ndjson  # Same, newline-delimited JSON envelope
-\`\`\`
+```
 
 ### Changelog
-\`\`\`bash
+```bash
 tdc changelog                     # Show last 5 versions
 tdc changelog -n 3                # Show last 3 versions
 tdc changelog --count 10          # Show last 10 versions
-\`\`\`
+```
 
 ## Global Options
 
-\`\`\`bash
+```bash
 --no-spinner               # Disable loading animations
 --progress-jsonl           # Machine-readable progress events (JSONL to stderr)
 --progress-jsonl=<path>    # Same, but write events to <path> instead of stderr
@@ -330,89 +326,77 @@ tdc changelog --count 10          # Show last 10 versions
 --accessible               # Add text labels to color-coded output (also: TDC_ACCESSIBLE=1)
 --non-interactive          # Disable interactive prompts (auto-detected when stdin is not a TTY)
 --interactive              # Force interactive mode even when stdin is not a TTY
-\`\`\`
+```
 
 ## Output Formats
 
 All list/view commands support:
 
-\`\`\`bash
+```bash
 --json    # Output as JSON
 --ndjson  # Output as newline-delimited JSON (for streaming)
 --full    # Include all fields (default shows essential fields only)
-\`\`\`
+```
 
 ## Dry Run
 
-Mutating commands accept \`--dry-run\` to preview the operation without making the change. Where a command performs pre-flight validation (e.g. fetching the target thread to check channel access or ownership), those checks still run in dry-run — only the mutating write is skipped. Commands that have no pre-flight validation parse the reference and print the preview without hitting the API. The preview is structured:
+Mutating commands accept `--dry-run` to preview the operation without making the change. Where a command performs pre-flight validation (e.g. fetching the target thread to check channel access or ownership), those checks still run in dry-run — only the mutating write is skipped. Commands that have no pre-flight validation parse the reference and print the preview without hitting the API. The preview is structured:
 
-\`\`\`
+```
 [dry-run] Would <action>:
   <Key>: <resolved value>
   ...
 Run without --dry-run to execute.
-\`\`\`
+```
 
 ## Reference System
 
 Commands accept flexible references:
-- **Numeric IDs**: \`123\` or \`id:123\`
-- **Comms URLs**: Full \`https://comms.todoist.com/...\` URLs (parsed automatically)
-- **Fuzzy names**: For workspaces/users - \`"My Workspace"\` or partial matches
+- **Numeric IDs**: `123` or `id:123`
+- **Comms URLs**: Full `https://comms.todoist.com/...` URLs (parsed automatically)
+- **Fuzzy names**: For workspaces/users - `"My Workspace"` or partial matches
 
 ## Piping Content
 
-Commands that accept content (\`thread create\`, \`thread reply\`, \`comment update\`, \`conversation reply\`, \`msg update\`) auto-detect piped stdin:
+Commands that accept content (`thread create`, `thread reply`, `comment update`, `conversation reply`, `msg update`) auto-detect piped stdin:
 
-\`\`\`bash
+```bash
 cat notes.md | tdc thread reply <ref>
 tdc thread create <channel-ref> "Title" < body.md
 echo "Quick reply" | tdc conversation reply <ref>
-\`\`\`
+```
 
-If no content argument is provided and no stdin is piped, the CLI opens \`$EDITOR\` for interactive input. In non-TTY environments (e.g. when called by an agent or in a pipeline), the editor is automatically skipped and the command fails fast with an actionable error message. Use \`--non-interactive\` to force this behavior even in a TTY, or \`--interactive\` to override auto-detection.
+If no content argument is provided and no stdin is piped, the CLI opens `$EDITOR` for interactive input. In non-TTY environments (e.g. when called by an agent or in a pipeline), the editor is automatically skipped and the command fails fast with an actionable error message. Use `--non-interactive` to force this behavior even in a TTY, or `--interactive` to override auto-detection.
 
 ## Common Workflows
 
 **View by URL (auto-routes to the right command):**
-\`\`\`bash
+```bash
 tdc view https://comms.todoist.com/a/1585/ch/100/t/200          # View thread
 tdc view https://comms.todoist.com/a/1585/ch/100/t/200/c/300     # View comment
 tdc view https://comms.todoist.com/a/1585/msg/400                 # View conversation
 tdc view https://comms.todoist.com/a/1585/msg/400/m/500 --json    # View message as JSON
-\`\`\`
+```
 
 **Check inbox and respond:**
-\`\`\`bash
+```bash
 tdc inbox --unread --json
 tdc thread view <id> --unread
 tdc thread reply <id> "Thanks, I'll look into this."
 tdc thread done <id>
-\`\`\`
+```
 
 **Search and review:**
-\`\`\`bash
+```bash
 tdc mentions --since 2026-04-01 --all --json
 tdc search "deployment" --type threads --json
 tdc thread view <thread-id>
-\`\`\`
+```
 
 **Check DMs:**
-\`\`\`bash
+```bash
 tdc conversation unread --json
 tdc conversation view <conversation-id>
 tdc conversation with "Alice Example"
 tdc conversation reply <id> "Got it, thanks!"
-\`\`\`
-`
-
-export const SKILL_FILE_CONTENT = `---
-name: ${SKILL_NAME}
-description: ${JSON.stringify(SKILL_DESCRIPTION)}
-license: ${SKILL_LICENSE}
-metadata:
-  author: ${SKILL_AUTHOR}
-  version: ${JSON.stringify(SKILL_VERSION)}
----
-
-${SKILL_CONTENT}`
+```

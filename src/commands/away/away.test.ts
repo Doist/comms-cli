@@ -48,7 +48,7 @@ describe('away', () => {
             const logSpy = vi.spyOn(console, 'log').mockImplementation(() => {})
             const program = createProgram()
 
-            await program.parseAsync(['node', 'tw', 'away'])
+            await program.parseAsync(['node', 'tdc', 'away'])
 
             expect(logSpy).toHaveBeenCalledWith('Not away.')
             logSpy.mockRestore()
@@ -63,7 +63,7 @@ describe('away', () => {
             const logSpy = vi.spyOn(console, 'log').mockImplementation(() => {})
             const program = createProgram()
 
-            await program.parseAsync(['node', 'tw', 'away'])
+            await program.parseAsync(['node', 'tdc', 'away'])
 
             expect(logSpy).toHaveBeenCalledWith(expect.stringContaining('Vacation'))
             logSpy.mockRestore()
@@ -75,7 +75,7 @@ describe('away', () => {
             const logSpy = vi.spyOn(console, 'log').mockImplementation(() => {})
             const program = createProgram()
 
-            await program.parseAsync(['node', 'tw', 'away', 'set', 'vacation', '2026-03-20'])
+            await program.parseAsync(['node', 'tdc', 'away', 'set', 'vacation', '2026-03-20'])
 
             expect(apiMocks.updateUser).toHaveBeenCalledWith(
                 expect.objectContaining({
@@ -94,7 +94,7 @@ describe('away', () => {
 
             await program.parseAsync([
                 'node',
-                'tw',
+                'tdc',
                 'away',
                 'set',
                 'vacation',
@@ -115,7 +115,7 @@ describe('away', () => {
 
             await program.parseAsync([
                 'node',
-                'tw',
+                'tdc',
                 'away',
                 'set',
                 'vacation',
@@ -137,7 +137,7 @@ describe('away', () => {
             const program = createProgram()
 
             await expect(
-                program.parseAsync(['node', 'tw', 'away', 'set', 'vacation', '2026-03-20']),
+                program.parseAsync(['node', 'tdc', 'away', 'set', 'vacation', '2026-03-20']),
             ).rejects.toThrow(scopeError)
         })
 
@@ -145,7 +145,7 @@ describe('away', () => {
             const program = createProgram()
 
             await expect(
-                program.parseAsync(['node', 'tw', 'away', 'set', 'invalid', '2026-03-20']),
+                program.parseAsync(['node', 'tdc', 'away', 'set', 'invalid', '2026-03-20']),
             ).rejects.toHaveProperty('code', 'INVALID_TYPE')
         })
     })
@@ -155,7 +155,7 @@ describe('away', () => {
             const logSpy = vi.spyOn(console, 'log').mockImplementation(() => {})
             const program = createProgram()
 
-            await program.parseAsync(['node', 'tw', 'away', 'clear'])
+            await program.parseAsync(['node', 'tdc', 'away', 'clear'])
 
             expect(apiMocks.updateUser).toHaveBeenCalledWith({ awayMode: '' })
             expect(logSpy).toHaveBeenCalledWith('Away status cleared.')
@@ -166,7 +166,7 @@ describe('away', () => {
             const logSpy = vi.spyOn(console, 'log').mockImplementation(() => {})
             const program = createProgram()
 
-            await program.parseAsync(['node', 'tw', 'away', 'clear', '--dry-run'])
+            await program.parseAsync(['node', 'tdc', 'away', 'clear', '--dry-run'])
 
             expect(apiMocks.updateUser).not.toHaveBeenCalled()
             expect(logSpy).toHaveBeenCalledWith(expect.stringContaining('Would clear away status'))

@@ -84,7 +84,7 @@ describe('channels list', () => {
         const program = createProgram()
 
         await expect(
-            program.parseAsync(['node', 'tw', 'channels', 'Doist', '--workspace', 'Other']),
+            program.parseAsync(['node', 'tdc', 'channels', 'Doist', '--workspace', 'Other']),
         ).rejects.toThrow('Cannot specify workspace both as argument and --workspace flag')
     })
 
@@ -99,7 +99,7 @@ describe('channels list', () => {
         const consoleSpy = vi.spyOn(console, 'log').mockImplementation(() => {})
         const program = createProgram()
 
-        await program.parseAsync(['node', 'tw', 'channels'])
+        await program.parseAsync(['node', 'tdc', 'channels'])
 
         expect(client.channels.getChannels).toHaveBeenCalledWith({
             workspaceId: 1,
@@ -121,7 +121,7 @@ describe('channels list', () => {
         const consoleSpy = vi.spyOn(console, 'log').mockImplementation(() => {})
         const program = createProgram()
 
-        await program.parseAsync(['node', 'tw', 'channel'])
+        await program.parseAsync(['node', 'tdc', 'channel'])
 
         expect(client.channels.getChannels).toHaveBeenCalledWith({
             workspaceId: 1,
@@ -140,7 +140,7 @@ describe('channels list', () => {
         const consoleSpy = vi.spyOn(console, 'log').mockImplementation(() => {})
         const program = createProgram()
 
-        await program.parseAsync(['node', 'tw', 'channel', 'list'])
+        await program.parseAsync(['node', 'tdc', 'channel', 'list'])
 
         expect(client.channels.getChannels).toHaveBeenCalledWith({
             workspaceId: 1,
@@ -162,7 +162,7 @@ describe('channels list', () => {
         const consoleSpy = vi.spyOn(console, 'log').mockImplementation(() => {})
         const program = createProgram()
 
-        await program.parseAsync(['node', 'tw', 'channels'])
+        await program.parseAsync(['node', 'tdc', 'channels'])
 
         expect(consoleSpy).toHaveBeenCalledTimes(2)
         expect(client.channels.getChannels).toHaveBeenCalledWith({
@@ -191,7 +191,7 @@ describe('channels list', () => {
         const consoleSpy = vi.spyOn(console, 'log').mockImplementation(() => {})
         const program = createProgram()
 
-        await program.parseAsync(['node', 'tw', 'channels', '--scope', 'public'])
+        await program.parseAsync(['node', 'tdc', 'channels', '--scope', 'public'])
 
         expect(client.channels.getChannels).toHaveBeenCalledWith({ workspaceId: 1 })
         expect(client.workspaces.getPublicChannels).toHaveBeenCalledWith(1)
@@ -214,7 +214,7 @@ describe('channels list', () => {
         const consoleSpy = vi.spyOn(console, 'log').mockImplementation(() => {})
         const program = createProgram()
 
-        await program.parseAsync(['node', 'tw', 'channels', '--scope', 'discoverable', '--json'])
+        await program.parseAsync(['node', 'tdc', 'channels', '--scope', 'discoverable', '--json'])
 
         const jsonOutput = JSON.parse(consoleSpy.mock.calls[0][0])
         expect(jsonOutput).toEqual([
@@ -232,7 +232,7 @@ describe('channels list', () => {
         const consoleSpy = vi.spyOn(console, 'log').mockImplementation(() => {})
         const program = createProgram()
 
-        await program.parseAsync(['node', 'tw', 'channels', '--state', 'archived'])
+        await program.parseAsync(['node', 'tdc', 'channels', '--state', 'archived'])
 
         expect(client.channels.getChannels).toHaveBeenCalledWith({ workspaceId: 1, archived: true })
         expect(consoleSpy).toHaveBeenCalledTimes(1)
@@ -256,7 +256,7 @@ describe('channels list', () => {
 
         await program.parseAsync([
             'node',
-            'tw',
+            'tdc',
             'channels',
             '--scope',
             'public',
@@ -285,7 +285,7 @@ describe('channels list', () => {
         const consoleSpy = vi.spyOn(console, 'log').mockImplementation(() => {})
         const program = createProgram()
 
-        await program.parseAsync(['node', 'tw', 'channels', '--state', 'all', '--json'])
+        await program.parseAsync(['node', 'tdc', 'channels', '--state', 'all', '--json'])
 
         const jsonOutput = JSON.parse(consoleSpy.mock.calls[0][0])
         expect(jsonOutput).toEqual([
@@ -307,7 +307,7 @@ describe('channels list', () => {
         const consoleSpy = vi.spyOn(console, 'log').mockImplementation(() => {})
         const program = createProgram()
 
-        await program.parseAsync(['node', 'tw', 'channels', '--state', 'all', '--ndjson'])
+        await program.parseAsync(['node', 'tdc', 'channels', '--state', 'all', '--ndjson'])
 
         const ndjsonOutput = consoleSpy.mock.calls[0][0]
             .split('\n')
@@ -331,7 +331,7 @@ describe('channels list', () => {
 
         await program.parseAsync([
             'node',
-            'tw',
+            'tdc',
             'channels',
             '--scope',
             'public',
@@ -357,7 +357,7 @@ describe('channels list', () => {
         },
         run: async (extraArgs) => {
             const program = createProgram()
-            await program.parseAsync(['node', 'tw', 'channels', ...extraArgs])
+            await program.parseAsync(['node', 'tdc', 'channels', ...extraArgs])
         },
         humanMessage: 'No active channels found.',
     })
@@ -374,7 +374,7 @@ describe('channels list', () => {
         const consoleSpy = vi.spyOn(console, 'log').mockImplementation(() => {})
         const program = createProgram()
 
-        await program.parseAsync(['node', 'tw', 'channels', '--scope', 'discoverable'])
+        await program.parseAsync(['node', 'tdc', 'channels', '--scope', 'discoverable'])
 
         expect(consoleSpy).toHaveBeenCalledWith('No active discoverable channels found.')
 
@@ -387,7 +387,7 @@ describe('channels list', () => {
         const program = createProgram()
 
         await expect(
-            program.parseAsync(['node', 'tw', 'channels', '--scope', 'invalid']),
+            program.parseAsync(['node', 'tdc', 'channels', '--scope', 'invalid']),
         ).rejects.toHaveProperty('code', 'INVALID_SCOPE')
     })
 
@@ -397,7 +397,7 @@ describe('channels list', () => {
         const program = createProgram()
 
         await expect(
-            program.parseAsync(['node', 'tw', 'channels', '--state', 'invalid']),
+            program.parseAsync(['node', 'tdc', 'channels', '--state', 'invalid']),
         ).rejects.toHaveProperty('code', 'INVALID_STATE')
     })
 })

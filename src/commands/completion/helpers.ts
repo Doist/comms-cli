@@ -13,7 +13,7 @@ export const COMPLETION_EXTENSIONS: Record<SupportedShell, string> = {
 }
 
 /**
- * Find which shells have tw completions installed by checking for the
+ * Find which shells have tdc completions installed by checking for the
  * completion script files that tabtab creates.
  *
  * FIXME: Workaround for https://github.com/pnpm/tabtab/issues/34 —
@@ -24,7 +24,7 @@ export const COMPLETION_EXTENSIONS: Record<SupportedShell, string> = {
 export function installedShells(): SupportedShell[] {
     return Object.entries(COMPLETION_EXTENSIONS)
         .filter(([shell, ext]) =>
-            existsSync(join(homedir(), '.config', 'tabtab', shell, `tw.${ext}`)),
+            existsSync(join(homedir(), '.config', 'tabtab', shell, `tdc.${ext}`)),
         )
         .map(([shell]) => shell as SupportedShell)
 }
@@ -32,7 +32,7 @@ export function installedShells(): SupportedShell[] {
 export function resolveCompleterCommand(): string {
     const invokedScript = process.argv[1]
     if (!invokedScript) {
-        return 'tw'
+        return 'tdc'
     }
 
     const resolvedScript = resolve(invokedScript)
@@ -40,5 +40,5 @@ export function resolveCompleterCommand(): string {
         return resolvedScript
     }
 
-    return 'tw'
+    return 'tdc'
 }

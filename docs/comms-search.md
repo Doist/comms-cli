@@ -5,13 +5,13 @@
 Currently `--author` and `--to` require numeric user IDs:
 
 ```bash
-tw search "test" --author 440929
+tdc search "test" --author 440929
 ```
 
 Users should be able to pass names:
 
 ```bash
-tw search "test" --author craig
+tdc search "test" --author craig
 ```
 
 ## Behavior
@@ -69,7 +69,7 @@ From `src/lib/api.ts`:
 
 ```typescript
 export async function getWorkspaceUsers(workspaceId: number): Promise<User[]> {
-    const client = await getTwistClient()
+    const client = await getCommsClient()
     return client.workspaceUsers.getWorkspaceUsers({ workspaceId })
 }
 ```

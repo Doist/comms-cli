@@ -9,7 +9,7 @@ describe('isNonInteractive', () => {
     beforeEach(() => {
         originalIsTTY = process.stdin.isTTY
         resetGlobalArgs()
-        process.argv = ['node', 'tw', 'thread', 'create', '100', 'Title']
+        process.argv = ['node', 'tdc', 'thread', 'create', '100', 'Title']
     })
 
     afterEach(() => {
@@ -75,7 +75,7 @@ describe('openEditor', () => {
     beforeEach(() => {
         originalIsTTY = process.stdin.isTTY
         resetGlobalArgs()
-        process.argv = ['node', 'tw']
+        process.argv = ['node', 'tdc']
     })
 
     afterEach(() => {

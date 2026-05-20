@@ -33,9 +33,9 @@ export function registerMentionsCommand(program: Command): void {
             'after',
             `
 Examples:
-  tw mentions
-  tw mentions --since 2026-04-01 --all
-  tw mentions --type threads --json`,
+  tdc mentions
+  tdc mentions --since 2026-04-01 --all
+  tdc mentions --type threads --json`,
         )
         .action(mentions)
 }

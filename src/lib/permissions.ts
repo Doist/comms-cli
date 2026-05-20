@@ -2,7 +2,7 @@ import { getAuthMetadata } from './auth.js'
 import { CliError } from './errors.js'
 
 export const READ_ONLY_ERROR_MESSAGE =
-    'This CLI is authenticated in read-only mode. Re-run `tw auth login` without --read-only to enable write operations.'
+    'This CLI is authenticated in read-only mode. Re-run `tdc auth login` without --read-only to enable write operations.'
 
 /**
  * Known read-only API method paths. Any method not in this set is assumed to be mutating.
@@ -39,7 +39,7 @@ export async function ensureWriteAllowed(): Promise<void> {
     const metadata = await getAuthMetadata()
     if (metadata.authMode === 'read-only') {
         throw new CliError('READ_ONLY', READ_ONLY_ERROR_MESSAGE, [
-            'Re-run: tw auth login (without --read-only)',
+            'Re-run: tdc auth login (without --read-only)',
         ])
     }
 }

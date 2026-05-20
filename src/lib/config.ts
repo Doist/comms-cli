@@ -10,12 +10,6 @@ import { CliError } from './errors.js'
 const APP_NAME = 'comms-cli'
 
 /**
- * Current on-disk schema version. Bumped when the persisted layout requires
- * a one-time migration. One-way gate — no rollback.
- */
-export const CONFIG_VERSION = 2 as const
-
-/**
  * Resolve the canonical config path lazily. Computing on each call (instead of
  * caching at module load) keeps the path responsive to vitest's `vi.doMock`
  * for `node:os` — which only reliably reaches cli-core's compiled `homedir()`
@@ -29,19 +23,11 @@ export type AuthMode = 'read-only' | 'read-write' | 'unknown'
 export type UpdateChannel = 'stable' | 'pre-release'
 
 const KNOWN_CONFIG_KEYS: ReadonlySet<string> = new Set([
-    'token',
-    'pendingSecureStoreClear',
     'currentWorkspace',
-    'authMode',
-    'authScope',
-    'authUserId',
-    'authUserName',
-    'updateChannel',
-    // Snake_case alias on disk for cli-core's update command; the in-memory
-    // `Config` exposes only `updateChannel` (see `fromDiskShape`/`toDiskShape`).
+    // cli-core's update command writes the channel under `update_channel`;
+    // the in-memory `Config` exposes it as `updateChannel`.
     'update_channel',
     'userSettings',
-    'config_version',
     'users',
     'defaultUserId',
 ])
@@ -64,7 +50,7 @@ export interface UserSettings {
 }
 
 /**
- * One row of the `users[]` array. `id` is the stringified numeric Twist user
+ * One row of the `users[]` array. `id` is the stringified numeric Comms user
  * id. `token` is a plaintext fallback persisted only when the keyring is
  * unavailable at write time.
  */
@@ -77,58 +63,34 @@ export type StoredUser = {
 }
 
 export interface Config {
-    config_version?: number
     users?: StoredUser[]
     defaultUserId?: string
-
-    // Legacy single-user fields. Cleaned up by `migrateLegacyAuth`.
-    token?: string
-    pendingSecureStoreClear?: boolean
-    authMode?: AuthMode
-    authScope?: string
-    authUserId?: number
-    authUserName?: string
-
     currentWorkspace?: number
     updateChannel?: UpdateChannel
     userSettings?: UserSettings
 }
 
 /**
- * Read-seam translation: normalise the persisted shape to the in-memory
- * `Config` shape. cli-core's update command writes the channel under
- * `update_channel`; older twist builds wrote it under `updateChannel`.
- * We accept both and expose only `updateChannel` to twist callers.
- *
- * `update_channel` wins if both are present (cli-core just wrote, so the
- * snake_case value is freshest). Non-object inputs (a manually-edited
- * config containing `null` or a primitive) are returned untouched so the
- * downstream `Record<string, unknown>` cast doesn't blow up on `in`.
+ * Read-seam translation: cli-core's update command writes the channel under
+ * `update_channel` (snake_case); we expose it as `updateChannel` (camelCase)
+ * to keep the in-memory shape idiomatic TS. Non-object inputs are returned
+ * untouched so the downstream cast doesn't blow up.
  */
 function fromDiskShape(raw: unknown): Record<string, unknown> {
     if (!raw || typeof raw !== 'object' || Array.isArray(raw)) {
         return {}
     }
     const record = raw as Record<string, unknown>
-    const hasCanonical = 'update_channel' in record
-    const hasLegacy = 'updateChannel' in record
-    if (!hasCanonical && !hasLegacy) return record
-    const { update_channel, updateChannel, ...rest } = record
-    const channel = hasCanonical ? update_channel : updateChannel
-    return channel === undefined ? rest : { ...rest, updateChannel: channel }
+    if (!('update_channel' in record)) return record
+    const { update_channel, ...rest } = record
+    return update_channel === undefined ? rest : { ...rest, updateChannel: update_channel }
 }
 
-/**
- * Write-seam translation: dual-write `updateChannel` and `update_channel`
- * to disk when a channel is set, so older twist builds keep reading the
- * camelCase key while cli-core's update command reads the snake_case key.
- * Once all deployed twist versions read `update_channel`, drop the
- * camelCase write (likely a release or two after this lands).
- */
+/** Write-seam translation: camelCase `updateChannel` → snake_case `update_channel` on disk. */
 function toDiskShape(config: Partial<Config>): Record<string, unknown> {
     const { updateChannel, ...rest } = config
     if (updateChannel === undefined) return rest
-    return { ...rest, updateChannel, update_channel: updateChannel }
+    return { ...rest, update_channel: updateChannel }
 }
 
 /**
@@ -164,14 +126,14 @@ export async function readConfigStrict(): Promise<StrictReadResult> {
             throw new CliError(
                 'CONFIG_READ_FAILED',
                 `Could not read config file ${path}: ${result.error.message}`,
-                ['Check file permissions, or run `tw doctor` to diagnose'],
+                ['Check file permissions, or run `tdc doctor` to diagnose'],
             )
         case 'invalid-json':
             throw new CliError(
                 'CONFIG_INVALID_JSON',
                 `Config file at ${path} is not valid JSON: ${result.error.message}`,
                 [
-                    'Fix the JSON by hand, or delete the file and re-authenticate with `tw auth login`',
+                    'Fix the JSON by hand, or delete the file and re-authenticate with `tdc auth login`',
                 ],
             )
         case 'invalid-shape':
@@ -179,22 +141,21 @@ export async function readConfigStrict(): Promise<StrictReadResult> {
                 'CONFIG_INVALID_SHAPE',
                 `Config file at ${path} must contain a JSON object (got ${result.actual})`,
                 [
-                    'Fix the JSON by hand, or delete the file and re-authenticate with `tw auth login`',
+                    'Fix the JSON by hand, or delete the file and re-authenticate with `tdc auth login`',
                 ],
             )
     }
 }
 
-/** Thin wrapper around cli-core's `writeConfig`. Dual-writes the channel field. */
+/** Thin wrapper around cli-core's `writeConfig`. */
 export async function setConfig(config: Config): Promise<void> {
     await writeConfigCore(getConfigPath(), toDiskShape(config))
 }
 
 /**
  * Atomic partial-write wrapper around cli-core's `updateConfig`. Preserves
- * cli-core's read-merge-write atomicity so two concurrent `tw` processes
- * can't lose each other's updates. Channel field is translated to disk
- * shape (dual-written) before the merge.
+ * cli-core's read-merge-write atomicity so two concurrent `tdc` processes
+ * can't lose each other's updates.
  */
 export async function updateConfig(updates: Partial<Config>): Promise<void> {
     await updateConfigCore<Record<string, unknown>>(getConfigPath(), toDiskShape(updates))
@@ -209,17 +170,6 @@ export function validateConfigForDoctor(config: Record<string, unknown>): string
         }
     }
 
-    if (config.token !== undefined && typeof config.token !== 'string') {
-        issues.push('token must be a string')
-    }
-
-    if (
-        config.pendingSecureStoreClear !== undefined &&
-        typeof config.pendingSecureStoreClear !== 'boolean'
-    ) {
-        issues.push('pendingSecureStoreClear must be a boolean')
-    }
-
     if (
         config.currentWorkspace !== undefined &&
         (!Number.isInteger(config.currentWorkspace) || Number(config.currentWorkspace) <= 0)
@@ -228,37 +178,11 @@ export function validateConfigForDoctor(config: Record<string, unknown>): string
     }
 
     if (
-        config.authMode !== undefined &&
-        (typeof config.authMode !== 'string' || !AUTH_MODES.has(config.authMode as AuthMode))
-    ) {
-        issues.push('authMode must be one of: read-only, read-write, unknown')
-    }
-
-    if (config.authScope !== undefined && typeof config.authScope !== 'string') {
-        issues.push('authScope must be a string')
-    }
-
-    if (
-        config.updateChannel !== undefined &&
-        (typeof config.updateChannel !== 'string' ||
-            !UPDATE_CHANNELS.has(config.updateChannel as UpdateChannel))
-    ) {
-        issues.push('updateChannel must be one of: stable, pre-release')
-    }
-
-    if (
         config.update_channel !== undefined &&
         (typeof config.update_channel !== 'string' ||
             !UPDATE_CHANNELS.has(config.update_channel as UpdateChannel))
     ) {
         issues.push('update_channel must be one of: stable, pre-release')
-    }
-
-    if (
-        config.config_version !== undefined &&
-        (typeof config.config_version !== 'number' || !Number.isInteger(config.config_version))
-    ) {
-        issues.push('config_version must be an integer')
     }
 
     if (config.defaultUserId !== undefined && typeof config.defaultUserId !== 'string') {

@@ -253,7 +253,7 @@ async function checkAuthentication(offline: boolean): Promise<DoctorCheck> {
             return {
                 name: 'auth',
                 status: 'warn',
-                message: `No Twist credentials found. Set ${TOKEN_ENV_VAR} or run \`tw auth login\``,
+                message: `No Comms credentials found. Set ${TOKEN_ENV_VAR} or run \`tdc auth login\``,
             }
         }
 
@@ -397,6 +397,6 @@ export function registerDoctorCommand(program: Command): void {
         .command('doctor')
         .description('Diagnose common CLI setup and environment issues')
         .option('--json', 'Output diagnostic results as JSON')
-        .option('--offline', 'Skip network checks against Twist and npm')
+        .option('--offline', 'Skip network checks against Comms and npm')
         .action(doctorAction)
 }

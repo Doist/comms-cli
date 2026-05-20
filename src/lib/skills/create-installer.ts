@@ -65,7 +65,7 @@ export function createInstaller(config: InstallerConfig): SkillInstaller {
 
             if (!exists) {
                 throw new CliError('NOT_INSTALLED', `Skill not installed at ${skillPath}`, [
-                    `Run: tw skill install ${config.name}`,
+                    `Run: tdc skill install ${config.name}`,
                 ])
             }
 
@@ -78,7 +78,7 @@ export function createInstaller(config: InstallerConfig): SkillInstaller {
 
             if (!exists) {
                 throw new CliError('NOT_INSTALLED', `Skill not installed at ${skillPath}`, [
-                    `Run: tw skill install ${config.name}`,
+                    `Run: tdc skill install ${config.name}`,
                 ])
             }
 

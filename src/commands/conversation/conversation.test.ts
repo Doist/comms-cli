@@ -1,5 +1,5 @@
 import { describeEmptyMachineOutput } from '@doist/cli-core/testing'
-import type { BatchResponse as TwistBatchResponse } from '@doist/comms-sdk'
+import type { BatchResponse as CommsBatchResponse } from '@doist/comms-sdk'
 import { Command } from 'commander'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { CliError } from '../../lib/errors.js'
@@ -67,7 +67,7 @@ function createConversation(id: number, userIds: number[], lastActive: string): 
     }
 }
 
-type BatchResult = Pick<TwistBatchResponse<unknown>, 'code' | 'data'>
+type BatchResult = Pick<CommsBatchResponse<unknown>, 'code' | 'data'>
 
 function createClient({
     activeConversations = [],
@@ -204,11 +204,11 @@ describe('conversation implicit view', () => {
         apiMocks.getCommsClient.mockRejectedValue(new Error('MOCK_API_REACHED'))
     })
 
-    it('tw conversation <ref> routes to view (not unknown command)', async () => {
+    it('tdc conversation <ref> routes to view (not unknown command)', async () => {
         const program = createProgram()
         const consoleSpy = vi.spyOn(console, 'log').mockImplementation(() => {})
 
-        await expect(program.parseAsync(['node', 'tw', 'conversation', '100'])).rejects.toThrow(
+        await expect(program.parseAsync(['node', 'tdc', 'conversation', '100'])).rejects.toThrow(
             'MOCK_API_REACHED',
         )
 
@@ -227,7 +227,7 @@ describe('conversation unread --workspace conflict', () => {
         await expect(
             program.parseAsync([
                 'node',
-                'tw',
+                'tdc',
                 'conversation',
                 'unread',
                 'Doist',
@@ -247,7 +247,7 @@ describeEmptyMachineOutput('conversation unread empty output', {
     },
     run: async (extraArgs) => {
         const program = createProgram()
-        await program.parseAsync(['node', 'tw', 'conversation', 'unread', ...extraArgs])
+        await program.parseAsync(['node', 'tdc', 'conversation', 'unread', ...extraArgs])
     },
     humanMessage: 'No unread conversations.',
 })
@@ -275,7 +275,7 @@ describe('conversation with', () => {
         const program = createProgram()
         const consoleSpy = vi.spyOn(console, 'log').mockImplementation(() => {})
 
-        await program.parseAsync(['node', 'tw', 'conversation', 'with', 'Alice'])
+        await program.parseAsync(['node', 'tdc', 'conversation', 'with', 'Alice'])
 
         expect(refsMocks.resolveUserRefs).toHaveBeenCalledWith('Alice', 1)
         expect(refsMocks.resolveConversationId).not.toHaveBeenCalled()
@@ -313,7 +313,7 @@ describe('conversation with', () => {
         const program = createProgram()
         const consoleSpy = vi.spyOn(console, 'log').mockImplementation(() => {})
 
-        await program.parseAsync(['node', 'tw', 'conversation', 'with', 'Alice'])
+        await program.parseAsync(['node', 'tdc', 'conversation', 'with', 'Alice'])
 
         expect(client.conversations.getConversations).toHaveBeenCalledWith({
             workspaceId: 1,
@@ -346,7 +346,7 @@ describe('conversation with', () => {
         const program = createProgram()
         const consoleSpy = vi.spyOn(console, 'log').mockImplementation(() => {})
 
-        await program.parseAsync(['node', 'tw', 'conversation', 'with', 'Alice'])
+        await program.parseAsync(['node', 'tdc', 'conversation', 'with', 'Alice'])
 
         expect(client.conversations.getConversations).toHaveBeenNthCalledWith(1, {
             workspaceId: 1,
@@ -389,7 +389,7 @@ describe('conversation with', () => {
 
         await program.parseAsync([
             'node',
-            'tw',
+            'tdc',
             'conversation',
             'with',
             'Alice',
@@ -420,7 +420,7 @@ describe('conversation with', () => {
         const program = createProgram()
         const consoleSpy = vi.spyOn(console, 'log').mockImplementation(() => {})
 
-        await program.parseAsync(['node', 'tw', 'conversation', 'with', 'Me'])
+        await program.parseAsync(['node', 'tdc', 'conversation', 'with', 'Me'])
 
         expect(consoleSpy).toHaveBeenCalledWith('Conversation with Me')
 
@@ -441,7 +441,7 @@ describe('conversation with', () => {
         const program = createProgram()
         const consoleSpy = vi.spyOn(console, 'log').mockImplementation(() => {})
 
-        await program.parseAsync(['node', 'tw', 'conversation', 'with', 'Alice', '--json'])
+        await program.parseAsync(['node', 'tdc', 'conversation', 'with', 'Alice', '--json'])
 
         expect(consoleSpy).toHaveBeenCalledTimes(1)
         expect(JSON.parse(consoleSpy.mock.calls[0][0])).toEqual([])
@@ -460,7 +460,7 @@ describe('conversation with', () => {
         const program = createProgram()
 
         await expect(
-            program.parseAsync(['node', 'tw', 'conversation', 'with', 'Alex']),
+            program.parseAsync(['node', 'tdc', 'conversation', 'with', 'Alex']),
         ).rejects.toHaveProperty('code', 'AMBIGUOUS_USER')
     })
 })
@@ -498,7 +498,7 @@ describe('conversation view machine output', () => {
         const program = createProgram()
         const consoleSpy = vi.spyOn(console, 'log').mockImplementation(() => {})
 
-        await program.parseAsync(['node', 'tw', 'conversation', 'view', '42', '--json'])
+        await program.parseAsync(['node', 'tdc', 'conversation', 'view', '42', '--json'])
 
         const jsonOutput = JSON.parse(consoleSpy.mock.calls[0][0])
         expect(jsonOutput.conversation).toEqual({
@@ -523,7 +523,7 @@ describe('conversation view machine output', () => {
 
         consoleSpy.mockClear()
 
-        await program.parseAsync(['node', 'tw', 'conversation', 'view', '42', '--ndjson'])
+        await program.parseAsync(['node', 'tdc', 'conversation', 'view', '42', '--ndjson'])
 
         expect(consoleSpy.mock.calls.map((call) => JSON.parse(call[0]))).toEqual([
             {
@@ -549,7 +549,7 @@ describe('conversation view machine output', () => {
 
         consoleSpy.mockClear()
 
-        await program.parseAsync(['node', 'tw', 'conversation', 'view', '42', '--json', '--full'])
+        await program.parseAsync(['node', 'tdc', 'conversation', 'view', '42', '--json', '--full'])
 
         const fullJsonOutput = JSON.parse(consoleSpy.mock.calls[0][0])
         expect(fullJsonOutput.conversation.participantNames).toEqual(['Me', 'Alice Example'])
@@ -600,7 +600,7 @@ describe('conversation view with failed batch response', () => {
         const program = createProgram()
 
         await expect(
-            program.parseAsync(['node', 'tw', 'conversation', 'view', '42']),
+            program.parseAsync(['node', 'tdc', 'conversation', 'view', '42']),
         ).rejects.toThrow('Failed to fetch user 2: User lookup failed')
     })
 })
@@ -618,7 +618,7 @@ describe('conversation mute', () => {
         const program = createProgram()
         const consoleSpy = vi.spyOn(console, 'log').mockImplementation(() => {})
 
-        await program.parseAsync(['node', 'tw', 'conversation', 'mute', '42'])
+        await program.parseAsync(['node', 'tdc', 'conversation', 'mute', '42'])
 
         expect(client.conversations.muteConversation).toHaveBeenCalledWith({ id: 42, minutes: 60 })
         expect(consoleSpy).toHaveBeenCalledWith('Conversation 42 muted for 60 minutes.')
@@ -634,7 +634,7 @@ describe('conversation mute', () => {
         const program = createProgram()
         const consoleSpy = vi.spyOn(console, 'log').mockImplementation(() => {})
 
-        await program.parseAsync(['node', 'tw', 'conversation', 'mute', '42', '--minutes', '480'])
+        await program.parseAsync(['node', 'tdc', 'conversation', 'mute', '42', '--minutes', '480'])
 
         expect(client.conversations.muteConversation).toHaveBeenCalledWith({
             id: 42,
@@ -653,7 +653,7 @@ describe('conversation mute', () => {
         const program = createProgram()
         const consoleSpy = vi.spyOn(console, 'log').mockImplementation(() => {})
 
-        await program.parseAsync(['node', 'tw', 'conversation', 'mute', '42', '--dry-run'])
+        await program.parseAsync(['node', 'tdc', 'conversation', 'mute', '42', '--dry-run'])
 
         expect(consoleSpy).toHaveBeenCalledWith(expect.stringContaining('Would mute conversation'))
         expect(consoleSpy).toHaveBeenCalledWith('  Conversation: conversation 42')
@@ -673,7 +673,7 @@ describe('conversation mute', () => {
         const program = createProgram()
 
         await expect(
-            program.parseAsync(['node', 'tw', 'conversation', 'mute', '42', '--dry-run']),
+            program.parseAsync(['node', 'tdc', 'conversation', 'mute', '42', '--dry-run']),
         ).rejects.toThrow('conversation not found')
         expect(client.conversations.muteConversation).not.toHaveBeenCalled()
     })
@@ -682,7 +682,7 @@ describe('conversation mute', () => {
         const program = createProgram()
 
         await expect(
-            program.parseAsync(['node', 'tw', 'conversation', 'mute', '42', '--minutes', 'foo']),
+            program.parseAsync(['node', 'tdc', 'conversation', 'mute', '42', '--minutes', 'foo']),
         ).rejects.toHaveProperty('code', 'INVALID_MINUTES')
     })
 })
@@ -700,7 +700,7 @@ describe('conversation unmute', () => {
         const program = createProgram()
         const consoleSpy = vi.spyOn(console, 'log').mockImplementation(() => {})
 
-        await program.parseAsync(['node', 'tw', 'conversation', 'unmute', '42'])
+        await program.parseAsync(['node', 'tdc', 'conversation', 'unmute', '42'])
 
         expect(client.conversations.unmuteConversation).toHaveBeenCalledWith(42)
         expect(consoleSpy).toHaveBeenCalledWith('Conversation 42 unmuted.')
@@ -716,7 +716,7 @@ describe('conversation unmute', () => {
         const program = createProgram()
         const consoleSpy = vi.spyOn(console, 'log').mockImplementation(() => {})
 
-        await program.parseAsync(['node', 'tw', 'conversation', 'unmute', '42', '--dry-run'])
+        await program.parseAsync(['node', 'tdc', 'conversation', 'unmute', '42', '--dry-run'])
 
         expect(consoleSpy).toHaveBeenCalledWith(
             expect.stringContaining('Would unmute conversation'),
@@ -737,7 +737,7 @@ describe('conversation unmute', () => {
         const program = createProgram()
 
         await expect(
-            program.parseAsync(['node', 'tw', 'conversation', 'unmute', '42', '--dry-run']),
+            program.parseAsync(['node', 'tdc', 'conversation', 'unmute', '42', '--dry-run']),
         ).rejects.toThrow('conversation not found')
         expect(client.conversations.unmuteConversation).not.toHaveBeenCalled()
     })
@@ -756,7 +756,7 @@ describe('conversation done', () => {
         const program = createProgram()
         const consoleSpy = vi.spyOn(console, 'log').mockImplementation(() => {})
 
-        await program.parseAsync(['node', 'tw', 'conversation', 'done', '42'])
+        await program.parseAsync(['node', 'tdc', 'conversation', 'done', '42'])
 
         expect(client.conversations.archiveConversation).toHaveBeenCalledWith(42)
         expect(consoleSpy).toHaveBeenCalledWith('Conversation 42 archived.')
@@ -772,7 +772,7 @@ describe('conversation done', () => {
         const program = createProgram()
         const consoleSpy = vi.spyOn(console, 'log').mockImplementation(() => {})
 
-        await program.parseAsync(['node', 'tw', 'conversation', 'done', '42', '--dry-run'])
+        await program.parseAsync(['node', 'tdc', 'conversation', 'done', '42', '--dry-run'])
 
         expect(consoleSpy).toHaveBeenCalledWith(
             expect.stringContaining('Would archive conversation'),
@@ -793,7 +793,7 @@ describe('conversation done', () => {
         const program = createProgram()
 
         await expect(
-            program.parseAsync(['node', 'tw', 'conversation', 'done', '42', '--dry-run']),
+            program.parseAsync(['node', 'tdc', 'conversation', 'done', '42', '--dry-run']),
         ).rejects.toThrow('conversation not found')
         expect(client.conversations.archiveConversation).not.toHaveBeenCalled()
     })

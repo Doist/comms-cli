@@ -14,8 +14,8 @@ export function registerAwayCommand(program: Command): void {
             'after',
             `
 Examples:
-  tw away
-  tw away --json`,
+  tdc away
+  tdc away --json`,
         )
         .action((options: ViewOptions) => showAwayStatus(options))
 
@@ -30,9 +30,9 @@ Examples:
             'after',
             `
 Examples:
-  tw away set vacation 2025-12-31
-  tw away set sickleave --from 2025-06-01
-  tw away set other 2025-07-01 --dry-run`,
+  tdc away set vacation 2025-12-31
+  tdc away set sickleave --from 2025-06-01
+  tdc away set other 2025-07-01 --dry-run`,
         )
         .action(
             (
@@ -51,8 +51,8 @@ Examples:
             'after',
             `
 Examples:
-  tw away clear
-  tw away clear --dry-run`,
+  tdc away clear
+  tdc away clear --dry-run`,
         )
         .action((options: MutationOptions & ViewOptions) => clearAway(options))
 }

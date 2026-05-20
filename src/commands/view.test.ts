@@ -37,7 +37,7 @@ function createProgram() {
     return program
 }
 
-describe('tw view <url> routing', () => {
+describe('tdc view <url> routing', () => {
     beforeEach(() => {
         vi.clearAllMocks()
     })
@@ -45,7 +45,12 @@ describe('tw view <url> routing', () => {
     it('routes thread URL to thread view', async () => {
         const program = createProgram()
         await expect(
-            program.parseAsync(['node', 'tw', 'view', 'https://comms.todoist.com/a/1585/ch/100/t/200']),
+            program.parseAsync([
+                'node',
+                'tdc',
+                'view',
+                'https://comms.todoist.com/a/1585/ch/100/t/200',
+            ]),
         ).rejects.toThrow('ROUTED_TO_THREAD')
     })
 
@@ -54,7 +59,7 @@ describe('tw view <url> routing', () => {
         await expect(
             program.parseAsync([
                 'node',
-                'tw',
+                'tdc',
                 'view',
                 'https://comms.todoist.com/a/1585/ch/100/t/200/c/300',
             ]),
@@ -64,28 +69,33 @@ describe('tw view <url> routing', () => {
     it('routes conversation URL to conversation view', async () => {
         const program = createProgram()
         await expect(
-            program.parseAsync(['node', 'tw', 'view', 'https://comms.todoist.com/a/1585/msg/400']),
+            program.parseAsync(['node', 'tdc', 'view', 'https://comms.todoist.com/a/1585/msg/400']),
         ).rejects.toThrow('ROUTED_TO_CONVERSATION')
     })
 
     it('routes message URL to msg view', async () => {
         const program = createProgram()
         await expect(
-            program.parseAsync(['node', 'tw', 'view', 'https://comms.todoist.com/a/1585/msg/400/m/500']),
+            program.parseAsync([
+                'node',
+                'tdc',
+                'view',
+                'https://comms.todoist.com/a/1585/msg/400/m/500',
+            ]),
         ).rejects.toThrow('ROUTED_TO_MSG')
     })
 
-    it('throws for unrecognized Twist URL', async () => {
+    it('throws for unrecognized Comms URL', async () => {
         const program = createProgram()
         await expect(
-            program.parseAsync(['node', 'tw', 'view', 'https://comms.todoist.com/a/1585']),
-        ).rejects.toThrow('Not a recognized Twist URL')
+            program.parseAsync(['node', 'tdc', 'view', 'https://comms.todoist.com/a/1585']),
+        ).rejects.toThrow('Not a recognized Comms URL')
     })
 
-    it('throws for non-Twist URL', async () => {
+    it('throws for non-Comms URL', async () => {
         const program = createProgram()
         await expect(
-            program.parseAsync(['node', 'tw', 'view', 'https://google.com/something']),
-        ).rejects.toThrow('Not a recognized Twist URL')
+            program.parseAsync(['node', 'tdc', 'view', 'https://google.com/something']),
+        ).rejects.toThrow('Not a recognized Comms URL')
     })
 })

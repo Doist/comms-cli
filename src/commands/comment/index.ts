@@ -19,8 +19,8 @@ export function registerCommentCommand(program: Command): void {
             'after',
             `
 Examples:
-  tw comment 12345
-  tw comment view 12345 --json`,
+  tdc comment 12345
+  tdc comment view 12345 --json`,
         )
         .action((ref, options) => {
             if (!ref) {
@@ -40,9 +40,9 @@ Examples:
             'after',
             `
 Examples:
-  tw comment update 12345 "Updated text"
-  echo "New content" | tw comment update 12345
-  tw comment update 12345 "Fixed" --json`,
+  tdc comment update 12345 "Updated text"
+  echo "New content" | tdc comment update 12345
+  tdc comment update 12345 "Fixed" --json`,
         )
         .action(updateComment)
 
@@ -55,8 +55,8 @@ Examples:
             'after',
             `
 Examples:
-  tw comment delete 12345
-  tw comment delete 12345 --dry-run`,
+  tdc comment delete 12345
+  tdc comment delete 12345 --dry-run`,
         )
         .action(deleteComment)
 }

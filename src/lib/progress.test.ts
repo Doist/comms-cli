@@ -57,20 +57,20 @@ describe('ProgressTracker', () => {
 
     describe('initialization and enabling', () => {
         it.each([
-            ['disabled by default', ['node', 'tw', 'threads'], false],
+            ['disabled by default', ['node', 'tdc', 'threads'], false],
             [
                 'enabled with --progress-jsonl flag',
-                ['node', 'tw', 'threads', '--progress-jsonl'],
+                ['node', 'tdc', 'threads', '--progress-jsonl'],
                 true,
             ],
             [
                 'enabled with --progress-jsonl=path flag',
-                ['node', 'tw', 'threads', '--progress-jsonl=/tmp/progress.jsonl'],
+                ['node', 'tdc', 'threads', '--progress-jsonl=/tmp/progress.jsonl'],
                 true,
             ],
             [
                 'enabled with --progress-jsonl path as separate arg',
-                ['node', 'tw', 'threads', '--progress-jsonl', '/tmp/progress.jsonl'],
+                ['node', 'tdc', 'threads', '--progress-jsonl', '/tmp/progress.jsonl'],
                 true,
             ],
         ])('should be %s', (_description, argv, expectedEnabled) => {
@@ -82,7 +82,7 @@ describe('ProgressTracker', () => {
 
     describe('output destinations', () => {
         it('should output to stderr by default', () => {
-            process.argv = ['node', 'tw', 'threads', '--progress-jsonl']
+            process.argv = ['node', 'tdc', 'threads', '--progress-jsonl']
             const tracker = new ProgressTracker()
 
             tracker.emit({ type: 'start', command: 'threads' })
@@ -93,7 +93,7 @@ describe('ProgressTracker', () => {
         })
 
         it('should create file when path is provided with equals', () => {
-            process.argv = ['node', 'tw', 'threads', '--progress-jsonl=/tmp/progress.jsonl']
+            process.argv = ['node', 'tdc', 'threads', '--progress-jsonl=/tmp/progress.jsonl']
             const tracker = new ProgressTracker()
 
             expect(fs.createWriteStream).toHaveBeenCalledWith('/tmp/progress.jsonl', { flags: 'a' })
@@ -103,14 +103,14 @@ describe('ProgressTracker', () => {
         })
 
         it('should create file when path is provided as separate arg', () => {
-            process.argv = ['node', 'tw', 'threads', '--progress-jsonl', '/tmp/progress.jsonl']
+            process.argv = ['node', 'tdc', 'threads', '--progress-jsonl', '/tmp/progress.jsonl']
             const _tracker = new ProgressTracker()
 
             expect(fs.createWriteStream).toHaveBeenCalledWith('/tmp/progress.jsonl', { flags: 'a' })
         })
 
         it('should fall back to stderr if file creation fails', () => {
-            process.argv = ['node', 'tw', 'threads', '--progress-jsonl=/invalid/path']
+            process.argv = ['node', 'tdc', 'threads', '--progress-jsonl=/invalid/path']
             vi.mocked(fs.createWriteStream).mockImplementation(() => {
                 throw new Error('Permission denied')
             })
@@ -133,7 +133,7 @@ describe('ProgressTracker', () => {
         let tracker: ProgressTracker
 
         beforeEach(() => {
-            process.argv = ['node', 'tw', 'threads', '--progress-jsonl']
+            process.argv = ['node', 'tdc', 'threads', '--progress-jsonl']
             tracker = new ProgressTracker()
         })
 
@@ -210,7 +210,7 @@ describe('ProgressTracker', () => {
         it('should not emit events when disabled', () => {
             resetProgressTracker()
             resetGlobalArgs()
-            process.argv = ['node', 'tw', 'threads'] // No --progress-jsonl flag
+            process.argv = ['node', 'tdc', 'threads'] // No --progress-jsonl flag
             const disabledTracker = new ProgressTracker()
 
             disabledTracker.emitStart('threads')
@@ -244,7 +244,7 @@ describe('ProgressTracker', () => {
 
     describe('cleanup', () => {
         it('should close file stream when calling close()', () => {
-            process.argv = ['node', 'tw', 'threads', '--progress-jsonl=/tmp/progress.jsonl']
+            process.argv = ['node', 'tdc', 'threads', '--progress-jsonl=/tmp/progress.jsonl']
             const tracker = new ProgressTracker()
 
             tracker.close()
@@ -254,7 +254,7 @@ describe('ProgressTracker', () => {
         })
 
         it('should handle close() when using stderr', () => {
-            process.argv = ['node', 'tw', 'threads', '--progress-jsonl']
+            process.argv = ['node', 'tdc', 'threads', '--progress-jsonl']
             const tracker = new ProgressTracker()
 
             // Should not throw
@@ -281,7 +281,7 @@ describe('global progress tracker', () => {
     })
 
     it('should return singleton instance', () => {
-        process.argv = ['node', 'tw', 'threads', '--progress-jsonl']
+        process.argv = ['node', 'tdc', 'threads', '--progress-jsonl']
 
         const tracker1 = getProgressTracker()
         const tracker2 = getProgressTracker()
@@ -290,7 +290,7 @@ describe('global progress tracker', () => {
     })
 
     it('should create new instance after reset', () => {
-        process.argv = ['node', 'tw', 'threads', '--progress-jsonl']
+        process.argv = ['node', 'tdc', 'threads', '--progress-jsonl']
 
         const tracker1 = getProgressTracker()
         resetProgressTracker()
@@ -301,14 +301,14 @@ describe('global progress tracker', () => {
 
     it('should respect argv changes between instances', () => {
         // First instance - disabled
-        process.argv = ['node', 'tw', 'threads']
+        process.argv = ['node', 'tdc', 'threads']
         const tracker1 = getProgressTracker()
         expect(tracker1.isEnabled()).toBe(false)
 
         // Reset and create new instance with flag
         resetProgressTracker()
         resetGlobalArgs()
-        process.argv = ['node', 'tw', 'threads', '--progress-jsonl']
+        process.argv = ['node', 'tdc', 'threads', '--progress-jsonl']
         const tracker2 = getProgressTracker()
         expect(tracker2.isEnabled()).toBe(true)
     })
@@ -341,10 +341,10 @@ describe('edge cases and integration', () => {
     })
 
     it.each([
-        ['flag in middle of arguments', ['node', 'tw', '--progress-jsonl', 'threads', '--json']],
-        ['flag at end of arguments', ['node', 'tw', 'threads', '--json', '--progress-jsonl']],
-        ['flag with empty path argument', ['node', 'tw', 'threads', '--progress-jsonl', '']],
-        ['flag followed by another flag', ['node', 'tw', 'threads', '--progress-jsonl', '--json']],
+        ['flag in middle of arguments', ['node', 'tdc', '--progress-jsonl', 'threads', '--json']],
+        ['flag at end of arguments', ['node', 'tdc', 'threads', '--json', '--progress-jsonl']],
+        ['flag with empty path argument', ['node', 'tdc', 'threads', '--progress-jsonl', '']],
+        ['flag followed by another flag', ['node', 'tdc', 'threads', '--progress-jsonl', '--json']],
     ])('should handle %s', (_description, argv) => {
         process.argv = argv
         const tracker = new ProgressTracker()
@@ -354,7 +354,7 @@ describe('edge cases and integration', () => {
     it('should handle multiple progress-jsonl flags (last one wins)', () => {
         process.argv = [
             'node',
-            'tw',
+            'tdc',
             '--progress-jsonl=/tmp/first',
             '--progress-jsonl=/tmp/second',
             'threads',

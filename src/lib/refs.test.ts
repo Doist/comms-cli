@@ -258,10 +258,9 @@ describe('resolveChannelRef', () => {
     })
 
     it('throws CHANNEL_NOT_FOUND when URL workspaceId conflicts with expected workspaceId', async () => {
-        await expect(resolveChannelRef('https://comms.todoist.com/a/2/ch/42', 1)).rejects.toHaveProperty(
-            'code',
-            'CHANNEL_NOT_FOUND',
-        )
+        await expect(
+            resolveChannelRef('https://comms.todoist.com/a/2/ch/42', 1),
+        ).rejects.toHaveProperty('code', 'CHANNEL_NOT_FOUND')
         expect(mockGetChannel).not.toHaveBeenCalled()
     })
 

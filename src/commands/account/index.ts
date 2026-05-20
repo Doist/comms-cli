@@ -42,8 +42,8 @@ export function registerAccountCommand(program: Command): void {
         'after',
         `
 Examples:
-  tw account                       # list stored accounts (default subcommand)
-  tw account use "Alan Grant"      # pin Alan as the default account (id, id:N, or name)
-  tw account remove id:42          # forget id:42 (clears keyring + config entry)`,
+  tdc account                       # list stored accounts (default subcommand)
+  tdc account use "Alan Grant"      # pin Alan as the default account (id, id:N, or name)
+  tdc account remove id:42          # forget id:42 (clears keyring + config entry)`,
     )
 }

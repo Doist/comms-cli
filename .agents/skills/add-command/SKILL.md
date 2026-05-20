@@ -1,6 +1,6 @@
 ---
 name: add-command
-description: Guide for adding new CLI commands or subcommands to twist-cli. Use when implementing new SDK endpoints, adding subcommands to existing command groups, or extending CLI functionality.
+description: Guide for adding new CLI commands or subcommands to comms-cli. Use when implementing new SDK endpoints, adding subcommands to existing command groups, or extending CLI functionality.
 ---
 
 # Adding a New CLI Command or Subcommand
@@ -19,7 +19,7 @@ Color convention:
 
 ## 2. Read-Only Permissions (`src/lib/permissions.ts`)
 
-If the new command uses a **read-only** SDK method (e.g., `getXxx`, `listXxx`), add it to the `KNOWN_SAFE_API_METHODS` set. This set uses a default-deny approach: any method **not** listed is treated as mutating and will be blocked when the CLI is authenticated with a read-only OAuth token (`tw auth login --read-only`).
+If the new command uses a **read-only** SDK method (e.g., `getXxx`, `listXxx`), add it to the `KNOWN_SAFE_API_METHODS` set. This set uses a default-deny approach: any method **not** listed is treated as mutating and will be blocked when the CLI is authenticated with a read-only OAuth token (`tdc auth login --read-only`).
 
 - **Read-only methods** (fetch/list/view): add to `KNOWN_SAFE_API_METHODS`
 - **Mutating methods** (create/update/delete/archive/mute): do NOT add — they are blocked by default, which is the correct behavior
@@ -60,7 +60,7 @@ Single-subcommand commands (e.g., `channel.ts`, `inbox.ts`) remain as flat files
 
 ### ID resolution
 
-- `resolveThreadId(ref)` — resolve thread by numeric ID or Twist URL
+- `resolveThreadId(ref)` — resolve thread by numeric ID or Comms URL
 - `resolveChannelId(ref)` — resolve channel by numeric ID, URL, or fuzzy name
 - `resolveWorkspaceRef(ref)` — resolve workspace by ID or fuzzy name
 - `resolveConversationId(ref)` — resolve conversation by numeric ID or URL
@@ -89,7 +89,7 @@ The variable assignment (`const myCmd = ...`) is needed so the `.action()` callb
 
 ### Implicit view subcommand
 
-For entity commands with a `view` subcommand, mark it as the default so `tw thread 123` maps to `tw thread view 123`:
+For entity commands with a `view` subcommand, mark it as the default so `tdc thread 123` maps to `tdc thread view 123`:
 
 ```typescript
 thread
@@ -128,7 +128,7 @@ const commands: Record<string, [string, () => Promise<(p: Command) => void>]> = 
 
 ## 4. Accessibility (`src/lib/output.ts`)
 
-The CLI supports accessible mode via `isAccessible()` (checks `TW_ACCESSIBLE=1` or `--accessible` flag). When adding output that uses color or visual elements, consider whether information is conveyed **only** by color or decoration.
+The CLI supports accessible mode via `isAccessible()` (checks `TDC_ACCESSIBLE=1` or `--accessible` flag). When adding output that uses color or visual elements, consider whether information is conveyed **only** by color or decoration.
 
 ### When to add accessible alternatives
 
@@ -160,12 +160,12 @@ Tests mock the API layer directly using `vi.mock` and `vi.hoisted`. Follow the e
 
 ```typescript
 const apiMocks = vi.hoisted(() => ({
-    getTwistClient: vi.fn(),
+    getCommsClient: vi.fn(),
 }))
 
 vi.mock('../lib/api.js', async (importOriginal) => ({
     ...(await importOriginal<typeof import('../lib/api.js')>()),
-    getTwistClient: apiMocks.getTwistClient,
+    getCommsClient: apiMocks.getCommsClient,
 }))
 
 vi.mock('../lib/markdown.js', () => ({
@@ -218,7 +218,7 @@ After all code changes are complete:
 npm run build && npm run sync:skill
 ```
 
-This builds the project and regenerates `skills/twist-cli/SKILL.md` from the compiled skill content. The regenerated file must be committed. CI will fail (`npm run check:skill-sync`) if it is out of sync.
+This builds the project and regenerates `skills/comms-cli/SKILL.md` from the compiled skill content. The regenerated file must be committed. CI will fail (`npm run check:skill-sync`) if it is out of sync.
 
 ## 8. Verify
 

@@ -124,7 +124,7 @@ describe('channel threads', () => {
         await expect(
             program.parseAsync([
                 'node',
-                'tw',
+                'tdc',
                 'channel',
                 'threads',
                 'general',
@@ -139,7 +139,7 @@ describe('channel threads', () => {
         setupClient()
         const program = createProgram()
 
-        await program.parseAsync(['node', 'tw', 'channel', 'threads', 'general', '--json'])
+        await program.parseAsync(['node', 'tdc', 'channel', 'threads', 'general', '--json'])
 
         expect(refsMocks.resolveChannelRef).toHaveBeenCalledWith('general', 1)
     })
@@ -149,7 +149,15 @@ describe('channel threads', () => {
         setupClient()
         const program = createProgram()
 
-        await program.parseAsync(['node', 'tw', 'channel', 'threads', 'general', 'Doist', '--json'])
+        await program.parseAsync([
+            'node',
+            'tdc',
+            'channel',
+            'threads',
+            'general',
+            'Doist',
+            '--json',
+        ])
 
         expect(refsMocks.resolveWorkspaceRef).toHaveBeenCalledWith('Doist')
         expect(refsMocks.resolveChannelRef).toHaveBeenCalledWith('general', 42)
@@ -159,7 +167,7 @@ describe('channel threads', () => {
         const { mockGetThreads } = setupClient()
         const program = createProgram()
 
-        await program.parseAsync(['node', 'tw', 'channel', 'threads', '12345', '--json'])
+        await program.parseAsync(['node', 'tdc', 'channel', 'threads', '12345', '--json'])
 
         expect(mockGetThreads).toHaveBeenCalledWith(
             { workspaceId: 1, channelId: 100, archived: false },
@@ -173,7 +181,7 @@ describe('channel threads', () => {
 
         await program.parseAsync([
             'node',
-            'tw',
+            'tdc',
             'channel',
             'threads',
             '12345',
@@ -194,7 +202,7 @@ describe('channel threads', () => {
 
         await program.parseAsync([
             'node',
-            'tw',
+            'tdc',
             'channel',
             'threads',
             '12345',
@@ -217,7 +225,7 @@ describe('channel threads', () => {
         const consoleSpy = vi.spyOn(console, 'log').mockImplementation(() => {})
         const program = createProgram()
 
-        await program.parseAsync(['node', 'tw', 'channel', 'threads', '12345', '--json'])
+        await program.parseAsync(['node', 'tdc', 'channel', 'threads', '12345', '--json'])
 
         const output = JSON.parse(consoleSpy.mock.calls[0][0])
         expect(output.results.find((t: { id: number }) => t.id === 1).isUnread).toBe(false)
@@ -237,7 +245,7 @@ describe('channel threads', () => {
 
         await program.parseAsync([
             'node',
-            'tw',
+            'tdc',
             'channel',
             'threads',
             '12345',
@@ -265,7 +273,7 @@ describe('channel threads', () => {
 
         await program.parseAsync([
             'node',
-            'tw',
+            'tdc',
             'channel',
             'threads',
             '12345',
@@ -293,7 +301,7 @@ describe('channel threads', () => {
 
         await program.parseAsync([
             'node',
-            'tw',
+            'tdc',
             'channel',
             'threads',
             '12345',
@@ -319,7 +327,7 @@ describe('channel threads', () => {
         const consoleSpy = vi.spyOn(console, 'log').mockImplementation(() => {})
         const program = createProgram()
 
-        await program.parseAsync(['node', 'tw', 'channel', 'threads', '12345', '--json'])
+        await program.parseAsync(['node', 'tdc', 'channel', 'threads', '12345', '--json'])
 
         const output = JSON.parse(consoleSpy.mock.calls[0][0])
         expect(output.results.map((t: { id: number }) => t.id)).toEqual([2, 3, 1])
@@ -342,7 +350,7 @@ describe('channel threads', () => {
 
         await program.parseAsync([
             'node',
-            'tw',
+            'tdc',
             'channel',
             'threads',
             '12345',
@@ -373,7 +381,7 @@ describe('channel threads', () => {
 
         await program.parseAsync([
             'node',
-            'tw',
+            'tdc',
             'channel',
             'threads',
             '12345',
@@ -398,7 +406,7 @@ describe('channel threads', () => {
         const consoleSpy = vi.spyOn(console, 'log').mockImplementation(() => {})
         const program = createProgram()
 
-        await program.parseAsync(['node', 'tw', 'channel', 'threads', '12345', '--json'])
+        await program.parseAsync(['node', 'tdc', 'channel', 'threads', '12345', '--json'])
 
         const output = JSON.parse(consoleSpy.mock.calls[0][0])
         expect(output.nextCursor).toBeNull()
@@ -411,7 +419,7 @@ describe('channel threads', () => {
         const consoleSpy = vi.spyOn(console, 'log').mockImplementation(() => {})
         const program = createProgram()
 
-        await program.parseAsync(['node', 'tw', 'channel', 'threads', '12345', '--json'])
+        await program.parseAsync(['node', 'tdc', 'channel', 'threads', '12345', '--json'])
 
         expect(vi.mocked(assertChannelIsPublic)).toHaveBeenCalledWith(100, 1)
 
@@ -426,7 +434,7 @@ describe('channel threads', () => {
         const program = createProgram()
 
         await expect(
-            program.parseAsync(['node', 'tw', 'channel', 'threads', '12345', '--json']),
+            program.parseAsync(['node', 'tdc', 'channel', 'threads', '12345', '--json']),
         ).rejects.toThrow('This thread belongs to a private channel.')
     })
 
@@ -437,7 +445,7 @@ describe('channel threads', () => {
         await expect(
             program.parseAsync([
                 'node',
-                'tw',
+                'tdc',
                 'channel',
                 'threads',
                 '12345',
@@ -455,7 +463,7 @@ describe('channel threads', () => {
         await expect(
             program.parseAsync([
                 'node',
-                'tw',
+                'tdc',
                 'channel',
                 'threads',
                 '12345',
@@ -473,7 +481,7 @@ describe('channel threads', () => {
         await expect(
             program.parseAsync([
                 'node',
-                'tw',
+                'tdc',
                 'channel',
                 'threads',
                 '12345',
@@ -490,7 +498,7 @@ describe('channel threads', () => {
         const consoleSpy = vi.spyOn(console, 'log').mockImplementation(() => {})
         const program = createProgram()
 
-        await program.parseAsync(['node', 'tw', 'channel', 'threads', 'general'])
+        await program.parseAsync(['node', 'tdc', 'channel', 'threads', 'general'])
 
         expect(consoleSpy).toHaveBeenCalledWith('No threads in #general.')
 
@@ -505,7 +513,7 @@ describe('channel threads', () => {
         const consoleSpy = vi.spyOn(console, 'log').mockImplementation(() => {})
         const program = createProgram()
 
-        await program.parseAsync(['node', 'tw', 'channel', 'threads', '12345', '--json'])
+        await program.parseAsync(['node', 'tdc', 'channel', 'threads', '12345', '--json'])
 
         const output = JSON.parse(consoleSpy.mock.calls[0][0])
         expect(output.results[0]).toMatchObject({
@@ -530,7 +538,7 @@ describe('channel threads', () => {
 
         await program.parseAsync([
             'node',
-            'tw',
+            'tdc',
             'channel',
             'threads',
             '12345',
@@ -557,7 +565,7 @@ describe('channel threads', () => {
         const program = createProgram()
 
         await expect(
-            program.parseAsync(['node', 'tw', 'channel', 'threads', '12345', '--json']),
+            program.parseAsync(['node', 'tdc', 'channel', 'threads', '12345', '--json']),
         ).resolves.not.toThrow()
 
         const output = JSON.parse(consoleSpy.mock.calls[0][0])
@@ -582,7 +590,7 @@ describe('channel threads', () => {
         const program = createProgram()
 
         await expect(
-            program.parseAsync(['node', 'tw', 'channel', 'threads', '12345', '--json']),
+            program.parseAsync(['node', 'tdc', 'channel', 'threads', '12345', '--json']),
         ).rejects.toThrow('Failed to fetch threads: Channel access denied')
     })
 
@@ -593,7 +601,7 @@ describe('channel threads', () => {
         const consoleSpy = vi.spyOn(console, 'log').mockImplementation(() => {})
         const program = createProgram()
 
-        await program.parseAsync(['node', 'tw', 'channel', 'threads', '12345', '--json', '--full'])
+        await program.parseAsync(['node', 'tdc', 'channel', 'threads', '12345', '--json', '--full'])
 
         const output = JSON.parse(consoleSpy.mock.calls[0][0])
         expect(output.results[0]).toHaveProperty('pinned', true)

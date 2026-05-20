@@ -25,7 +25,7 @@ export function looksLikeRawId(ref: string): boolean {
     return /^\d+$/.test(normalized) || (/[a-zA-Z]/.test(normalized) && /\d/.test(normalized))
 }
 
-export interface ParsedTwistUrl {
+export interface ParsedCommsUrl {
     workspaceId?: number
     channelId?: number
     threadId?: number
@@ -34,7 +34,7 @@ export interface ParsedTwistUrl {
     messageId?: number
 }
 
-export function parseCommsUrl(url: string): ParsedTwistUrl | null {
+export function parseCommsUrl(url: string): ParsedCommsUrl | null {
     try {
         const parsed = new URL(url)
         if (!parsed.hostname.includes('comms.todoist.com')) {
@@ -42,7 +42,7 @@ export function parseCommsUrl(url: string): ParsedTwistUrl | null {
         }
 
         const path = parsed.pathname
-        const result: ParsedTwistUrl = {}
+        const result: ParsedCommsUrl = {}
 
         // Pattern: /a/{workspaceId}/ch/{channelId}/t/{threadId}/c/{commentId}
         // Pattern: /a/{workspaceId}/msg/{conversationId}/m/{messageId}
@@ -86,7 +86,7 @@ export function parseRef(
     ref: string,
 ):
     | { type: 'id'; id: number }
-    | { type: 'url'; parsed: ParsedTwistUrl }
+    | { type: 'url'; parsed: ParsedCommsUrl }
     | { type: 'name'; name: string } {
     const normalized = normalizeRef(ref)
 
@@ -148,7 +148,7 @@ export async function resolveWorkspaceRef(ref: string): Promise<Workspace> {
         const workspace = workspaces.find((w) => w.id === parsed.id)
         if (!workspace) {
             throw new CliError('WORKSPACE_NOT_FOUND', `Workspace with ID ${parsed.id} not found`, [
-                'Run: tw workspaces to list available workspaces',
+                'Run: tdc workspaces to list available workspaces',
             ])
         }
         return workspace
@@ -160,7 +160,7 @@ export async function resolveWorkspaceRef(ref: string): Promise<Workspace> {
             throw new CliError(
                 'WORKSPACE_NOT_FOUND',
                 `Workspace with ID ${parsed.parsed.workspaceId} not found`,
-                ['Run: tw workspaces to list available workspaces'],
+                ['Run: tdc workspaces to list available workspaces'],
             )
         }
         return workspace
@@ -171,12 +171,12 @@ export async function resolveWorkspaceRef(ref: string): Promise<Workspace> {
             ambiguousCode: 'AMBIGUOUS_WORKSPACE',
             notFoundCode: 'WORKSPACE_NOT_FOUND',
             ref,
-            listHint: 'Run: tw workspaces to list available workspaces',
+            listHint: 'Run: tdc workspaces to list available workspaces',
         })
     }
 
     throw new CliError('WORKSPACE_NOT_FOUND', `Workspace "${ref}" not found`, [
-        'Run: tw workspaces to list available workspaces',
+        'Run: tdc workspaces to list available workspaces',
     ])
 }
 
@@ -193,7 +193,7 @@ export function resolveThreadId(ref: string): number {
 
     throw new CliError(
         'INVALID_REF',
-        `Invalid thread reference: ${ref}. Use 123, id:123, or a Twist URL.`,
+        `Invalid thread reference: ${ref}. Use 123, id:123, or a Comms URL.`,
     )
 }
 
@@ -235,12 +235,12 @@ export async function resolveChannelRef(ref: string, workspaceId: number): Promi
             ambiguousCode: 'AMBIGUOUS_CHANNEL',
             notFoundCode: 'CHANNEL_NOT_FOUND',
             ref,
-            listHint: 'Run: tw channels to list available channels',
+            listHint: 'Run: tdc channels to list available channels',
         })
     }
 
     throw new CliError('CHANNEL_NOT_FOUND', `Channel "${ref}" not found`, [
-        'Run: tw channels to list available channels',
+        'Run: tdc channels to list available channels',
     ])
 }
 
@@ -257,7 +257,7 @@ export function resolveChannelId(ref: string): number {
 
     throw new CliError(
         'INVALID_REF',
-        `Invalid channel reference: ${ref}. Use 123, id:123, or a Twist URL.`,
+        `Invalid channel reference: ${ref}. Use 123, id:123, or a Comms URL.`,
     )
 }
 
@@ -274,7 +274,7 @@ export function resolveCommentId(ref: string): number {
 
     throw new CliError(
         'INVALID_REF',
-        `Invalid comment reference: ${ref}. Use 123, id:123, or a Twist URL.`,
+        `Invalid comment reference: ${ref}. Use 123, id:123, or a Comms URL.`,
     )
 }
 
@@ -291,7 +291,7 @@ export function resolveConversationId(ref: string): number {
 
     throw new CliError(
         'INVALID_REF',
-        `Invalid conversation reference: ${ref}. Use 123, id:123, or a Twist URL.`,
+        `Invalid conversation reference: ${ref}. Use 123, id:123, or a Comms URL.`,
     )
 }
 
@@ -308,16 +308,16 @@ export function resolveMessageId(ref: string): number {
 
     throw new CliError(
         'INVALID_REF',
-        `Invalid message reference: ${ref}. Use 123, id:123, or a Twist URL.`,
+        `Invalid message reference: ${ref}. Use 123, id:123, or a Comms URL.`,
     )
 }
 
-export type TwistUrlRoute = {
+export type CommsUrlRoute = {
     entityType: 'message' | 'conversation' | 'comment' | 'thread'
     url: string
 }
 
-export function classifyCommsUrl(url: string): TwistUrlRoute | null {
+export function classifyCommsUrl(url: string): CommsUrlRoute | null {
     const parsed = parseCommsUrl(url)
     if (!parsed) return null
 
@@ -378,7 +378,7 @@ export async function resolveGroupRef(ref: string, workspaceId: number): Promise
         } catch (error) {
             if (error instanceof CliError) throw error
             throw new CliError('GROUP_NOT_FOUND', `Group with ID ${parsed.id} not found`, [
-                'Run: tw groups to list available groups',
+                'Run: tdc groups to list available groups',
             ])
         }
     }
@@ -389,12 +389,12 @@ export async function resolveGroupRef(ref: string, workspaceId: number): Promise
             ambiguousCode: 'AMBIGUOUS_GROUP',
             notFoundCode: 'GROUP_NOT_FOUND',
             ref,
-            listHint: 'Run: tw groups to list available groups',
+            listHint: 'Run: tdc groups to list available groups',
         })
     }
 
     throw new CliError('GROUP_NOT_FOUND', `Group "${ref}" not found`, [
-        'Run: tw groups to list available groups',
+        'Run: tdc groups to list available groups',
     ])
 }
 
@@ -419,7 +419,7 @@ export async function resolveUserRefs(refs: string, workspaceId: number): Promis
 
         if (matches.length === 0) {
             throw new CliError('USER_NOT_FOUND', `No user found matching "${ref}"`, [
-                'Run: tw users to list workspace members',
+                'Run: tdc users to list workspace members',
             ])
         }
 

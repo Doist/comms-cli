@@ -1,20 +1,20 @@
-# Contributing to Twist CLI
+# Contributing to Comms CLI
 
-The following is a set of guidelines for contributing to Twist CLI. Please read these guidelines before creating an issue or pull request.
+The following is a set of guidelines for contributing to Comms CLI. Please read these guidelines before creating an issue or pull request.
 
 ## Open Development
 
-All work on Twist CLI happens directly on [GitHub](https://github.com/Doist/twist-cli). Both core team members and external contributors send pull requests that go through the same review process.
+All work on Comms CLI happens directly on [GitHub](https://github.com/Doist/comms-cli). Both core team members and external contributors send pull requests that go through the same review process.
 
 ## Semantic Versioning
 
-Twist CLI follows [semantic versioning](https://semver.org/). We release patch versions for bugfixes, minor versions for new features or non-essential changes, and major versions for any breaking changes.
+Comms CLI follows [semantic versioning](https://semver.org/). We release patch versions for bugfixes, minor versions for new features or non-essential changes, and major versions for any breaking changes.
 
 Every significant change is documented in the [CHANGELOG.md](CHANGELOG.md) file.
 
 ## Branch Organization
 
-Submit all changes to the [main](https://github.com/Doist/twist-cli/tree/main) branch (via PR) by default. For pre-release work, target the `next` branch instead — see [Release Process](#release-process-core-team-only) for details.
+Submit all changes to the [main](https://github.com/Doist/comms-cli/tree/main) branch (via PR) by default. For pre-release work, target the `next` branch instead — see [Release Process](#release-process-core-team-only) for details.
 
 We do our best to keep `main` in good shape, with all tests passing.
 
@@ -91,9 +91,9 @@ To test features before publishing a stable release:
 ### Installing a pre-release
 
 ```sh
-npm install @doist/twist-cli@next
+npm install @doist/comms-cli@next
 ```
 
 ## License
 
-By contributing to Twist CLI, you agree that your contributions will be licensed under its [MIT license](LICENSE).
+By contributing to Comms CLI, you agree that your contributions will be licensed under its [MIT license](LICENSE).

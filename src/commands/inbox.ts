@@ -193,12 +193,12 @@ export function registerInboxCommand(program: Command): void {
             'after',
             `
 Examples:
-  tw inbox
-  tw inbox --unread
-  tw inbox --archive-filter all
-  tw inbox --archive-filter archived
-  tw inbox --channel engineering --since 2025-01-01
-  tw inbox --limit 10 --json`,
+  tdc inbox
+  tdc inbox --unread
+  tdc inbox --archive-filter all
+  tdc inbox --archive-filter archived
+  tdc inbox --channel engineering --since 2025-01-01
+  tdc inbox --limit 10 --json`,
         )
         .action(showInbox)
 }
