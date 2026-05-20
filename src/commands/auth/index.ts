@@ -19,15 +19,14 @@ export function registerAuthCommand(program: Command): void {
     attachCommsLogoutCommand(auth, refAware)
     attachCommsStatusCommand(auth, refAware)
 
-    // `token` is a hybrid: the positional `[token]` saves, and the `view`
-    // subcommand prints. Commander matches subcommand names before the parent
-    // action, so `cm auth token view` always dispatches to the view path —
-    // Comms OAuth tokens are opaque random strings so the literal "view" can
-    // never collide with a real token value.
+    // `token` is a hybrid: bare `cm auth token` prompts interactively to save
+    // a token, and the `view` subcommand prints it. Tokens are never accepted
+    // as positional/CLI arguments — that would leak them via process lists
+    // and shell history (Doist Secrets Management Standard).
     const tokenCmd = auth
-        .command('token [token]')
+        .command('token')
         .description('Save API token for CLI authentication (or use a subcommand: `view`)')
-        .action(loginWithToken)
+        .action(() => loginWithToken())
 
     attachTokenViewCommand(tokenCmd, {
         name: 'view',

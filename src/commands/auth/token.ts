@@ -27,16 +27,18 @@ function promptHiddenInput(prompt: string): Promise<string> {
     })
 }
 
-export async function loginWithToken(token?: string): Promise<void> {
-    if (!token) {
-        if (isNonInteractive()) {
-            throw new CliError(
-                'NO_TOKEN',
-                'Cannot prompt for token in non-interactive mode. Set the COMMS_API_TOKEN environment variable instead.',
-            )
-        }
-        token = await promptHiddenInput('API token: ')
+// Tokens are read interactively or from the COMMS_API_TOKEN env var only —
+// never accepted as a CLI argument. Passing secrets on the command line
+// would leak them via process lists and shell history (Doist Secrets
+// Management Standard).
+export async function loginWithToken(): Promise<void> {
+    if (isNonInteractive()) {
+        throw new CliError(
+            'NO_TOKEN',
+            'Cannot prompt for token in non-interactive mode. Set the COMMS_API_TOKEN environment variable instead.',
+        )
     }
+    const token = await promptHiddenInput('API token: ')
     const trimmed = token.trim()
     if (!trimmed) {
         throw new CliError('NO_TOKEN', 'No token provided', [

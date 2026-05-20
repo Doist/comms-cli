@@ -140,36 +140,12 @@ describe('auth command', () => {
             storeMocks.getLastStorageResult.mockReset().mockReturnValue({ storage: 'secure-store' })
         })
 
-        it('saves the token via store.set with an empty-id account, trims whitespace, and confirms', async () => {
-            const program = createProgram()
-
-            await program.parseAsync(['node', 'cm', 'auth', 'token', '  some_token_123456789  '])
-
-            expect(storeMocks.set).toHaveBeenCalledWith(
-                { id: '', label: '', authMode: 'unknown', authScope: '' },
-                'some_token_123456789',
-            )
-            expect(consoleSpy).toHaveBeenCalledWith('✓', 'API token saved successfully!')
-            expect(consoleSpy).toHaveBeenCalledWith(
-                'Token stored securely in the system credential manager',
-            )
-        })
-
-        it('lets store.set errors propagate unchanged', async () => {
-            storeMocks.set.mockRejectedValue(new Error('Permission denied'))
-            const program = createProgram()
-
-            await expect(
-                program.parseAsync(['node', 'cm', 'auth', 'token', 'some_token_123456789']),
-            ).rejects.toThrow('Permission denied')
-        })
-
-        it('prompts interactively when no token argument is given', async () => {
+        it('prompts interactively, saves the trimmed token via store.set with an empty-id account, and confirms', async () => {
             const originalIsTTY = process.stdin.isTTY
             Object.defineProperty(process.stdin, 'isTTY', { value: true, configurable: true })
             const mockRl = {
                 question: vi.fn((_prompt: string, cb: (answer: string) => void) => {
-                    cb('interactive_token_456')
+                    cb('  some_token_123456789  ')
                 }),
                 close: vi.fn(),
                 _writeToOutput: vi.fn(),
@@ -181,9 +157,38 @@ describe('auth command', () => {
 
             expect(mockRl.question).toHaveBeenCalled()
             expect(storeMocks.set).toHaveBeenCalledWith(
-                expect.objectContaining({ id: '', authMode: 'unknown' }),
-                'interactive_token_456',
+                { id: '', label: '', authMode: 'unknown', authScope: '' },
+                'some_token_123456789',
             )
+            expect(consoleSpy).toHaveBeenCalledWith('✓', 'API token saved successfully!')
+            expect(consoleSpy).toHaveBeenCalledWith(
+                'Token stored securely in the system credential manager',
+            )
+            writeSpy.mockRestore()
+            Object.defineProperty(process.stdin, 'isTTY', {
+                value: originalIsTTY,
+                configurable: true,
+            })
+        })
+
+        it('lets store.set errors propagate unchanged', async () => {
+            storeMocks.set.mockRejectedValue(new Error('Permission denied'))
+            const originalIsTTY = process.stdin.isTTY
+            Object.defineProperty(process.stdin, 'isTTY', { value: true, configurable: true })
+            const mockRl = {
+                question: vi.fn((_prompt: string, cb: (answer: string) => void) => {
+                    cb('some_token_123456789')
+                }),
+                close: vi.fn(),
+                _writeToOutput: vi.fn(),
+            }
+            mockCreateInterface.mockReturnValue(mockRl as unknown as Interface)
+            const writeSpy = vi.spyOn(process.stdout, 'write').mockImplementation(() => true)
+
+            await expect(
+                createProgram().parseAsync(['node', 'cm', 'auth', 'token']),
+            ).rejects.toThrow('Permission denied')
+
             writeSpy.mockRestore()
             Object.defineProperty(process.stdin, 'isTTY', {
                 value: originalIsTTY,
@@ -197,19 +202,30 @@ describe('auth command', () => {
                 warning:
                     'system credential manager unavailable; token saved as plaintext in /home/user/.config/comms-cli/config.json',
             })
+            const originalIsTTY = process.stdin.isTTY
+            Object.defineProperty(process.stdin, 'isTTY', { value: true, configurable: true })
+            const mockRl = {
+                question: vi.fn((_prompt: string, cb: (answer: string) => void) => {
+                    cb('some_token_123456789')
+                }),
+                close: vi.fn(),
+                _writeToOutput: vi.fn(),
+            }
+            mockCreateInterface.mockReturnValue(mockRl as unknown as Interface)
+            const writeSpy = vi.spyOn(process.stdout, 'write').mockImplementation(() => true)
 
-            await createProgram().parseAsync([
-                'node',
-                'cm',
-                'auth',
-                'token',
-                'some_token_123456789',
-            ])
+            await createProgram().parseAsync(['node', 'cm', 'auth', 'token'])
 
             expect(errorSpy).toHaveBeenCalledWith(
                 'Warning:',
                 'system credential manager unavailable; token saved as plaintext in /home/user/.config/comms-cli/config.json',
             )
+
+            writeSpy.mockRestore()
+            Object.defineProperty(process.stdin, 'isTTY', {
+                value: originalIsTTY,
+                configurable: true,
+            })
         })
 
         it('throws NO_TOKEN without calling store.set when the input is empty (interactive + non-interactive)', async () => {
