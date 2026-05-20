@@ -1,0 +1,68 @@
+import { createInstaller } from './create-installer.js'
+import type { AgentInfo, SkillInstaller } from './types.js'
+
+export const skillInstallers: Record<string, SkillInstaller> = {
+    'claude-code': createInstaller({
+        name: 'claude-code',
+        description: 'Claude Code skill for Comms CLI',
+        dirName: '.claude',
+    }),
+    codex: createInstaller({
+        name: 'codex',
+        description: 'Codex skill for Comms CLI',
+        dirName: '.codex',
+    }),
+    cursor: createInstaller({
+        name: 'cursor',
+        description: 'Cursor skill for Comms CLI',
+        dirName: '.cursor',
+    }),
+    gemini: createInstaller({
+        name: 'gemini',
+        description: 'Gemini CLI skill for Comms CLI',
+        dirName: '.gemini',
+    }),
+    pi: createInstaller({
+        name: 'pi',
+        description: 'Pi skill for Comms CLI',
+        dirName: '.pi',
+    }),
+    universal: createInstaller({
+        name: 'universal',
+        description: 'Universal agent skill for Comms CLI',
+        dirName: '.agents',
+    }),
+}
+
+export function getInstaller(name: string): SkillInstaller | null {
+    return skillInstallers[name] ?? null
+}
+
+export function listAgentNames(): string[] {
+    return Object.keys(skillInstallers)
+}
+
+export async function listAgents(local: boolean): Promise<AgentInfo[]> {
+    const agents: AgentInfo[] = []
+
+    for (const name of listAgentNames()) {
+        const installer = skillInstallers[name]
+        const installed = await installer.isInstalled({ local })
+        agents.push({
+            name,
+            description: installer.description,
+            installed,
+            path: installed ? installer.getInstallPath({ local }) : null,
+        })
+    }
+
+    return agents
+}
+
+export type {
+    AgentInfo,
+    InstallOptions,
+    SkillInstaller,
+    UninstallOptions,
+    UpdateOptions,
+} from './types.js'
