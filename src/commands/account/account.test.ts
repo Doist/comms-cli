@@ -158,6 +158,37 @@ describe('account command', () => {
                 source: 'config',
             })
         })
+
+        // `cm auth token` persists `{ id: '', label: '' }` since manual
+        // token entry has no identity. `account current` must render that
+        // shape as a distinct "token-only" source, not as a regular account
+        // with blank fields.
+        const EMPTY_ID_SNAPSHOT = {
+            token: 'tk_manual',
+            account: { id: '', label: '', authMode: 'unknown' as const, authScope: '' },
+        }
+
+        it('renders a token-only notice when active() returns an empty-id snapshot', async () => {
+            vi.stubEnv(TOKEN_ENV_VAR, '')
+            storeMocks.active.mockResolvedValue(EMPTY_ID_SNAPSHOT)
+
+            await createProgram().parseAsync(['node', 'cm', 'account', 'current'])
+
+            const output = stdout()
+            expect(output).toContain('saved via `cm auth token`')
+            expect(output).not.toMatch(/Active account: id: {2}/)
+        })
+
+        it('emits {source:"token-only"} in --json mode for empty-id snapshots', async () => {
+            vi.stubEnv(TOKEN_ENV_VAR, '')
+            storeMocks.active.mockResolvedValue(EMPTY_ID_SNAPSHOT)
+
+            await createProgram().parseAsync(['node', 'cm', 'account', 'current', '--json'])
+
+            expect(JSON.parse(consoleSpy.mock.calls[0][0] as string)).toEqual({
+                source: 'token-only',
+            })
+        })
     })
 
     describe('use', () => {

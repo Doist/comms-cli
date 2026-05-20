@@ -77,8 +77,10 @@ If secure storage is unavailable, the CLI warns and falls back to `~/.config/com
 **Manual token:**
 
 ```bash
-cm auth token "your-token"
+cm auth token
 ```
+
+The CLI prompts for the token without echoing it. Do **not** pass the token as a positional argument — it would be visible in `ps` / shell history.
 
 **Environment variable:**
 

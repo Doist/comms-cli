@@ -34,7 +34,7 @@ cm auth logout --user <ref>      # Target a specific stored account; mismatched 
 cm auth token view               # Print the saved token to stdout (pipe-safe; refuses if COMMS_API_TOKEN is set)
 cm auth token view --user <ref>  # Print the saved token for a specific stored account
 cm account [list|current|use <ref>|remove <ref>]  # Manage stored accounts; all support --json/--ndjson
-                                 # current's payload is {id, label, authMode, authScope, source:"config"} | {source:"env"}
+                                 # current's payload is {id, label, authMode, authScope, source:"config"} | {source:"env"} | {source:"token-only"}
 cm auth login                    # Re-running auth login with a different OAuth grant adds a NEW account; default stays pinned unless none was set
 cm workspaces                    # List available workspaces
 cm workspace use <ref>           # Set current workspace

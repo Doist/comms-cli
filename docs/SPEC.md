@@ -51,8 +51,7 @@ Token resolution (priority order):
 
 1. Environment variable: `COMMS_API_TOKEN`
 2. System credential manager (Keychain, Credential Manager, or Secret Service)
-3. Legacy plaintext token in `~/.config/comms-cli/config.json` during auto-migration
-4. Plaintext config fallback when the OS credential store is unavailable
+3. Plaintext config fallback when the OS credential store is unavailable
 
 ## Workspace Scoping
 

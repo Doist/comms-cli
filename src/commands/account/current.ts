@@ -21,6 +21,17 @@ export async function currentAccount(options: ViewOptions, store: CommsTokenStor
     }
     const { account } = snapshot
 
+    // `cm auth token` persists `{ id: '', label: '' }` because manual token
+    // entry has no identity. Render that case explicitly rather than printing
+    // blank fields.
+    if (!account.id || !account.label) {
+        emitView(options, { source: 'token-only' }, () => [
+            'Active token saved via `cm auth token` (no associated identity).',
+            chalk.dim('Run `cm auth login` to attach an account to the token.'),
+        ])
+        return
+    }
+
     emitView(
         options,
         {
