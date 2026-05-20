@@ -3,9 +3,9 @@ import { Command } from 'commander'
 import { createCommsTokenStore } from '../../lib/auth-provider.js'
 import { TOKEN_ENV_VAR } from '../../lib/auth.js'
 import { getRequestedUserRef } from '../../lib/global-args.js'
-import { attachTwistLoginCommand } from './login.js'
-import { attachTwistLogoutCommand } from './logout.js'
-import { attachTwistStatusCommand } from './status.js'
+import { attachCommsLoginCommand } from './login.js'
+import { attachCommsLogoutCommand } from './logout.js'
+import { attachCommsStatusCommand } from './status.js'
 import { withUserRefAware } from './store-wrap.js'
 import { loginWithToken } from './token.js'
 
@@ -15,14 +15,14 @@ export function registerAuthCommand(program: Command): void {
     const store = createCommsTokenStore()
     const refAware = withUserRefAware(store, getRequestedUserRef())
 
-    attachTwistLoginCommand(auth, store)
-    attachTwistLogoutCommand(auth, refAware)
-    attachTwistStatusCommand(auth, refAware)
+    attachCommsLoginCommand(auth, store)
+    attachCommsLogoutCommand(auth, refAware)
+    attachCommsStatusCommand(auth, refAware)
 
     // `token` is a hybrid: the positional `[token]` saves, and the `view`
     // subcommand prints. Commander matches subcommand names before the parent
-    // action, so `tw auth token view` always dispatches to the view path —
-    // Twist OAuth tokens are opaque random strings so the literal "view" can
+    // action, so `cm auth token view` always dispatches to the view path —
+    // Comms OAuth tokens are opaque random strings so the literal "view" can
     // never collide with a real token value.
     const tokenCmd = auth
         .command('token [token]')

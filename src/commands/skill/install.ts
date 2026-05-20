@@ -8,7 +8,7 @@ export async function install(agentName: string, options: InstallOptions): Promi
 
     if (!installer) {
         throw new CliError('UNKNOWN_AGENT', `Unknown agent: ${agentName}`, [
-            'Run `tw skill list` to see available agents',
+            'Run `cm skill list` to see available agents',
         ])
     }
 

@@ -81,12 +81,12 @@ import { type CommsAccount, type CommsTokenStore } from '../../lib/auth-provider
 import { getAuthMetadata, TOKEN_ENV_VAR } from '../../lib/auth.js'
 import { resetGlobalArgs } from '../../lib/global-args.js'
 import { registerAuthCommand } from './index.js'
-import { attachTwistStatusCommand } from './status.js'
+import { attachCommsStatusCommand } from './status.js'
 
 const mockCreateInterface = vi.mocked(createInterface)
 
 const mockGetAuthMetadata = vi.mocked(getAuthMetadata)
-const mockCreateWrappedTwistClient = vi.mocked(createWrappedCommsClient)
+const mockCreateWrappedCommsClient = vi.mocked(createWrappedCommsClient)
 const mockAttachLoginCommand = vi.mocked(attachLoginCommand)
 
 function createProgram() {
@@ -143,7 +143,7 @@ describe('auth command', () => {
         it('saves the token via store.set with an empty-id account, trims whitespace, and confirms', async () => {
             const program = createProgram()
 
-            await program.parseAsync(['node', 'tw', 'auth', 'token', '  some_token_123456789  '])
+            await program.parseAsync(['node', 'cm', 'auth', 'token', '  some_token_123456789  '])
 
             expect(storeMocks.set).toHaveBeenCalledWith(
                 { id: '', label: '', authMode: 'unknown', authScope: '' },
@@ -160,7 +160,7 @@ describe('auth command', () => {
             const program = createProgram()
 
             await expect(
-                program.parseAsync(['node', 'tw', 'auth', 'token', 'some_token_123456789']),
+                program.parseAsync(['node', 'cm', 'auth', 'token', 'some_token_123456789']),
             ).rejects.toThrow('Permission denied')
         })
 
@@ -177,7 +177,7 @@ describe('auth command', () => {
             mockCreateInterface.mockReturnValue(mockRl as unknown as Interface)
             const writeSpy = vi.spyOn(process.stdout, 'write').mockImplementation(() => true)
 
-            await createProgram().parseAsync(['node', 'tw', 'auth', 'token'])
+            await createProgram().parseAsync(['node', 'cm', 'auth', 'token'])
 
             expect(mockRl.question).toHaveBeenCalled()
             expect(storeMocks.set).toHaveBeenCalledWith(
@@ -200,7 +200,7 @@ describe('auth command', () => {
 
             await createProgram().parseAsync([
                 'node',
-                'tw',
+                'cm',
                 'auth',
                 'token',
                 'some_token_123456789',
@@ -225,13 +225,13 @@ describe('auth command', () => {
             const writeSpy = vi.spyOn(process.stdout, 'write').mockImplementation(() => true)
 
             await expect(
-                createProgram().parseAsync(['node', 'tw', 'auth', 'token']),
+                createProgram().parseAsync(['node', 'cm', 'auth', 'token']),
             ).rejects.toHaveProperty('code', 'NO_TOKEN')
 
             // non-interactive (no TTY, no arg)
             Object.defineProperty(process.stdin, 'isTTY', { value: undefined, configurable: true })
             await expect(
-                createProgram().parseAsync(['node', 'tw', 'auth', 'token']),
+                createProgram().parseAsync(['node', 'cm', 'auth', 'token']),
             ).rejects.toHaveProperty('code', 'NO_TOKEN')
 
             expect(storeMocks.set).not.toHaveBeenCalled()
@@ -268,7 +268,7 @@ describe('auth command', () => {
             vi.stubEnv(TOKEN_ENV_VAR, '')
             storeMocks.active.mockResolvedValue(STORED_SNAPSHOT)
 
-            await createProgram().parseAsync(['node', 'tw', 'auth', 'token', 'view'])
+            await createProgram().parseAsync(['node', 'cm', 'auth', 'token', 'view'])
 
             expect(stdoutPayload()).toBe('tk_stored_1234567890')
             expect(consoleSpy).not.toHaveBeenCalled()
@@ -278,7 +278,7 @@ describe('auth command', () => {
             vi.stubEnv(TOKEN_ENV_VAR, 'env_token_supplied_externally')
 
             await expect(
-                createProgram().parseAsync(['node', 'tw', 'auth', 'token', 'view']),
+                createProgram().parseAsync(['node', 'cm', 'auth', 'token', 'view']),
             ).rejects.toHaveProperty('code', 'TOKEN_FROM_ENV')
 
             expect(storeMocks.active).not.toHaveBeenCalled()
@@ -290,7 +290,7 @@ describe('auth command', () => {
             storeMocks.active.mockResolvedValue(null)
 
             await expect(
-                createProgram().parseAsync(['node', 'tw', 'auth', 'token', 'view']),
+                createProgram().parseAsync(['node', 'cm', 'auth', 'token', 'view']),
             ).rejects.toHaveProperty('code', 'NOT_AUTHENTICATED')
 
             expect(stdoutPayload()).toBe('')
@@ -300,7 +300,7 @@ describe('auth command', () => {
             vi.stubEnv(TOKEN_ENV_VAR, '')
             storeMocks.active.mockResolvedValue(STORED_SNAPSHOT)
 
-            await createProgram().parseAsync(['node', 'tw', 'auth', 'token', 'view', '--user', '1'])
+            await createProgram().parseAsync(['node', 'cm', 'auth', 'token', 'view', '--user', '1'])
 
             expect(storeMocks.active).toHaveBeenCalledWith('1')
             expect(stdoutPayload()).toBe('tk_stored_1234567890')
@@ -313,7 +313,7 @@ describe('auth command', () => {
             await expect(
                 createProgram().parseAsync([
                     'node',
-                    'tw',
+                    'cm',
                     'auth',
                     'token',
                     'view',
@@ -345,14 +345,14 @@ describe('auth command', () => {
             vi.unstubAllEnvs()
         })
 
-        it('threads `tw --user <ref> auth token view` into store.active', async () => {
+        it('threads `cm --user <ref> auth token view` into store.active', async () => {
             vi.stubEnv(TOKEN_ENV_VAR, '')
             storeMocks.list.mockResolvedValue(STORED_RECORDS)
             storeMocks.active.mockResolvedValue(STORED_SNAPSHOT)
-            process.argv = ['node', 'tw', '--user', '1', 'auth', 'token', 'view']
+            process.argv = ['node', 'cm', '--user', '1', 'auth', 'token', 'view']
             resetGlobalArgs()
 
-            await createProgram().parseAsync(['node', 'tw', 'auth', 'token', 'view'])
+            await createProgram().parseAsync(['node', 'cm', 'auth', 'token', 'view'])
 
             expect(storeMocks.active).toHaveBeenCalledWith('1')
             expect(writeSpy.mock.calls.map((c: unknown[]) => String(c[0])).join('')).toBe(
@@ -360,11 +360,11 @@ describe('auth command', () => {
             )
         })
 
-        it('threads `tw --user <ref> auth status` into the snapshot used by fetchLive', async () => {
+        it('threads `cm --user <ref> auth status` into the snapshot used by fetchLive', async () => {
             vi.stubEnv(TOKEN_ENV_VAR, '')
             storeMocks.list.mockResolvedValue(STORED_RECORDS)
             storeMocks.active.mockResolvedValue(STORED_SNAPSHOT)
-            mockCreateWrappedTwistClient.mockReturnValue({
+            mockCreateWrappedCommsClient.mockReturnValue({
                 users: { getSessionUser: vi.fn().mockResolvedValue(TEST_USER) },
                 // biome-ignore lint/suspicious/noExplicitAny: only the methods used in this test matter
             } as any)
@@ -373,17 +373,17 @@ describe('auth command', () => {
                 authScope: 'user:read',
                 source: 'config',
             })
-            process.argv = ['node', 'tw', '--user', '1', 'auth', 'status']
+            process.argv = ['node', 'cm', '--user', '1', 'auth', 'status']
             resetGlobalArgs()
 
-            await createProgram().parseAsync(['node', 'tw', 'auth', 'status'])
+            await createProgram().parseAsync(['node', 'cm', 'auth', 'status'])
 
             expect(storeMocks.active).toHaveBeenCalledWith('1')
-            expect(mockCreateWrappedTwistClient).toHaveBeenCalledWith('tk_stored_1234567890')
+            expect(mockCreateWrappedCommsClient).toHaveBeenCalledWith('tk_stored_1234567890')
             expect(consoleSpy).toHaveBeenCalledWith('✓ Authenticated')
         })
 
-        it('blocks `tw --user <wrong> auth logout` with ACCOUNT_NOT_FOUND before touching storage', async () => {
+        it('blocks `cm --user <wrong> auth logout` with ACCOUNT_NOT_FOUND before touching storage', async () => {
             // `withUserRefAware` validates the global ref against `store.list()`
             // before substituting it into the store call, so a non-matching ref
             // surfaces as a typed miss instead of cli-core's silent clear no-op.
@@ -397,12 +397,12 @@ describe('auth command', () => {
                     },
                 },
             ])
-            process.argv = ['node', 'tw', '--user', '999', 'auth', 'logout']
+            process.argv = ['node', 'cm', '--user', '999', 'auth', 'logout']
             resetGlobalArgs()
 
             const program = createProgram()
             await expect(
-                program.parseAsync(['node', 'tw', 'auth', 'logout']),
+                program.parseAsync(['node', 'cm', 'auth', 'logout']),
             ).rejects.toHaveProperty('code', 'ACCOUNT_NOT_FOUND')
 
             expect(storeMocks.clear).not.toHaveBeenCalled()
@@ -411,7 +411,7 @@ describe('auth command', () => {
 
     describe('status subcommand', () => {
         // All happy-path tests drive a controllable snapshot store directly
-        // into `attachTwistStatusCommand` so the `fetchLive` →
+        // into `attachCommsStatusCommand` so the `fetchLive` →
         // `renderText` / `renderJson` path is covered without relying on
         // process state (env vars, secure store) leaking from the host. The
         // `onNotAuthenticated` branch is exercised below via `createProgram()`,
@@ -440,12 +440,12 @@ describe('auth command', () => {
                 getLastStorageResult: () => undefined,
                 getLastClearResult: () => undefined,
             }
-            attachTwistStatusCommand(auth, snapshotStore)
+            attachCommsStatusCommand(auth, snapshotStore)
             return program
         }
 
         beforeEach(() => {
-            mockCreateWrappedTwistClient.mockReturnValue({
+            mockCreateWrappedCommsClient.mockReturnValue({
                 users: { getSessionUser: vi.fn().mockResolvedValue(TEST_USER) },
                 // biome-ignore lint/suspicious/noExplicitAny: only the methods used in this test matter
             } as any)
@@ -457,9 +457,9 @@ describe('auth command', () => {
         })
 
         it('renders text status from the snapshot', async () => {
-            await programWithSnapshot().parseAsync(['node', 'tw', 'auth', 'status'])
+            await programWithSnapshot().parseAsync(['node', 'cm', 'auth', 'status'])
 
-            expect(mockCreateWrappedTwistClient).toHaveBeenCalledWith('snapshot_token')
+            expect(mockCreateWrappedCommsClient).toHaveBeenCalledWith('snapshot_token')
             expect(consoleSpy).toHaveBeenCalledWith('✓ Authenticated')
             expect(consoleSpy).toHaveBeenCalledWith('  Email: test@example.com')
             expect(consoleSpy).toHaveBeenCalledWith('  Name:  Test User')
@@ -467,7 +467,7 @@ describe('auth command', () => {
         })
 
         it('emits the JSON envelope from the snapshot path', async () => {
-            await programWithSnapshot().parseAsync(['node', 'tw', 'auth', 'status', '--json'])
+            await programWithSnapshot().parseAsync(['node', 'cm', 'auth', 'status', '--json'])
 
             const printed = consoleSpy.mock.calls[0][0] as string
             expect(JSON.parse(printed)).toEqual({
@@ -481,7 +481,7 @@ describe('auth command', () => {
         })
 
         it('emits a single newline-free NDJSON line from the snapshot path', async () => {
-            await programWithSnapshot().parseAsync(['node', 'tw', 'auth', 'status', '--ndjson'])
+            await programWithSnapshot().parseAsync(['node', 'cm', 'auth', 'status', '--ndjson'])
 
             // NDJSON must be one JSON value per line — assert one console.log
             // call whose payload contains no embedded newline (would slip
@@ -504,7 +504,7 @@ describe('auth command', () => {
             // with 401 — the shared `gatherStatusData` 401 branch must wrap
             // it in the standard `NO_TOKEN` envelope so users see the
             // "re-authenticate" hint, not a raw `CommsRequestError`.
-            mockCreateWrappedTwistClient.mockReturnValue({
+            mockCreateWrappedCommsClient.mockReturnValue({
                 users: {
                     getSessionUser: vi
                         .fn()
@@ -514,7 +514,7 @@ describe('auth command', () => {
             } as any)
 
             await expect(
-                programWithSnapshot().parseAsync(['node', 'tw', 'auth', 'status']),
+                programWithSnapshot().parseAsync(['node', 'cm', 'auth', 'status']),
             ).rejects.toHaveProperty('code', 'NO_TOKEN')
         })
 
@@ -538,16 +538,16 @@ describe('auth command', () => {
                 getLastStorageResult: () => undefined,
                 getLastClearResult: () => undefined,
             }
-            attachTwistStatusCommand(auth, emptyStore)
+            attachCommsStatusCommand(auth, emptyStore)
 
             await expect(
-                program.parseAsync(['node', 'tw', 'auth', 'status']),
+                program.parseAsync(['node', 'cm', 'auth', 'status']),
             ).rejects.toHaveProperty('code', 'NO_TOKEN')
         })
     })
 
     describe('login subcommand wiring', () => {
-        it('passes the twist provider, store, port, and renderers to cli-core attachLoginCommand', async () => {
+        it('passes the comms provider, store, port, and renderers to cli-core attachLoginCommand', async () => {
             createProgram()
 
             expect(mockAttachLoginCommand).toHaveBeenCalledTimes(1)
@@ -591,7 +591,7 @@ describe('auth command', () => {
         })
 
         it('clears the API token', async () => {
-            await createProgram().parseAsync(['node', 'tw', 'auth', 'logout'])
+            await createProgram().parseAsync(['node', 'cm', 'auth', 'logout'])
 
             expect(storeMocks.clear).toHaveBeenCalled()
             expect(consoleSpy).toHaveBeenCalledWith('✓ Logged out')
@@ -603,7 +603,7 @@ describe('auth command', () => {
         it('surfaces keyring-fallback warning to stderr in plain mode', async () => {
             storeMocks.getLastClearResult.mockReturnValue(WARNING_RESULT)
 
-            await createProgram().parseAsync(['node', 'tw', 'auth', 'logout'])
+            await createProgram().parseAsync(['node', 'cm', 'auth', 'logout'])
 
             expect(consoleSpy).toHaveBeenCalledWith('✓ Logged out')
             expect(errorSpy).toHaveBeenCalledWith('Warning:', WARNING_RESULT.warning)
@@ -612,7 +612,7 @@ describe('auth command', () => {
         it('routes warning to stderr and emits JSON envelope on stdout in --json mode', async () => {
             storeMocks.getLastClearResult.mockReturnValue(WARNING_RESULT)
 
-            await createProgram().parseAsync(['node', 'tw', 'auth', 'logout', '--json'])
+            await createProgram().parseAsync(['node', 'cm', 'auth', 'logout', '--json'])
 
             const stdoutLines = consoleSpy.mock.calls.map((c: unknown[]) => String(c[0]))
             expect(stdoutLines).toHaveLength(1)
@@ -625,7 +625,7 @@ describe('auth command', () => {
         it('routes warning to stderr and keeps stdout silent in --ndjson mode', async () => {
             storeMocks.getLastClearResult.mockReturnValue(WARNING_RESULT)
 
-            await createProgram().parseAsync(['node', 'tw', 'auth', 'logout', '--ndjson'])
+            await createProgram().parseAsync(['node', 'cm', 'auth', 'logout', '--ndjson'])
 
             expect(consoleSpy).not.toHaveBeenCalled()
             expect(errorSpy).toHaveBeenCalledWith('Warning:', WARNING_RESULT.warning)

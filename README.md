@@ -1,15 +1,15 @@
 <p align="center">
-  <img src="icons/twist-cli.png" alt="Twist CLI" width="150" height="150" />
+  <img src="icons/comms-cli.png" alt="Comms CLI" width="150" height="150" />
 </p>
 
-# Twist CLI
+# Comms CLI
 
-A command-line interface for Twist.
+A command-line interface for Comms.
 
 ## Installation
 
 > ```bash
-> npm install -g @doist/twist-cli
+> npm install -g @doist/comms-cli
 > ```
 
 ### Agent Skills
@@ -17,19 +17,19 @@ A command-line interface for Twist.
 Install skills for your coding agent:
 
 ```bash
-tw skill install claude-code
-tw skill install codex
-tw skill install cursor
-tw skill install gemini
-tw skill install pi
-tw skill install universal
+cm skill install claude-code
+cm skill install codex
+cm skill install cursor
+cm skill install gemini
+cm skill install pi
+cm skill install universal
 ```
 
-Skills are installed to `~/<agent-dir>/skills/twist-cli/SKILL.md` (e.g. `~/.claude/` for claude-code, `~/.agents/` for universal, etc.). When updating the CLI, installed skills are updated automatically. The `universal` agent is compatible with Amp, OpenCode, and other agents that read from `~/.agents/`.
+Skills are installed to `~/<agent-dir>/skills/comms-cli/SKILL.md` (e.g. `~/.claude/` for claude-code, `~/.agents/` for universal, etc.). When updating the CLI, installed skills are updated automatically. The `universal` agent is compatible with Amp, OpenCode, and other agents that read from `~/.agents/`.
 
 ```bash
-tw skill list
-tw skill uninstall <agent>
+cm skill list
+cm skill uninstall <agent>
 ```
 
 ## Uninstallation
@@ -37,112 +37,112 @@ tw skill uninstall <agent>
 First, remove any installed agent skills:
 
 ```bash
-tw skill uninstall <agent>
+cm skill uninstall <agent>
 ```
 
 Then uninstall the CLI:
 
 ```bash
-npm uninstall -g @doist/twist-cli
+npm uninstall -g @doist/comms-cli
 ```
 
 ## Local Setup
 
 ```bash
-git clone https://github.com/Doist/twist-cli.git
-cd twist-cli
+git clone https://github.com/Doist/comms-cli.git
+cd comms-cli
 npm install
 npm run build
 npm link
 ```
 
-This makes the `tw` command available globally.
+This makes the `cm` command available globally.
 
 ## Setup
 
 ```bash
-tw auth login
+cm auth login
 ```
 
-This opens your browser to authenticate with Twist. Once approved, the token is stored in your OS credential manager:
+This opens your browser to authenticate with Comms. Once approved, the token is stored in your OS credential manager:
 
 - macOS: Keychain
 - Windows: Credential Manager
 - Linux: Secret Service/libsecret
 
-If secure storage is unavailable, the CLI warns and falls back to `~/.config/twist-cli/config.json`. Existing plaintext tokens are migrated automatically the next time the CLI reads them successfully from the config file. Non-secret settings such as the current workspace remain in the config file.
+If secure storage is unavailable, the CLI warns and falls back to `~/.config/comms-cli/config.json`. Non-secret settings such as the current workspace remain in the config file.
 
 ### Alternative methods
 
 **Manual token:**
 
 ```bash
-tw auth token "your-token"
+cm auth token "your-token"
 ```
 
 **Environment variable:**
 
 ```bash
-export TWIST_API_TOKEN="your-token"
+export COMMS_API_TOKEN="your-token"
 ```
 
-`TWIST_API_TOKEN` always takes priority over the stored token.
+`COMMS_API_TOKEN` always takes priority over the stored token.
 
 ### Auth commands
 
 ```bash
-tw auth status   # check if authenticated
-tw auth logout   # remove saved token
+cm auth status   # check if authenticated
+cm auth logout   # remove saved token
 ```
 
 ## Usage
 
 ```bash
-tw inbox                           # inbox threads
-tw inbox --unread                  # unread threads only
-tw mentions                        # content mentioning you
-tw mentions --since 2026-04-01 --all --json
-tw thread view <ref>               # view thread with comments
-tw thread view <ref> --comment 123 # view a specific comment
-tw thread reply <ref>              # reply to a thread
-tw thread rename <ref> "New title" # rename a thread
-tw thread update <ref> "New body" # edit a thread's body (first post)
-tw conversation unread             # list unread conversations
-tw conversation view <ref>         # view conversation messages
-tw msg view <ref>                  # view a conversation message
-tw search "keyword"                # search across workspace
-tw search "keyword" --all          # fetch all result pages
-tw react thread <ref> 👍          # add reaction
-tw away                            # show away status
-tw away set vacation 2026-03-20    # set away until date
-tw away clear                      # clear away status
-tw groups                          # list groups in a workspace
-tw groups view <ref>               # show a group with members
-tw groups create "Frontend"        # create a group
-tw groups create "FE" --users alice@doist.com,bob@doist.com
-tw groups rename <ref> "New name"  # rename a group
-tw groups delete <ref> --yes       # delete a group
-tw groups add-user <ref> alice@doist.com bob@doist.com
-tw groups remove-user <ref> id:123,id:456
+cm inbox                           # inbox threads
+cm inbox --unread                  # unread threads only
+cm mentions                        # content mentioning you
+cm mentions --since 2026-04-01 --all --json
+cm thread view <ref>               # view thread with comments
+cm thread view <ref> --comment 123 # view a specific comment
+cm thread reply <ref>              # reply to a thread
+cm thread rename <ref> "New title" # rename a thread
+cm thread update <ref> "New body"  # edit a thread's body (first post)
+cm conversation unread             # list unread conversations
+cm conversation view <ref>         # view conversation messages
+cm msg view <ref>                  # view a conversation message
+cm search "keyword"                # search across workspace
+cm search "keyword" --all          # fetch all result pages
+cm react thread <ref> 👍          # add reaction
+cm away                            # show away status
+cm away set vacation 2026-03-20    # set away until date
+cm away clear                      # clear away status
+cm groups                          # list groups in a workspace
+cm groups view <ref>               # show a group with members
+cm groups create "Frontend"        # create a group
+cm groups create "FE" --users alice@doist.com,bob@doist.com
+cm groups rename <ref> "New name"  # rename a group
+cm groups delete <ref> --yes       # delete a group
+cm groups add-user <ref> alice@doist.com bob@doist.com
+cm groups remove-user <ref> id:123,id:456
 ```
 
-References accept IDs (`123` or `id:123`), Twist URLs, or fuzzy names (for workspaces/users).
+References accept IDs (`123` or `id:123`), Comms URLs, or fuzzy names (for workspaces/users).
 
-Run `tw --help` or `tw <command> --help` for more options.
+Run `cm --help` or `cm <command> --help` for more options.
 
 ## Shell Completions
 
 Tab completion is available for bash, zsh, and fish:
 
 ```bash
-tw completion install        # prompts for shell
-tw completion install bash   # or: zsh, fish
+cm completion install        # prompts for shell
+cm completion install bash   # or: zsh, fish
 ```
 
 Restart your shell or source your config file to activate. To remove:
 
 ```bash
-tw completion uninstall
+cm completion uninstall
 ```
 
 ## Machine-readable output
@@ -150,9 +150,9 @@ tw completion uninstall
 All list/view commands support `--json` and `--ndjson` flags for scripting:
 
 ```bash
-tw inbox --json                    # JSON array
-tw inbox --ndjson                  # newline-delimited JSON
-tw inbox --json --full             # include all fields
+cm inbox --json                    # JSON array
+cm inbox --ndjson                  # newline-delimited JSON
+cm inbox --json --full             # include all fields
 ```
 
 ## Development

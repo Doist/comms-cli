@@ -29,9 +29,9 @@ export function registerThreadCommand(program: Command): void {
             'after',
             `
 Examples:
-  tw thread 12345
-  tw thread view 12345 --unread
-  tw thread view 12345 --limit 10 --json`,
+  cm thread 12345
+  cm thread view 12345 --unread
+  cm thread view 12345 --limit 10 --json`,
         )
         .action((ref, options) => {
             if (!ref) {
@@ -62,9 +62,9 @@ Examples:
             'after',
             `
 Examples:
-  tw thread reply 12345 "Sounds good!"
-  echo "Long reply" | tw thread reply 12345
-  tw thread reply 12345 "Done" --close --json`,
+  cm thread reply 12345 "Sounds good!"
+  echo "Long reply" | cm thread reply 12345
+  cm thread reply 12345 "Done" --close --json`,
         )
         .action(replyToThread)
 
@@ -84,10 +84,10 @@ Examples:
             'after',
             `
 Examples:
-  tw thread create 12345 "Weekly update" "Here's what happened..."
-  echo "Body from stdin" | tw thread create id:12345 "Title"
-  tw thread create 12345 "Title" "Body" --notify 67890,11111 --json
-  tw thread create 12345 "Title" "Body" --unarchive`,
+  cm thread create 12345 "Weekly update" "Here's what happened..."
+  echo "Body from stdin" | cm thread create id:12345 "Title"
+  cm thread create 12345 "Title" "Body" --notify 67890,11111 --json
+  cm thread create 12345 "Title" "Body" --unarchive`,
         )
         .action(createThread)
 
@@ -100,9 +100,9 @@ Examples:
             'after',
             `
 Examples:
-  tw thread done 12345
-  tw thread done 12345 --dry-run
-  tw thread done 12345 --json`,
+  cm thread done 12345
+  cm thread done 12345 --dry-run
+  cm thread done 12345 --json`,
         )
         .action(markThreadDone)
 
@@ -116,9 +116,9 @@ Examples:
             'after',
             `
 Examples:
-  tw thread delete 12345 --yes
-  tw thread delete 12345 --dry-run
-  tw thread delete 12345 --yes --json`,
+  cm thread delete 12345 --yes
+  cm thread delete 12345 --dry-run
+  cm thread delete 12345 --yes --json`,
         )
         .action(deleteThread)
 
@@ -133,8 +133,8 @@ Examples:
             'after',
             `
 Examples:
-  tw thread mute 12345
-  tw thread mute 12345 --minutes 480`,
+  cm thread mute 12345
+  cm thread mute 12345 --minutes 480`,
         )
         .action(muteThread)
 
@@ -156,9 +156,9 @@ Examples:
             'after',
             `
 Examples:
-  tw thread update 12345 "Updated body text"
-  echo "New body" | tw thread update 12345
-  tw thread update 12345 "Fixed" --json`,
+  cm thread update 12345 "Updated body text"
+  echo "New body" | cm thread update 12345
+  cm thread update 12345 "Fixed" --json`,
         )
         .action(updateThread)
 
@@ -172,7 +172,7 @@ Examples:
             'after',
             `
 Examples:
-  tw thread unmute 12345`,
+  cm thread unmute 12345`,
         )
         .action(unmuteThread)
 }

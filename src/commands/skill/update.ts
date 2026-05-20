@@ -33,7 +33,7 @@ export async function updateSkill(agentName: string, options: UpdateOptions): Pr
 
     if (!installer) {
         throw new CliError('UNKNOWN_AGENT', `Unknown agent: ${agentName}`, [
-            'Run `tw skill list` to see available agents',
+            'Run `cm skill list` to see available agents',
         ])
     }
 

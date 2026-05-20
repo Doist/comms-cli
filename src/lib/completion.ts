@@ -32,7 +32,7 @@ export function withCaseInsensitiveChoices(opt: Option, values: string[]): Optio
  * tabtab exposes shell-provided tokenized words.
  */
 export function parseCompLine(compLine: string): string[] {
-    const words = compLine.split(/\s+/).slice(1) // remove binary name (tw)
+    const words = compLine.split(/\s+/).slice(1) // remove binary name (cm)
     if (words[0] === 'completion-server') words.shift()
     return words
 }

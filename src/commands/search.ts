@@ -44,10 +44,10 @@ export function registerSearchCommand(program: Command): void {
             'after',
             `
 Examples:
-  tw search "deployment issue"
-  tw search "bug report" --type threads --channel id:12345
-  tw search "API" --author id:5678 --since 2025-01-01 --json
-  tw search "incident" --all --json`,
+  cm search "deployment issue"
+  cm search "bug report" --type threads --channel id:12345
+  cm search "API" --author id:5678 --since 2025-01-01 --json
+  cm search "incident" --all --json`,
         )
         .action(search)
 }

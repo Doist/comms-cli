@@ -73,28 +73,19 @@ describe('validateConfigForDoctor', () => {
         )
     })
 
-    it('accepts both updateChannel and update_channel with valid values', () => {
-        expect(validateConfigForDoctor({ updateChannel: 'stable' })).toEqual([])
+    it('accepts update_channel with valid values', () => {
         expect(validateConfigForDoctor({ update_channel: 'pre-release' })).toEqual([])
+        expect(validateConfigForDoctor({ update_channel: 'stable' })).toEqual([])
     })
 
-    it('rejects invalid values on either key', () => {
-        expect(validateConfigForDoctor({ updateChannel: 'beta' })).toContain(
-            'updateChannel must be one of: stable, pre-release',
-        )
+    it('rejects invalid update_channel values', () => {
         expect(validateConfigForDoctor({ update_channel: 'beta' })).toContain(
             'update_channel must be one of: stable, pre-release',
         )
     })
 
-    it('does not flag updateChannel as unrecognized (legacy alias)', () => {
-        const issues = validateConfigForDoctor({ updateChannel: 'pre-release' })
-        expect(issues.some((i) => i.includes('unrecognized'))).toBe(false)
-    })
-
-    it('accepts a well-formed v2 schema (config_version, defaultUserId, users[])', () => {
+    it('accepts a well-formed schema (defaultUserId, users[])', () => {
         const issues = validateConfigForDoctor({
-            config_version: 2,
             defaultUserId: '42',
             users: [
                 { id: '42', name: 'Ada', authMode: 'read-write', authScope: 'user:read' },
@@ -104,13 +95,7 @@ describe('validateConfigForDoctor', () => {
         expect(issues).toEqual([])
     })
 
-    it('rejects malformed top-level v2 fields', () => {
-        expect(validateConfigForDoctor({ config_version: 'two' })).toContain(
-            'config_version must be an integer',
-        )
-        expect(validateConfigForDoctor({ config_version: 2.5 })).toContain(
-            'config_version must be an integer',
-        )
+    it('rejects malformed top-level fields', () => {
         expect(validateConfigForDoctor({ defaultUserId: 42 })).toContain(
             'defaultUserId must be a string',
         )
@@ -143,27 +128,12 @@ describe('validateConfigForDoctor', () => {
 })
 
 describe('persistence-seam translation', () => {
-    it('getConfig exposes the legacy updateChannel value as updateChannel in memory', async () => {
-        mockReadConfigCore.mockResolvedValueOnce({ updateChannel: 'pre-release' })
+    it('getConfig translates on-disk update_channel to in-memory updateChannel', async () => {
+        mockReadConfigCore.mockResolvedValueOnce({ update_channel: 'pre-release' })
         await expect(getConfig()).resolves.toEqual({ updateChannel: 'pre-release' })
-    })
-
-    it('getConfig prefers update_channel when both are on disk (cli-core wrote last)', async () => {
-        mockReadConfigCore.mockResolvedValueOnce({
-            updateChannel: 'stable',
-            update_channel: 'pre-release',
-        })
-        await expect(getConfig()).resolves.toEqual({ updateChannel: 'pre-release' })
-    })
-
-    it('getConfig returns the canonical key as updateChannel when only it is on disk', async () => {
-        mockReadConfigCore.mockResolvedValueOnce({ update_channel: 'stable' })
-        await expect(getConfig()).resolves.toEqual({ updateChannel: 'stable' })
     })
 
     it('getConfig guards against a manually-edited config that is not an object', async () => {
-        // `null`, primitive JSON, or arrays are all valid JSON. The legacy
-        // migration must not crash on `in` checks against them.
         mockReadConfigCore.mockResolvedValueOnce(null as never)
         await expect(getConfig()).resolves.toEqual({})
 
@@ -174,10 +144,10 @@ describe('persistence-seam translation', () => {
         await expect(getConfig()).resolves.toEqual({})
     })
 
-    it('readConfigStrict translates legacy key on the present branch', async () => {
+    it('readConfigStrict translates update_channel on the present branch', async () => {
         mockReadConfigStrictCore.mockResolvedValueOnce({
             state: 'present',
-            config: { updateChannel: 'pre-release' },
+            config: { update_channel: 'pre-release' },
         })
         await expect(readConfigStrict()).resolves.toEqual({
             state: 'present',
@@ -195,15 +165,15 @@ describe('readConfigStrict wrapper', () => {
     it('passes the present state through with a Config-shaped cast', async () => {
         mockReadConfigStrictCore.mockResolvedValueOnce({
             state: 'present',
-            config: { currentWorkspace: 42, authMode: 'read-write' },
+            config: { currentWorkspace: 42, defaultUserId: '1' },
         })
         await expect(readConfigStrict()).resolves.toEqual({
             state: 'present',
-            config: { currentWorkspace: 42, authMode: 'read-write' },
+            config: { currentWorkspace: 42, defaultUserId: '1' },
         })
     })
 
-    it('translates read-failed to CONFIG_READ_FAILED with twist hint copy', async () => {
+    it('translates read-failed to CONFIG_READ_FAILED with comms hint copy', async () => {
         mockReadConfigStrictCore.mockResolvedValueOnce({
             state: 'read-failed',
             error: new Error('EACCES: permission denied'),
@@ -211,7 +181,7 @@ describe('readConfigStrict wrapper', () => {
         await expect(readConfigStrict()).rejects.toMatchObject({
             code: 'CONFIG_READ_FAILED',
             message: expect.stringContaining('EACCES: permission denied'),
-            hints: ['Check file permissions, or run `tw doctor` to diagnose'],
+            hints: ['Check file permissions, or run `cm doctor` to diagnose'],
         })
     })
 
@@ -224,7 +194,7 @@ describe('readConfigStrict wrapper', () => {
             code: 'CONFIG_INVALID_JSON',
             message: expect.stringContaining('Unexpected token'),
             hints: [
-                'Fix the JSON by hand, or delete the file and re-authenticate with `tw auth login`',
+                'Fix the JSON by hand, or delete the file and re-authenticate with `cm auth login`',
             ],
         })
     })
@@ -238,7 +208,7 @@ describe('readConfigStrict wrapper', () => {
             code: 'CONFIG_INVALID_SHAPE',
             message: expect.stringContaining('got array'),
             hints: [
-                'Fix the JSON by hand, or delete the file and re-authenticate with `tw auth login`',
+                'Fix the JSON by hand, or delete the file and re-authenticate with `cm auth login`',
             ],
         })
     })
@@ -262,34 +232,31 @@ describe('thin config wrappers', () => {
 
     it('setConfig forwards the resolved path and config to cli-core writeConfig', async () => {
         mockWriteConfigCore.mockResolvedValueOnce(undefined)
-        await setConfig({ currentWorkspace: 7, authMode: 'read-write' })
+        await setConfig({ currentWorkspace: 7 })
         expect(mockWriteConfigCore).toHaveBeenCalledWith(
             '/tmp/cli-core-test/comms-cli/config.json',
-            { currentWorkspace: 7, authMode: 'read-write' },
+            { currentWorkspace: 7 },
         )
     })
 
-    it('setConfig dual-writes the channel field (camelCase + snake_case)', async () => {
-        // Older twist builds read `updateChannel`; cli-core reads
-        // `update_channel`. Both keys must hit disk during the overlap window.
+    it('setConfig translates updateChannel to update_channel on disk', async () => {
         mockWriteConfigCore.mockResolvedValueOnce(undefined)
         await setConfig({ updateChannel: 'pre-release', currentWorkspace: 3 })
         expect(mockWriteConfigCore).toHaveBeenCalledWith(
             '/tmp/cli-core-test/comms-cli/config.json',
             {
                 currentWorkspace: 3,
-                updateChannel: 'pre-release',
                 update_channel: 'pre-release',
             },
         )
     })
 
-    it('updateConfig delegates to cli-core (atomic) with dual-write translation', async () => {
+    it('updateConfig delegates to cli-core (atomic) with snake_case translation', async () => {
         mockUpdateConfigCore.mockResolvedValueOnce(undefined)
         await updateConfig({ updateChannel: 'stable' })
         expect(mockUpdateConfigCore).toHaveBeenCalledWith(
             '/tmp/cli-core-test/comms-cli/config.json',
-            { updateChannel: 'stable', update_channel: 'stable' },
+            { update_channel: 'stable' },
         )
     })
 

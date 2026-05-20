@@ -40,7 +40,7 @@ async function gatherStatusData(token: string): Promise<StatusData> {
     } catch (error) {
         if (error instanceof CommsRequestError && error.httpStatusCode === 401) {
             throw new CliError('NO_TOKEN', 'Not authenticated (token expired or invalid)', [
-                'Run `tw auth login` to re-authenticate',
+                'Run `cm auth login` to re-authenticate',
             ])
         }
         throw error
@@ -69,18 +69,18 @@ function buildStatusJson({ user, metadata }: StatusData): Record<string, unknown
 }
 
 /**
- * Attach `tw auth status` via cli-core's generic `attachStatusCommand`.
+ * Attach `cm auth status` via cli-core's generic `attachStatusCommand`.
  *
  * `CommsTokenStore.active()` returns a snapshot whenever a token resolves
  * (per the adapter's documented contract — see `auth-provider.ts`), so
  * `fetchLive` covers every token-present path: secure-store, plaintext
- * config fallback, env-token mode, and manual `tw auth token`. The
+ * config fallback, env-token mode, and manual `cm auth token`. The
  * snapshot's token is reused inside `gatherStatusData` so credentials are
  * read once per invocation. `onNotAuthenticated` only fires when nothing
  * is stored — it throws `NoTokenError` so the standard CliError envelope
  * reaches the operator unchanged.
  */
-export function attachTwistStatusCommand(auth: Command, store: CommsTokenStore): Command {
+export function attachCommsStatusCommand(auth: Command, store: CommsTokenStore): Command {
     let data: StatusData | null = null
 
     return attachStatusCommand<CommsAccount>(auth, {

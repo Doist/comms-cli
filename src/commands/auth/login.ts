@@ -3,7 +3,7 @@ import chalk from 'chalk'
 import type { Command } from 'commander'
 import { renderError, renderSuccess } from '../../lib/auth-pages.js'
 import {
-    createTwistAuthProvider,
+    createCommsAuthProvider,
     READ_ONLY_SCOPES,
     READ_WRITE_SCOPES,
     type CommsTokenStore,
@@ -12,8 +12,8 @@ import { logTokenStorageResult } from './helpers.js'
 
 const PREFERRED_CALLBACK_PORT = 8766
 
-export function attachTwistLoginCommand(parent: Command, store: CommsTokenStore): Command {
-    const provider = createTwistAuthProvider()
+export function attachCommsLoginCommand(parent: Command, store: CommsTokenStore): Command {
+    const provider = createCommsAuthProvider()
 
     return attachLoginCommand(parent, {
         provider,

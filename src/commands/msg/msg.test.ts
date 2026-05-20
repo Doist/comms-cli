@@ -85,11 +85,11 @@ describe('msg implicit view', () => {
         apiMocks.getCommsClient.mockRejectedValue(new Error('MOCK_API_REACHED'))
     })
 
-    it('tw msg <ref> routes to view (not unknown command)', async () => {
+    it('cm msg <ref> routes to view (not unknown command)', async () => {
         const program = createProgram()
         const consoleSpy = vi.spyOn(console, 'log').mockImplementation(() => {})
 
-        await expect(program.parseAsync(['node', 'tw', 'msg', '200'])).rejects.toThrow(
+        await expect(program.parseAsync(['node', 'cm', 'msg', '200'])).rejects.toThrow(
             'MOCK_API_REACHED',
         )
 
@@ -108,7 +108,7 @@ describe('msg delete', () => {
         const program = createProgram()
         const consoleSpy = vi.spyOn(console, 'log').mockImplementation(() => {})
 
-        await program.parseAsync(['node', 'tw', 'msg', 'delete', '200'])
+        await program.parseAsync(['node', 'cm', 'msg', 'delete', '200'])
 
         expect(client.conversationMessages.deleteMessage).toHaveBeenCalledWith(200)
         expect(consoleSpy).toHaveBeenCalledWith('Message 200 deleted.')
@@ -121,7 +121,7 @@ describe('msg delete', () => {
         const program = createProgram()
         const consoleSpy = vi.spyOn(console, 'log').mockImplementation(() => {})
 
-        await program.parseAsync(['node', 'tw', 'msg', 'delete', '200', '--dry-run'])
+        await program.parseAsync(['node', 'cm', 'msg', 'delete', '200', '--dry-run'])
 
         expect(consoleSpy).toHaveBeenCalledWith(expect.stringContaining('Would delete message'))
         expect(consoleSpy).toHaveBeenCalledWith('  Message: 200')
@@ -136,7 +136,7 @@ describe('msg delete', () => {
         const program = createProgram()
 
         await expect(
-            program.parseAsync(['node', 'tw', 'msg', 'delete', '200', '--dry-run']),
+            program.parseAsync(['node', 'cm', 'msg', 'delete', '200', '--dry-run']),
         ).rejects.toHaveProperty('code', 'NOT_CREATOR')
         expect(client.conversationMessages.deleteMessage).not.toHaveBeenCalled()
     })
@@ -147,7 +147,7 @@ describe('msg delete', () => {
         const program = createProgram()
         const consoleSpy = vi.spyOn(console, 'log').mockImplementation(() => {})
 
-        await program.parseAsync(['node', 'tw', 'msg', 'delete', '200', '--json'])
+        await program.parseAsync(['node', 'cm', 'msg', 'delete', '200', '--json'])
 
         const jsonOutput = JSON.parse(consoleSpy.mock.calls[0][0])
         expect(jsonOutput).toEqual({ id: 200, deleted: true })

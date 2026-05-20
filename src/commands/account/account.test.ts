@@ -11,23 +11,18 @@ const storeMocks = vi.hoisted(() => ({
     getLastClearResult: vi.fn(),
 }))
 
-const legacyMocks = vi.hoisted(() => ({
-    isLegacyAuthActive: vi.fn(),
-}))
-
 vi.mock('../../lib/auth-provider.js', async (importOriginal) => {
     const actual = await importOriginal<typeof import('../../lib/auth-provider.js')>()
     return {
         ...actual,
         createCommsTokenStore: () => storeMocks,
-        isLegacyAuthActive: legacyMocks.isLegacyAuthActive,
     }
 })
 
 vi.mock('chalk')
 
 import { ACCOUNT_ALAN, ACCOUNT_ELLIE } from '../../lib/__fixtures__/accounts.js'
-import { type CommsAccount } from '../../lib/auth-provider.js'
+import type { CommsAccount } from '../../lib/auth-provider.js'
 import { TOKEN_ENV_VAR } from '../../lib/auth.js'
 import { registerAccountCommand } from './index.js'
 
@@ -51,18 +46,12 @@ function seedStore(...records: Array<CommsAccount | [CommsAccount, 'default']>):
     storeMocks.getLastClearResult.mockReturnValue({ storage: 'secure-store' })
 }
 
-const LEGACY_SNAPSHOT = {
-    token: 'tk_legacy',
-    account: { id: '', label: '', authMode: 'unknown' as const, authScope: '' },
-}
-
 describe('account command', () => {
     let consoleSpy: ReturnType<typeof vi.spyOn>
     let errorSpy: ReturnType<typeof vi.spyOn>
 
     beforeEach(() => {
         vi.clearAllMocks()
-        legacyMocks.isLegacyAuthActive.mockResolvedValue(false)
         consoleSpy = vi.spyOn(console, 'log').mockImplementation(() => {})
         errorSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
     })
@@ -79,7 +68,7 @@ describe('account command', () => {
         it('renders all stored accounts with the default marker', async () => {
             seedStore([ACCOUNT_ALAN, 'default'], ACCOUNT_ELLIE)
 
-            await createProgram().parseAsync(['node', 'tw', 'account', 'list'])
+            await createProgram().parseAsync(['node', 'cm', 'account', 'list'])
 
             const output = stdout()
             expect(output).toContain('Stored accounts (2)')
@@ -90,10 +79,10 @@ describe('account command', () => {
             expect(output).toContain('Default: id:1  Alan Grant')
         })
 
-        it('runs by default when no subcommand is given (tw account)', async () => {
+        it('runs by default when no subcommand is given (cm account)', async () => {
             seedStore([ACCOUNT_ALAN, 'default'])
 
-            await createProgram().parseAsync(['node', 'tw', 'account'])
+            await createProgram().parseAsync(['node', 'cm', 'account'])
 
             expect(stdout()).toContain('Stored accounts (1)')
         })
@@ -101,17 +90,17 @@ describe('account command', () => {
         it('reports the empty state when no accounts are stored', async () => {
             seedStore()
 
-            await createProgram().parseAsync(['node', 'tw', 'account', 'list'])
+            await createProgram().parseAsync(['node', 'cm', 'account', 'list'])
 
             expect(consoleSpy).toHaveBeenCalledWith(
-                'No stored accounts. Run `tw auth login` to add one.',
+                'No stored accounts. Run `cm auth login` to add one.',
             )
         })
 
         it('emits a JSON envelope with id, label, isDefault', async () => {
             seedStore([ACCOUNT_ALAN, 'default'], ACCOUNT_ELLIE)
 
-            await createProgram().parseAsync(['node', 'tw', 'account', 'list', '--json'])
+            await createProgram().parseAsync(['node', 'cm', 'account', 'list', '--json'])
 
             expect(JSON.parse(consoleSpy.mock.calls[0][0] as string)).toEqual([
                 { id: '1', label: 'Alan Grant', isDefault: true },
@@ -125,7 +114,7 @@ describe('account command', () => {
             vi.stubEnv(TOKEN_ENV_VAR, '')
             storeMocks.active.mockResolvedValue({ token: 'tk_abc', account: ACCOUNT_ALAN })
 
-            await createProgram().parseAsync(['node', 'tw', 'account', 'current'])
+            await createProgram().parseAsync(['node', 'cm', 'account', 'current'])
 
             const output = stdout()
             expect(output).toContain('Active account: id:1  Alan Grant')
@@ -138,7 +127,7 @@ describe('account command', () => {
             async (flag) => {
                 vi.stubEnv(TOKEN_ENV_VAR, 'tk_env_supplied')
 
-                await createProgram().parseAsync(['node', 'tw', 'account', 'current', flag])
+                await createProgram().parseAsync(['node', 'cm', 'account', 'current', flag])
 
                 expect(consoleSpy).toHaveBeenCalledTimes(1)
                 expect(JSON.parse(consoleSpy.mock.calls[0][0] as string)).toEqual({ source: 'env' })
@@ -146,43 +135,12 @@ describe('account command', () => {
             },
         )
 
-        it('renders a legacy-session notice when active() returns an empty-id snapshot', async () => {
-            vi.stubEnv(TOKEN_ENV_VAR, '')
-            storeMocks.active.mockResolvedValue(LEGACY_SNAPSHOT)
-
-            await createProgram().parseAsync(['node', 'tw', 'account', 'current'])
-
-            expect(stdout()).toContain('legacy single-user session')
-        })
-
-        it('emits {source:"legacy"} in --json mode for legacy snapshots', async () => {
-            vi.stubEnv(TOKEN_ENV_VAR, '')
-            storeMocks.active.mockResolvedValue(LEGACY_SNAPSHOT)
-
-            await createProgram().parseAsync(['node', 'tw', 'account', 'current', '--json'])
-
-            expect(JSON.parse(consoleSpy.mock.calls[0][0] as string)).toEqual({ source: 'legacy' })
-        })
-
-        it('reports a populated legacy snapshot (authUserId set) as legacy, not config', async () => {
-            // `readLegacyTokenSnapshot` populates id/label from v1 flat
-            // fields when present, so the empty-id check alone misses this
-            // case — `isLegacyAuthActive()` is the authoritative signal.
-            vi.stubEnv(TOKEN_ENV_VAR, '')
-            legacyMocks.isLegacyAuthActive.mockResolvedValue(true)
-            storeMocks.active.mockResolvedValue({ token: 'tk_legacy', account: ACCOUNT_ALAN })
-
-            await createProgram().parseAsync(['node', 'tw', 'account', 'current', '--json'])
-
-            expect(JSON.parse(consoleSpy.mock.calls[0][0] as string)).toEqual({ source: 'legacy' })
-        })
-
         it('throws NO_TOKEN when nothing is active', async () => {
             vi.stubEnv(TOKEN_ENV_VAR, '')
             storeMocks.active.mockResolvedValue(null)
 
             await expect(
-                createProgram().parseAsync(['node', 'tw', 'account', 'current']),
+                createProgram().parseAsync(['node', 'cm', 'account', 'current']),
             ).rejects.toHaveProperty('code', 'NO_TOKEN')
         })
 
@@ -190,7 +148,7 @@ describe('account command', () => {
             vi.stubEnv(TOKEN_ENV_VAR, '')
             storeMocks.active.mockResolvedValue({ token: 'tk_abc', account: ACCOUNT_ALAN })
 
-            await createProgram().parseAsync(['node', 'tw', 'account', 'current', '--json'])
+            await createProgram().parseAsync(['node', 'cm', 'account', 'current', '--json'])
 
             expect(JSON.parse(consoleSpy.mock.calls[0][0] as string)).toEqual({
                 id: '1',
@@ -206,7 +164,7 @@ describe('account command', () => {
         it('sets the default account by canonical id when the ref matches', async () => {
             seedStore(ACCOUNT_ALAN, [ACCOUNT_ELLIE, 'default'])
 
-            await createProgram().parseAsync(['node', 'tw', 'account', 'use', '1'])
+            await createProgram().parseAsync(['node', 'cm', 'account', 'use', '1'])
 
             expect(storeMocks.setDefault).toHaveBeenCalledTimes(1)
             expect(storeMocks.setDefault).toHaveBeenCalledWith('1')
@@ -219,7 +177,7 @@ describe('account command', () => {
             seedStore([ACCOUNT_ALAN, 'default'])
 
             await expect(
-                createProgram().parseAsync(['node', 'tw', 'account', 'use', '999']),
+                createProgram().parseAsync(['node', 'cm', 'account', 'use', '999']),
             ).rejects.toHaveProperty('code', 'ACCOUNT_NOT_FOUND')
 
             expect(storeMocks.setDefault).not.toHaveBeenCalled()
@@ -228,7 +186,7 @@ describe('account command', () => {
         it('matches refs by display name and resolves to the canonical id', async () => {
             seedStore(ACCOUNT_ALAN, [ACCOUNT_ELLIE, 'default'])
 
-            await createProgram().parseAsync(['node', 'tw', 'account', 'use', 'alan grant'])
+            await createProgram().parseAsync(['node', 'cm', 'account', 'use', 'alan grant'])
 
             expect(storeMocks.setDefault).toHaveBeenCalledTimes(1)
             const output = stdout()
@@ -241,7 +199,7 @@ describe('account command', () => {
         it('clears the account by canonical id and prints the removed label', async () => {
             seedStore([ACCOUNT_ALAN, 'default'], ACCOUNT_ELLIE)
 
-            await createProgram().parseAsync(['node', 'tw', 'account', 'remove', 'ellie sattler'])
+            await createProgram().parseAsync(['node', 'cm', 'account', 'remove', 'ellie sattler'])
 
             expect(storeMocks.clear).toHaveBeenCalledTimes(1)
             expect(storeMocks.clear).toHaveBeenCalledWith('2')
@@ -254,7 +212,7 @@ describe('account command', () => {
             seedStore([ACCOUNT_ALAN, 'default'])
 
             await expect(
-                createProgram().parseAsync(['node', 'tw', 'account', 'remove', '999']),
+                createProgram().parseAsync(['node', 'cm', 'account', 'remove', '999']),
             ).rejects.toHaveProperty('code', 'ACCOUNT_NOT_FOUND')
 
             expect(storeMocks.clear).not.toHaveBeenCalled()
@@ -267,7 +225,7 @@ describe('account command', () => {
                 warning: 'system credential manager unavailable; local auth state cleared',
             })
 
-            await createProgram().parseAsync(['node', 'tw', 'account', 'remove', '1'])
+            await createProgram().parseAsync(['node', 'cm', 'account', 'remove', '1'])
 
             expect(errorSpy).toHaveBeenCalledWith(
                 'Warning:',
@@ -278,7 +236,7 @@ describe('account command', () => {
         it('emits a JSON envelope and suppresses the plain confirmation', async () => {
             seedStore([ACCOUNT_ALAN, 'default'])
 
-            await createProgram().parseAsync(['node', 'tw', 'account', 'remove', '1', '--json'])
+            await createProgram().parseAsync(['node', 'cm', 'account', 'remove', '1', '--json'])
 
             expect(consoleSpy).toHaveBeenCalledTimes(1)
             expect(JSON.parse(consoleSpy.mock.calls[0][0] as string)).toEqual({
@@ -286,26 +244,6 @@ describe('account command', () => {
                 label: 'Alan Grant',
                 removed: true,
             })
-        })
-    })
-
-    // One per gated command — assertV2Available is shared, but a regression
-    // could remove the guard from any single handler.
-    describe.each([
-        ['list', ['list']],
-        ['use', ['use', '1']],
-        ['remove', ['remove', '1']],
-    ])('%s refuses while legacy auth is still active', (_name, args) => {
-        it('throws AUTH_MIGRATION_PENDING without touching the store', async () => {
-            legacyMocks.isLegacyAuthActive.mockResolvedValue(true)
-
-            await expect(
-                createProgram().parseAsync(['node', 'tw', 'account', ...args]),
-            ).rejects.toHaveProperty('code', 'AUTH_MIGRATION_PENDING')
-
-            expect(storeMocks.list).not.toHaveBeenCalled()
-            expect(storeMocks.setDefault).not.toHaveBeenCalled()
-            expect(storeMocks.clear).not.toHaveBeenCalled()
         })
     })
 })

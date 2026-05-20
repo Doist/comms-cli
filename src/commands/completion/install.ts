@@ -14,9 +14,9 @@ export async function installCompletion(shell?: string): Promise<void> {
     }
 
     await tabtab.install({
-        name: 'tw',
+        name: 'cm',
         // Use the executable path used to install completions so shell
-        // completion doesn't accidentally call an older `tw` on PATH.
+        // completion doesn't accidentally call an older `cm` on PATH.
         completer,
         shell: shell as SupportedShell,
     })

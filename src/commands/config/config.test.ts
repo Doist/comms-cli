@@ -40,9 +40,8 @@ function createProgram() {
 }
 
 const fullConfig: Config = {
-    token: 'tw_abcdefghij1234567890',
-    authMode: 'read-write',
-    authScope: 'user:read',
+    users: [{ ...STORED_ALAN, token: 'tw_abcdefghij1234567890' }],
+    defaultUserId: STORED_ALAN.id,
     currentWorkspace: 12345,
     updateChannel: 'stable',
 }
@@ -64,7 +63,7 @@ function mockToken(
     }> = {},
 ) {
     mockProbeApiToken.mockResolvedValue({
-        token: overrides.token ?? (fullConfig.token as string),
+        token: overrides.token ?? 'tw_abcdefghij1234567890',
         metadata: {
             authMode: overrides.authMode ?? 'read-write',
             authScope: overrides.authScope,
@@ -83,7 +82,7 @@ describe('config view', () => {
         mockToken('config-file', { authScope: 'user:read' })
         const consoleSpy = vi.spyOn(console, 'log').mockImplementation(() => {})
 
-        await createProgram().parseAsync(['node', 'tw', 'config', 'view'])
+        await createProgram().parseAsync(['node', 'cm', 'config', 'view'])
 
         const output = consoleSpy.mock.calls.map((c) => c[0]).join('\n')
         expect(output).toContain('/tmp/fake-comms-cli/config.json')
@@ -101,11 +100,11 @@ describe('config view', () => {
     })
 
     it('labels tokens stored in the system credential manager', async () => {
-        presentConfig({ authMode: 'read-write' })
+        presentConfig({ users: [STORED_ALAN], defaultUserId: STORED_ALAN.id })
         mockToken('secure-store', { token: 'tw_keychainXXXXXXXX1234' })
         const consoleSpy = vi.spyOn(console, 'log').mockImplementation(() => {})
 
-        await createProgram().parseAsync(['node', 'tw', 'config', 'view'])
+        await createProgram().parseAsync(['node', 'cm', 'config', 'view'])
 
         const output = consoleSpy.mock.calls.map((c) => c[0]).join('\n')
         expect(output).toContain('****…1234')
@@ -116,16 +115,16 @@ describe('config view', () => {
     })
 
     it('labels env-sourced tokens and shows active mode, not stale config values', async () => {
-        // Config has a stale read-only entry from a previous `tw auth login`,
+        // Config has a stale read-only entry from a previous `cm auth login`,
         // but COMMS_API_TOKEN is now driving auth with an unknown scope.
         presentConfig({
-            authMode: 'read-only',
-            authScope: 'user:read',
+            users: [STORED_ELLIE],
+            defaultUserId: STORED_ELLIE.id,
         })
         mockToken('env', { token: 'tw_envXXXXXXXX5678', authMode: 'unknown' })
         const consoleSpy = vi.spyOn(console, 'log').mockImplementation(() => {})
 
-        await createProgram().parseAsync(['node', 'tw', 'config', 'view'])
+        await createProgram().parseAsync(['node', 'cm', 'config', 'view'])
 
         const output = consoleSpy.mock.calls.map((c) => c[0]).join('\n')
         expect(output).toContain('****…5678')
@@ -148,7 +147,7 @@ describe('config view', () => {
         mockToken('env', { token: 'tw_envXXXXXXXX9999', authMode: 'unknown' })
         const consoleSpy = vi.spyOn(console, 'log').mockImplementation(() => {})
 
-        await createProgram().parseAsync(['node', 'tw', 'config', 'view'])
+        await createProgram().parseAsync(['node', 'cm', 'config', 'view'])
 
         const output = consoleSpy.mock.calls.map((c) => c[0]).join('\n')
         expect(output).toContain('/tmp/fake-comms-cli/config.json')
@@ -164,7 +163,7 @@ describe('config view', () => {
         mockToken('config-file')
         const consoleSpy = vi.spyOn(console, 'log').mockImplementation(() => {})
 
-        await createProgram().parseAsync(['node', 'tw', 'config'])
+        await createProgram().parseAsync(['node', 'cm', 'config'])
 
         const output = consoleSpy.mock.calls.map((c) => c[0]).join('\n')
         expect(output).toContain('Authentication')
@@ -174,11 +173,11 @@ describe('config view', () => {
     })
 
     it('degrades gracefully when the credential manager is unavailable', async () => {
-        presentConfig({ authMode: 'read-write', updateChannel: 'stable' })
+        presentConfig({ users: [STORED_ALAN], updateChannel: 'stable' })
         mockProbeApiToken.mockRejectedValue(new SecureStoreUnavailableError('macOS Keychain error'))
         const consoleSpy = vi.spyOn(console, 'log').mockImplementation(() => {})
 
-        await createProgram().parseAsync(['node', 'tw', 'config', 'view'])
+        await createProgram().parseAsync(['node', 'cm', 'config', 'view'])
 
         const output = consoleSpy.mock.calls.map((c) => c[0]).join('\n')
         expect(output).toContain('unknown')
@@ -188,15 +187,14 @@ describe('config view', () => {
         consoleSpy.mockRestore()
     })
 
-    it('--json emits the raw config with token masked', async () => {
+    it('--json emits the raw config with per-user tokens masked', async () => {
         presentConfig()
         const consoleSpy = vi.spyOn(console, 'log').mockImplementation(() => {})
 
-        await createProgram().parseAsync(['node', 'tw', 'config', 'view', '--json'])
+        await createProgram().parseAsync(['node', 'cm', 'config', 'view', '--json'])
 
         const parsed = JSON.parse(consoleSpy.mock.calls[0][0] as string)
-        expect(parsed.token).toBe('****…7890')
-        expect(parsed.authMode).toBe('read-write')
+        expect(parsed.users[0].token).toBe('****…7890')
         expect(parsed.currentWorkspace).toBe(12345)
 
         consoleSpy.mockRestore()
@@ -207,14 +205,14 @@ describe('config view', () => {
         mockToken('config-file')
         const consoleSpy = vi.spyOn(console, 'log').mockImplementation(() => {})
 
-        await createProgram().parseAsync(['node', 'tw', 'config', 'view', '--show-token'])
+        await createProgram().parseAsync(['node', 'cm', 'config', 'view', '--show-token'])
         const pretty = consoleSpy.mock.calls.map((c) => c[0]).join('\n')
         expect(pretty).toContain('tw_abcdefghij1234567890')
 
         consoleSpy.mockClear()
-        await createProgram().parseAsync(['node', 'tw', 'config', 'view', '--json', '--show-token'])
+        await createProgram().parseAsync(['node', 'cm', 'config', 'view', '--json', '--show-token'])
         const json = JSON.parse(consoleSpy.mock.calls[0][0] as string)
-        expect(json.token).toBe('tw_abcdefghij1234567890')
+        expect(json.users[0].token).toBe('tw_abcdefghij1234567890')
 
         consoleSpy.mockRestore()
     })
@@ -224,11 +222,11 @@ describe('config view', () => {
         mockProbeApiToken.mockRejectedValue(new NoTokenError())
         const consoleSpy = vi.spyOn(console, 'log').mockImplementation(() => {})
 
-        await createProgram().parseAsync(['node', 'tw', 'config', 'view'])
+        await createProgram().parseAsync(['node', 'cm', 'config', 'view'])
         expect(consoleSpy.mock.calls[0][0]).toContain('not created yet')
 
         consoleSpy.mockClear()
-        await createProgram().parseAsync(['node', 'tw', 'config', 'view', '--json'])
+        await createProgram().parseAsync(['node', 'cm', 'config', 'view', '--json'])
         expect(consoleSpy.mock.calls[0][0]).toBe('{}')
 
         consoleSpy.mockRestore()
@@ -245,7 +243,7 @@ describe('config view', () => {
         mockProbeApiToken.mockRejectedValue(new NoTokenError())
 
         await expect(
-            createProgram().parseAsync(['node', 'tw', 'config', 'view']),
+            createProgram().parseAsync(['node', 'cm', 'config', 'view']),
         ).rejects.toMatchObject({ code: 'CONFIG_INVALID_JSON' })
     })
 
@@ -254,7 +252,7 @@ describe('config view', () => {
         mockProbeApiToken.mockRejectedValue(new NoTokenError())
         const consoleSpy = vi.spyOn(console, 'log').mockImplementation(() => {})
 
-        await createProgram().parseAsync(['node', 'tw', 'config', 'view'])
+        await createProgram().parseAsync(['node', 'cm', 'config', 'view'])
         const output = consoleSpy.mock.calls.map((c) => c[0]).join('\n')
         expect(output).toContain('not set')
         expect(output).toContain('stable')
@@ -263,13 +261,13 @@ describe('config view', () => {
     })
 
     it('masks very short tokens without exposing characters', async () => {
-        presentConfig({ token: 'abcd' })
+        presentConfig({ users: [{ ...STORED_ALAN, token: 'abcd' }] })
         const consoleSpy = vi.spyOn(console, 'log').mockImplementation(() => {})
 
-        await createProgram().parseAsync(['node', 'tw', 'config', 'view', '--json'])
+        await createProgram().parseAsync(['node', 'cm', 'config', 'view', '--json'])
         const parsed = JSON.parse(consoleSpy.mock.calls[0][0] as string)
-        expect(parsed.token).toBe('****')
-        expect(parsed.token).not.toContain('abcd')
+        expect(parsed.users[0].token).toBe('****')
+        expect(parsed.users[0].token).not.toContain('abcd')
 
         consoleSpy.mockRestore()
     })
@@ -279,7 +277,7 @@ describe('config view', () => {
         mockToken('secure-store')
         const consoleSpy = vi.spyOn(console, 'log').mockImplementation(() => {})
 
-        await createProgram().parseAsync(['node', 'tw', 'config', 'view'])
+        await createProgram().parseAsync(['node', 'cm', 'config', 'view'])
 
         const output = consoleSpy.mock.calls.map((c) => c[0]).join('\n')
         expect(output).toContain('Authenticated accounts (2)')
@@ -301,7 +299,7 @@ describe('config view', () => {
         mockToken('secure-store')
         const consoleSpy = vi.spyOn(console, 'log').mockImplementation(() => {})
 
-        await createProgram().parseAsync(['node', 'tw', 'config', 'view'])
+        await createProgram().parseAsync(['node', 'cm', 'config', 'view'])
 
         const output = consoleSpy.mock.calls.map((c) => c[0]).join('\n')
         const adaLine = output.split('\n').find((l) => l.includes('Alan Grant')) ?? ''
@@ -319,7 +317,7 @@ describe('config view', () => {
         mockToken('secure-store')
         const consoleSpy = vi.spyOn(console, 'log').mockImplementation(() => {})
 
-        await createProgram().parseAsync(['node', 'tw', 'config', 'view'])
+        await createProgram().parseAsync(['node', 'cm', 'config', 'view'])
 
         const output = consoleSpy.mock.calls.map((c) => c[0]).join('\n')
         const alanLine = output.split('\n').find((l) => l.includes('Alan Grant')) ?? ''
@@ -330,11 +328,11 @@ describe('config view', () => {
     })
 
     it('omits the accounts block when config.users is empty or absent', async () => {
-        presentConfig({ authMode: 'read-write' })
+        presentConfig({ currentWorkspace: 1 })
         mockToken('secure-store')
         const consoleSpy = vi.spyOn(console, 'log').mockImplementation(() => {})
 
-        await createProgram().parseAsync(['node', 'tw', 'config', 'view'])
+        await createProgram().parseAsync(['node', 'cm', 'config', 'view'])
 
         const output = consoleSpy.mock.calls.map((c) => c[0]).join('\n')
         expect(output).not.toContain('Authenticated accounts')
@@ -348,7 +346,7 @@ describe('config view', () => {
         })
         const consoleSpy = vi.spyOn(console, 'log').mockImplementation(() => {})
 
-        await createProgram().parseAsync(['node', 'tw', 'config', 'view', '--json'])
+        await createProgram().parseAsync(['node', 'cm', 'config', 'view', '--json'])
 
         const parsed = JSON.parse(consoleSpy.mock.calls[0][0] as string)
         expect(parsed.users[0].token).toBe('****…_123')
@@ -361,7 +359,7 @@ describe('config view', () => {
         presentConfig({ users: [{ ...STORED_ALAN, token: 'tw_userA_plaintext_fallback_123' }] })
         const consoleSpy = vi.spyOn(console, 'log').mockImplementation(() => {})
 
-        await createProgram().parseAsync(['node', 'tw', 'config', 'view', '--json', '--show-token'])
+        await createProgram().parseAsync(['node', 'cm', 'config', 'view', '--json', '--show-token'])
 
         const parsed = JSON.parse(consoleSpy.mock.calls[0][0] as string)
         expect(parsed.users[0].token).toBe('tw_userA_plaintext_fallback_123')
@@ -373,7 +371,7 @@ describe('config view', () => {
         mockProbeApiToken.mockRejectedValue(new NoTokenError())
         const consoleSpy = vi.spyOn(console, 'log').mockImplementation(() => {})
 
-        await createProgram().parseAsync(['node', 'tw', 'config', 'view'])
+        await createProgram().parseAsync(['node', 'cm', 'config', 'view'])
 
         const output = consoleSpy.mock.calls.map((c) => c[0]).join('\n')
         expect(output).toContain('User settings')
@@ -395,7 +393,7 @@ describe('config set', () => {
 
         await createProgram().parseAsync([
             'node',
-            'tw',
+            'cm',
             'config',
             'set',
             'unarchive-new-threads',
@@ -419,7 +417,7 @@ describe('config set', () => {
 
         await createProgram().parseAsync([
             'node',
-            'tw',
+            'cm',
             'config',
             'set',
             'unarchive-new-threads',
@@ -444,7 +442,7 @@ describe('config set', () => {
 
         await createProgram().parseAsync([
             'node',
-            'tw',
+            'cm',
             'config',
             'set',
             'unarchive-new-threads',
@@ -462,7 +460,7 @@ describe('config set', () => {
         mockReadConfigStrict.mockResolvedValue({ state: 'present', config: {} })
 
         await expect(
-            createProgram().parseAsync(['node', 'tw', 'config', 'set', 'nope', 'true']),
+            createProgram().parseAsync(['node', 'cm', 'config', 'set', 'nope', 'true']),
         ).rejects.toBeInstanceOf(CliError)
         expect(mockSetConfig).not.toHaveBeenCalled()
     })
@@ -473,7 +471,7 @@ describe('config set', () => {
         await expect(
             createProgram().parseAsync([
                 'node',
-                'tw',
+                'cm',
                 'config',
                 'set',
                 'unarchive-new-threads',
@@ -489,7 +487,7 @@ describe('config set', () => {
 
         await createProgram().parseAsync([
             'node',
-            'tw',
+            'cm',
             'config',
             'set',
             'unarchive-new-threads',
@@ -508,7 +506,7 @@ describe('config set', () => {
         await expect(
             createProgram().parseAsync([
                 'node',
-                'tw',
+                'cm',
                 'config',
                 'set',
                 'unarchive-new-threads',

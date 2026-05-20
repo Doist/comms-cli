@@ -3,14 +3,12 @@ import chalk from 'chalk'
 import { findAccountInStore, type CommsTokenStore } from '../../lib/auth-provider.js'
 import type { ViewOptions } from '../../lib/options.js'
 import { logTokenStorageResult } from '../auth/helpers.js'
-import { assertV2Available } from './helpers.js'
 
 export async function removeAccount(
     ref: string,
     options: ViewOptions,
     store: CommsTokenStore,
 ): Promise<void> {
-    await assertV2Available()
     const account = await findAccountInStore(store, ref)
     await store.clear(account.id)
 

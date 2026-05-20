@@ -55,7 +55,7 @@ describe('mentions', () => {
         const program = createProgram()
 
         await expect(
-            program.parseAsync(['node', 'tw', 'mentions', 'Doist', '--workspace', 'Other']),
+            program.parseAsync(['node', 'cm', 'mentions', 'Doist', '--workspace', 'Other']),
         ).rejects.toThrow('Cannot specify workspace both as argument and --workspace flag')
     })
 
@@ -63,7 +63,7 @@ describe('mentions', () => {
         const program = createProgram()
         const logSpy = vi.spyOn(console, 'log').mockImplementation(() => {})
 
-        await program.parseAsync(['node', 'tw', 'mentions'])
+        await program.parseAsync(['node', 'cm', 'mentions'])
 
         expect(searchApiMocks.extendedSearch).toHaveBeenCalledWith(
             expect.objectContaining({
@@ -94,7 +94,7 @@ describe('mentions', () => {
         const program = createProgram()
         const logSpy = vi.spyOn(console, 'log').mockImplementation(() => {})
 
-        await program.parseAsync(['node', 'tw', 'mentions', '--all'])
+        await program.parseAsync(['node', 'cm', 'mentions', '--all'])
 
         expect(searchApiMocks.extendedSearch).toHaveBeenNthCalledWith(
             1,
@@ -118,7 +118,7 @@ describe('mentions', () => {
         const program = createProgram()
         const logSpy = vi.spyOn(console, 'log').mockImplementation(() => {})
 
-        await program.parseAsync(['node', 'tw', 'mentions', '--json'])
+        await program.parseAsync(['node', 'cm', 'mentions', '--json'])
 
         expect(logSpy).toHaveBeenCalledTimes(1)
         expect(JSON.parse(logSpy.mock.calls[0][0])).toEqual({
@@ -133,7 +133,7 @@ describe('mentions', () => {
         const program = createProgram()
         const logSpy = vi.spyOn(console, 'log').mockImplementation(() => {})
 
-        await program.parseAsync(['node', 'tw', 'mentions', '--ndjson'])
+        await program.parseAsync(['node', 'cm', 'mentions', '--ndjson'])
 
         expect(logSpy).toHaveBeenCalledTimes(1)
         expect(JSON.parse(logSpy.mock.calls[0][0])).toEqual({

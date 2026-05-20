@@ -12,7 +12,7 @@ import {
     getPublicChannelIds,
 } from './public-channels.js'
 
-const mockGetTwistClient = vi.mocked(getCommsClient)
+const mockGetCommsClient = vi.mocked(getCommsClient)
 
 function makeMockChannels(
     channels: Array<{ id: number; public: boolean }>,
@@ -26,20 +26,20 @@ function makeMockChannels(
 
 describe('includePrivateChannels', () => {
     const originalArgv = [...process.argv]
-    const originalEnv = process.env.TWIST_INCLUDE_PRIVATE_CHANNELS
+    const originalEnv = process.env.COMMS_INCLUDE_PRIVATE_CHANNELS
 
     beforeEach(() => {
         resetGlobalArgs()
-        process.argv = ['node', 'tw']
-        delete process.env.TWIST_INCLUDE_PRIVATE_CHANNELS
+        process.argv = ['node', 'cm']
+        delete process.env.COMMS_INCLUDE_PRIVATE_CHANNELS
     })
 
     afterEach(() => {
         process.argv = originalArgv
         if (originalEnv !== undefined) {
-            process.env.TWIST_INCLUDE_PRIVATE_CHANNELS = originalEnv
+            process.env.COMMS_INCLUDE_PRIVATE_CHANNELS = originalEnv
         } else {
-            delete process.env.TWIST_INCLUDE_PRIVATE_CHANNELS
+            delete process.env.COMMS_INCLUDE_PRIVATE_CHANNELS
         }
         resetGlobalArgs()
     })
@@ -49,29 +49,29 @@ describe('includePrivateChannels', () => {
     })
 
     it('returns true when --include-private-channels is in argv', () => {
-        process.argv = ['node', 'tw', 'channels', '--include-private-channels']
+        process.argv = ['node', 'cm', 'channels', '--include-private-channels']
         resetGlobalArgs()
         expect(includePrivateChannels()).toBe(true)
     })
 
-    it('returns true when TWIST_INCLUDE_PRIVATE_CHANNELS=1', () => {
-        process.env.TWIST_INCLUDE_PRIVATE_CHANNELS = '1'
+    it('returns true when COMMS_INCLUDE_PRIVATE_CHANNELS=1', () => {
+        process.env.COMMS_INCLUDE_PRIVATE_CHANNELS = '1'
         expect(includePrivateChannels()).toBe(true)
     })
 
-    it('returns true when TWIST_INCLUDE_PRIVATE_CHANNELS=true', () => {
-        process.env.TWIST_INCLUDE_PRIVATE_CHANNELS = 'true'
+    it('returns true when COMMS_INCLUDE_PRIVATE_CHANNELS=true', () => {
+        process.env.COMMS_INCLUDE_PRIVATE_CHANNELS = 'true'
         expect(includePrivateChannels()).toBe(true)
     })
 
     it('returns false for other env values', () => {
-        process.env.TWIST_INCLUDE_PRIVATE_CHANNELS = '0'
+        process.env.COMMS_INCLUDE_PRIVATE_CHANNELS = '0'
         expect(includePrivateChannels()).toBe(false)
 
-        process.env.TWIST_INCLUDE_PRIVATE_CHANNELS = 'false'
+        process.env.COMMS_INCLUDE_PRIVATE_CHANNELS = 'false'
         expect(includePrivateChannels()).toBe(false)
 
-        process.env.TWIST_INCLUDE_PRIVATE_CHANNELS = ''
+        process.env.COMMS_INCLUDE_PRIVATE_CHANNELS = ''
         expect(includePrivateChannels()).toBe(false)
     })
 })
@@ -82,7 +82,7 @@ describe('getPublicChannelIds', () => {
     })
 
     it('returns only public channel IDs', async () => {
-        mockGetTwistClient.mockImplementation(() =>
+        mockGetCommsClient.mockImplementation(() =>
             makeMockChannels([
                 { id: 1, public: true },
                 { id: 2, public: false },
@@ -96,7 +96,7 @@ describe('getPublicChannelIds', () => {
 
     it('caches results per workspace', async () => {
         const getChannels = vi.fn().mockResolvedValue([{ id: 1, public: true }])
-        mockGetTwistClient.mockResolvedValue({
+        mockGetCommsClient.mockResolvedValue({
             channels: { getChannels },
         } as unknown as Awaited<ReturnType<typeof getCommsClient>>)
 
@@ -108,7 +108,7 @@ describe('getPublicChannelIds', () => {
 
     it('fetches separately for different workspaces', async () => {
         const getChannels = vi.fn().mockResolvedValue([{ id: 1, public: true }])
-        mockGetTwistClient.mockResolvedValue({
+        mockGetCommsClient.mockResolvedValue({
             channels: { getChannels },
         } as unknown as Awaited<ReturnType<typeof getCommsClient>>)
 
@@ -121,27 +121,27 @@ describe('getPublicChannelIds', () => {
 
 describe('assertChannelIsPublic', () => {
     const originalArgv = [...process.argv]
-    const originalEnv = process.env.TWIST_INCLUDE_PRIVATE_CHANNELS
+    const originalEnv = process.env.COMMS_INCLUDE_PRIVATE_CHANNELS
 
     beforeEach(() => {
         clearPublicChannelCache()
         resetGlobalArgs()
-        process.argv = ['node', 'tw']
-        delete process.env.TWIST_INCLUDE_PRIVATE_CHANNELS
+        process.argv = ['node', 'cm']
+        delete process.env.COMMS_INCLUDE_PRIVATE_CHANNELS
     })
 
     afterEach(() => {
         process.argv = originalArgv
         if (originalEnv !== undefined) {
-            process.env.TWIST_INCLUDE_PRIVATE_CHANNELS = originalEnv
+            process.env.COMMS_INCLUDE_PRIVATE_CHANNELS = originalEnv
         } else {
-            delete process.env.TWIST_INCLUDE_PRIVATE_CHANNELS
+            delete process.env.COMMS_INCLUDE_PRIVATE_CHANNELS
         }
         resetGlobalArgs()
     })
 
     it('throws for private channels by default', async () => {
-        mockGetTwistClient.mockImplementation(() =>
+        mockGetCommsClient.mockImplementation(() =>
             makeMockChannels([
                 { id: 5, public: true },
                 { id: 6, public: false },
@@ -152,19 +152,19 @@ describe('assertChannelIsPublic', () => {
     })
 
     it('allows public channels by default', async () => {
-        mockGetTwistClient.mockImplementation(() => makeMockChannels([{ id: 5, public: true }]))
+        mockGetCommsClient.mockImplementation(() => makeMockChannels([{ id: 5, public: true }]))
 
         await expect(assertChannelIsPublic(5, 100)).resolves.toBeUndefined()
     })
 
     it('allows private channels when --include-private-channels is set', async () => {
-        process.argv = ['node', 'tw', '--include-private-channels']
+        process.argv = ['node', 'cm', '--include-private-channels']
         resetGlobalArgs()
         await expect(assertChannelIsPublic(999, 100)).resolves.toBeUndefined()
     })
 
     it('allows private channels when env var is set', async () => {
-        process.env.TWIST_INCLUDE_PRIVATE_CHANNELS = '1'
+        process.env.COMMS_INCLUDE_PRIVATE_CHANNELS = '1'
         await expect(assertChannelIsPublic(999, 100)).resolves.toBeUndefined()
     })
 })

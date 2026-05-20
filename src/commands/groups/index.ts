@@ -21,9 +21,9 @@ export function registerGroupsCommand(program: Command): void {
             'after',
             `
 Examples:
-  tw groups
-  tw groups list --search front
-  tw groups --workspace 123 --json`,
+  cm groups
+  cm groups list --search front
+  cm groups --workspace 123 --json`,
         )
         .action(listGroups)
 
@@ -37,9 +37,9 @@ Examples:
             'after',
             `
 Examples:
-  tw groups view 12345
-  tw groups view "Frontend"
-  tw groups view id:12345 --json`,
+  cm groups view 12345
+  cm groups view "Frontend"
+  cm groups view id:12345 --json`,
         )
         .action(viewGroup)
 
@@ -55,9 +55,9 @@ Examples:
             'after',
             `
 Examples:
-  tw groups create "Frontend"
-  tw groups create "Backend" --users alice@doist.com,bob@doist.com
-  tw groups create "Design" --users id:123,id:456 --json`,
+  cm groups create "Frontend"
+  cm groups create "Backend" --users alice@doist.com,bob@doist.com
+  cm groups create "Design" --users id:123,id:456 --json`,
         )
         .action(createGroupCommand)
 
@@ -71,8 +71,8 @@ Examples:
             'after',
             `
 Examples:
-  tw groups rename 12345 "Frontend Team"
-  tw groups rename "Frontend" "Frontend Team" --json`,
+  cm groups rename 12345 "Frontend Team"
+  cm groups rename "Frontend" "Frontend Team" --json`,
         )
         .action(renameGroup)
 
@@ -86,8 +86,8 @@ Examples:
             'after',
             `
 Examples:
-  tw groups delete 12345 --yes
-  tw groups delete "Frontend" --dry-run`,
+  cm groups delete 12345 --yes
+  cm groups delete "Frontend" --dry-run`,
         )
         .action(deleteGroupCommand)
 
@@ -101,9 +101,9 @@ Examples:
             'after',
             `
 Examples:
-  tw groups add-user 12345 alice@doist.com bob@doist.com
-  tw groups add-user "Frontend" id:123,id:456
-  tw groups add-user 12345 alice bob carol --json
+  cm groups add-user 12345 alice@doist.com bob@doist.com
+  cm groups add-user "Frontend" id:123,id:456
+  cm groups add-user 12345 alice bob carol --json
 
 User references can be passed as space-separated args, comma-separated within a
 single arg, or any mix of the two.`,
@@ -120,8 +120,8 @@ single arg, or any mix of the two.`,
             'after',
             `
 Examples:
-  tw groups remove-user 12345 alice@doist.com
-  tw groups remove-user "Frontend" id:123,id:456`,
+  cm groups remove-user 12345 alice@doist.com
+  cm groups remove-user "Frontend" id:123,id:456`,
         )
         .action(removeUsersCommand)
 }

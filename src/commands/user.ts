@@ -88,8 +88,8 @@ export function registerUserCommand(program: Command): void {
             'after',
             `
 Examples:
-  tw user
-  tw user --json`,
+  cm user
+  cm user --json`,
         )
         .action(showCurrentUser)
 
@@ -105,8 +105,8 @@ Examples:
             'after',
             `
 Examples:
-  tw users
-  tw users --search "Jane" --json`,
+  cm users
+  cm users --search "Jane" --json`,
         )
         .action(listUsers)
 }

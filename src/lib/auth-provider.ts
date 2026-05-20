@@ -3,19 +3,16 @@ import {
     type AuthAccount,
     type AuthProvider,
     createKeyringTokenStore,
-    createSecureStore,
     deriveChallenge,
     generateVerifier,
     type KeyringTokenStore,
-    type MigrateAuthResult,
 } from '@doist/cli-core/auth'
 import { createWrappedCommsClient } from './api.js'
-import { LEGACY_KEYRING_ACCOUNT, SECURE_STORE_SERVICE } from './auth-constants.js'
-import { type AuthMode, getConfig, getConfigPath, updateConfig } from './config.js'
+import { SECURE_STORE_SERVICE } from './auth-constants.js'
+import { toCommsAccount } from './comms-account.js'
+import { type AuthMode, getConfig, getConfigPath } from './config.js'
 import { CliError } from './errors.js'
-import { runMigrateLegacyAuth } from './migrate-auth.js'
 import { parseRef } from './refs.js'
-import { makeCommsAccount, toCommsAccount } from './comms-account.js'
 import { createCommsUserRecordStore, getDefaultUserRecord } from './user-records.js'
 
 export const AUTHORIZATION_URL = 'https://comms.todoist.com/oauth/authorize'
@@ -58,11 +55,11 @@ export const READ_ONLY_SCOPES = [
     'notifications:read',
 ]
 
-const AUTH_HINTS = ['Try again: tw auth login', 'Or set COMMS_API_TOKEN environment variable']
+const AUTH_HINTS = ['Try again: cm auth login', 'Or set COMMS_API_TOKEN environment variable']
 
 /**
  * Narrow account shape: only fields that round-trip through the local token
- * store. `id` is the stringified numeric Twist user id (so cli-core's
+ * store. `id` is the stringified numeric Comms user id (so cli-core's
  * `AuthAccount.id` string contract holds), `label` is the user's display
  * name. Richer session-user details are fetched on demand via the API
  * rather than threaded through the auth flow.
@@ -76,7 +73,7 @@ export type CommsAccount = AuthAccount & {
 
 export type CommsTokenStore = KeyringTokenStore<CommsAccount>
 
-type TwistHandshake = Record<string, unknown> & {
+type CommsHandshake = Record<string, unknown> & {
     clientId: string
     clientSecret: string
     codeVerifier?: string
@@ -84,8 +81,8 @@ type TwistHandshake = Record<string, unknown> & {
     authScope?: string
 }
 
-function asHandshake(value: Record<string, unknown>): TwistHandshake {
-    return value as TwistHandshake
+function asHandshake(value: Record<string, unknown>): CommsHandshake {
+    return value as CommsHandshake
 }
 
 function authFailed(message: string, cause?: unknown): CliError {
@@ -144,11 +141,11 @@ async function registerDynamicClient(
     return { clientId: result.client_id, clientSecret: result.client_secret }
 }
 
-export function createTwistAuthProvider(): AuthProvider<CommsAccount> {
+export function createCommsAuthProvider(): AuthProvider<CommsAccount> {
     return {
         async prepare({ redirectUri }) {
             const { clientId, clientSecret } = await registerDynamicClient(redirectUri)
-            const handshake: TwistHandshake = { clientId, clientSecret }
+            const handshake: CommsHandshake = { clientId, clientSecret }
             return { handshake }
         },
 
@@ -169,7 +166,7 @@ export function createTwistAuthProvider(): AuthProvider<CommsAccount> {
                 code_challenge_method: 'S256',
             })
 
-            const nextHandshake: TwistHandshake = {
+            const nextHandshake: CommsHandshake = {
                 ...hs,
                 codeVerifier,
                 authMode,
@@ -277,98 +274,9 @@ export function matchCommsAccount(account: CommsAccount, ref: AccountRef): boole
 
 const TOKEN_ENV_VAR = 'COMMS_API_TOKEN'
 
-/** True when the v2 store is the authoritative source. */
-function migrationIsConclusive(result: MigrateAuthResult<CommsAccount>): boolean {
-    return (
-        result.status === 'migrated' ||
-        result.status === 'already-migrated' ||
-        result.status === 'no-legacy-state'
-    )
-}
-
 /**
- * Synthesise a snapshot from v1 state still on disk (legacy keyring slot,
- * then plaintext `config.token`). Fallback for when migration can't complete.
- * Token-only users with no `authUserId` get `account.id = ''`.
- */
-async function readLegacyTokenSnapshot(): Promise<{
-    token: string
-    account: CommsAccount
-} | null> {
-    const fromKeyring = await createSecureStore({
-        serviceName: SECURE_STORE_SERVICE,
-        account: LEGACY_KEYRING_ACCOUNT,
-    })
-        .getSecret()
-        .catch(() => null)
-    const config = await getConfig()
-    const token = fromKeyring || config.token?.trim() || null
-    if (!token) return null
-    return {
-        token,
-        account: makeCommsAccount({
-            id: config.authUserId !== undefined ? String(config.authUserId) : '',
-            label: config.authUserName ?? '',
-            authMode: config.authMode,
-            authScope: config.authScope,
-        }),
-    }
-}
-
-/**
- * Clear the legacy keyring slot + v1 flat config fields. Runs before a
- * write/clear when migration is inconclusive so v2 writes aren't shadowed
- * by a stale legacy token. Best-effort — failures leave legacy in place.
- */
-async function dischargeLegacyState(): Promise<void> {
-    await Promise.allSettled([
-        createSecureStore({
-            serviceName: SECURE_STORE_SERVICE,
-            account: LEGACY_KEYRING_ACCOUNT,
-        }).deleteSecret(),
-        updateConfig({
-            token: undefined,
-            authMode: undefined,
-            authScope: undefined,
-            authUserId: undefined,
-            authUserName: undefined,
-            pendingSecureStoreClear: undefined,
-        }),
-    ])
-}
-
-/**
- * Memoised one-shot migration trigger. Resolves with `null` on rejection
- * so the CLI never fails to start because of a migration error — the
- * legacy snapshot fallback below handles that case. Tests reset the memo
- * with `vi.resetModules()` + a dynamic re-import.
- */
-let migrationPromise: Promise<MigrateAuthResult<CommsAccount> | null> | undefined
-function ensureMigrated(): Promise<MigrateAuthResult<CommsAccount> | null> {
-    if (!migrationPromise) {
-        migrationPromise = runMigrateLegacyAuth({ silent: true }).catch(() => null)
-    }
-    return migrationPromise
-}
-
-/**
- * True when the v2 store is empty but a legacy v1 token snapshot is still
- * the only thing keeping the CLI authenticated — typically because
- * `migrateLegacyAuth` couldn't reach the Comms API to identify the account
- * (`MigrateSkipReason: 'identify-failed'`). Account-management commands
- * use this to fail with a dedicated `AUTH_MIGRATION_PENDING` envelope
- * instead of a misleading `ACCOUNT_NOT_FOUND`.
- */
-export async function isLegacyAuthActive(): Promise<boolean> {
-    const result = await ensureMigrated()
-    if (result !== null && migrationIsConclusive(result)) return false
-    const legacy = await readLegacyTokenSnapshot()
-    return legacy !== null
-}
-
-/**
- * Resolve a `ref` against the v2 store, returning the canonical account.
- * Throws `ACCOUNT_NOT_FOUND` on a miss. Shared between the `tw account ...`
+ * Resolve a `ref` against the local store, returning the canonical account.
+ * Throws `ACCOUNT_NOT_FOUND` on a miss. Shared between the `cm account ...`
  * commands and `withUserRefAware` so the same hint reaches every caller.
  */
 export async function findAccountInStore(
@@ -379,7 +287,7 @@ export async function findAccountInStore(
     const match = records.find(({ account }) => matchCommsAccount(account, ref))
     if (!match) {
         throw new CliError('ACCOUNT_NOT_FOUND', `No stored account matches "${ref}".`, [
-            'Run: tw account list',
+            'Run: cm account list',
         ])
     }
     return match.account
@@ -389,13 +297,6 @@ export async function findAccountInStore(
  * `COMMS_API_TOKEN` short-circuits `active()` only when no explicit ref is
  * supplied — cli-core's `KeyringTokenStore` doesn't know about the env var,
  * and an explicit ref means the caller targets a specific stored account.
- *
- * `ensureMigrated()` runs on every stored-state op so `--ignore-scripts`
- * installs still migrate on first command. When migration isn't conclusive:
- *  - `active()` falls back to the legacy snapshot, honouring `ref` so it
- *    can't resolve to a different account than the caller asked for.
- *  - `set()` / `clear()` discharge legacy state on disk first so v2 writes
- *    aren't shadowed by a stale v1 token on the next read.
  */
 export function createCommsTokenStore(): CommsTokenStore {
     const inner = createKeyringTokenStore<CommsAccount>({
@@ -404,12 +305,6 @@ export function createCommsTokenStore(): CommsTokenStore {
         recordsLocation: getConfigPath(),
         matchAccount: matchCommsAccount,
     })
-    async function maybeDischargeLegacy(): Promise<void> {
-        const result = await ensureMigrated()
-        if (result === null || !migrationIsConclusive(result)) {
-            await dischargeLegacyState()
-        }
-    }
     return Object.assign(Object.create(inner) as CommsTokenStore, {
         async active(ref?: AccountRef) {
             if (ref === undefined) {
@@ -421,29 +316,18 @@ export function createCommsTokenStore(): CommsTokenStore {
                     }
                 }
             }
-            const result = await ensureMigrated()
-            if (result === null || !migrationIsConclusive(result)) {
-                const legacy = await readLegacyTokenSnapshot()
-                if (legacy && (ref === undefined || matchCommsAccount(legacy.account, ref))) {
-                    return legacy
-                }
-            }
             return inner.active(ref)
         },
         async set(account: CommsAccount, token: string) {
-            await maybeDischargeLegacy()
             return inner.set(account, token)
         },
         async clear(ref?: AccountRef) {
-            await maybeDischargeLegacy()
             return inner.clear(ref)
         },
         async list() {
-            await ensureMigrated()
             return inner.list()
         },
         async setDefault(ref: AccountRef) {
-            await ensureMigrated()
             return inner.setDefault(ref)
         },
     })
@@ -451,15 +335,13 @@ export function createCommsTokenStore(): CommsTokenStore {
 
 /**
  * Where the currently-active token lives. Returns `'config-file'` whenever
- * a plaintext token is on disk — including the legacy `config.token` slot —
- * so doctor/config-view reports the security-relevant state accurately.
+ * a plaintext token is on disk so doctor/config-view reports the
+ * security-relevant state accurately.
  */
 export async function getActiveTokenSource(): Promise<'env' | 'secure-store' | 'config-file'> {
     if (process.env[TOKEN_ENV_VAR]) return 'env'
     const config = await getConfig()
     const record = getDefaultUserRecord(config)
     if (record?.fallbackToken) return 'config-file'
-    if (record) return 'secure-store'
-    if (config.token?.trim()) return 'config-file'
     return 'secure-store'
 }

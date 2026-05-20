@@ -1,7 +1,7 @@
 import type { UserRecord, UserRecordStore } from '@doist/cli-core/auth'
 import type { CommsAccount } from './auth-provider.js'
-import { type Config, type StoredUser, getConfig, updateConfig } from './config.js'
 import { makeCommsAccount } from './comms-account.js'
+import { type Config, type StoredUser, getConfig, updateConfig } from './config.js'
 
 /**
  * `UserRecordStore` adapter over `config.users[]`. `StoredUser.token` is

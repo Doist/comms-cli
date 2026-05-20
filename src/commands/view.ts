@@ -2,8 +2,8 @@ import { Command } from 'commander'
 import { CliError } from '../lib/errors.js'
 import { classifyCommsUrl } from '../lib/refs.js'
 
-function looksLikeTwistAppUrl(token: string): boolean {
-    return /^https?:\/\/twist\.com\/a\/\S+/.test(token)
+function looksLikeCommsAppUrl(token: string): boolean {
+    return /^https?:\/\/comms\.todoist\.com\/a\/\S+/.test(token)
 }
 
 function extractViewInvocation(parsedUrl: string): {
@@ -25,7 +25,7 @@ async function runRoutedCommand(
     proxy.exitOverride()
     const register = await loadRegister()
     register(proxy)
-    await proxy.parseAsync(['node', 'tw', ...argv])
+    await proxy.parseAsync(['node', 'cm', ...argv])
 }
 
 export function registerViewCommand(program: Command): void {
@@ -37,25 +37,25 @@ export function registerViewCommand(program: Command): void {
             'after',
             `
 Route mapping:
-  Message URL      → tw msg view <url>
-  Conversation URL → tw conversation view <url>
-  Comment URL      → tw thread view <url>  (comment ID extracted from URL)
-  Thread URL       → tw thread view <url>
+  Message URL      → cm msg view <url>
+  Conversation URL → cm conversation view <url>
+  Comment URL      → cm thread view <url>  (comment ID extracted from URL)
+  Thread URL       → cm thread view <url>
 
 Examples:
-  tw view https://comms.todoist.com/a/1585/ch/100/t/200
-  tw view https://comms.todoist.com/a/1585/ch/100/t/200/c/300
-  tw view https://comms.todoist.com/a/1585/msg/400
-  tw view https://comms.todoist.com/a/1585/msg/400/m/500
-  tw view https://comms.todoist.com/a/1585/msg/400/m/500 --json`,
+  cm view https://comms.todoist.com/a/1585/ch/100/t/200
+  cm view https://comms.todoist.com/a/1585/ch/100/t/200/c/300
+  cm view https://comms.todoist.com/a/1585/msg/400
+  cm view https://comms.todoist.com/a/1585/msg/400/m/500
+  cm view https://comms.todoist.com/a/1585/msg/400/m/500 --json`,
         )
         .action(async (url: string) => {
             const urlHints = [
                 'Expected: https://comms.todoist.com/a/{workspaceId}/...',
-                'Run: tw view --help for examples',
+                'Run: cm view --help for examples',
             ]
-            if (!looksLikeTwistAppUrl(url)) {
-                throw new CliError('INVALID_URL', `Not a recognized Twist URL: ${url}`, urlHints)
+            if (!looksLikeCommsAppUrl(url)) {
+                throw new CliError('INVALID_URL', `Not a recognized Comms URL: ${url}`, urlHints)
             }
 
             const { url: resolvedUrl, passthroughArgs } = extractViewInvocation(url)
@@ -64,7 +64,7 @@ Examples:
             if (!route) {
                 throw new CliError(
                     'INVALID_URL',
-                    `Not a recognized Twist URL: ${resolvedUrl}`,
+                    `Not a recognized Comms URL: ${resolvedUrl}`,
                     urlHints,
                 )
             }

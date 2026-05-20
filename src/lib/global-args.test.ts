@@ -60,25 +60,25 @@ describe('parseGlobalArgs', () => {
 
     describe('--progress-jsonl', () => {
         it('detects --progress-jsonl without path', () => {
-            const result = parseGlobalArgs(['node', 'tw', '--progress-jsonl'])
+            const result = parseGlobalArgs(['node', 'cm', '--progress-jsonl'])
             expect(result.progressJsonl).toBe(true)
             expect(result.progressJsonlPath).toBeUndefined()
         })
 
         it('detects --progress-jsonl=path', () => {
-            const result = parseGlobalArgs(['node', 'tw', '--progress-jsonl=/tmp/out.jsonl'])
+            const result = parseGlobalArgs(['node', 'cm', '--progress-jsonl=/tmp/out.jsonl'])
             expect(result.progressJsonl).toBe('/tmp/out.jsonl')
             expect(result.progressJsonlPath).toBe('/tmp/out.jsonl')
         })
 
         it('detects --progress-jsonl path as separate arg (Comms re-adds the space form cli-core drops)', () => {
-            const result = parseGlobalArgs(['node', 'tw', '--progress-jsonl', '/tmp/out.jsonl'])
+            const result = parseGlobalArgs(['node', 'cm', '--progress-jsonl', '/tmp/out.jsonl'])
             expect(result.progressJsonl).toBe('/tmp/out.jsonl')
             expect(result.progressJsonlPath).toBe('/tmp/out.jsonl')
         })
 
         it('does not treat next flag as path', () => {
-            const result = parseGlobalArgs(['node', 'tw', '--progress-jsonl', '--json'])
+            const result = parseGlobalArgs(['node', 'cm', '--progress-jsonl', '--json'])
             expect(result.progressJsonl).toBe(true)
             expect(result.progressJsonlPath).toBeUndefined()
         })
@@ -89,7 +89,7 @@ describe('parseGlobalArgs', () => {
             it('=path then space form: space form wins', () => {
                 const result = parseGlobalArgs([
                     'node',
-                    'tw',
+                    'cm',
                     '--progress-jsonl=/tmp/first',
                     '--progress-jsonl',
                     '/tmp/second',
@@ -101,7 +101,7 @@ describe('parseGlobalArgs', () => {
             it('space form then =path: =path wins', () => {
                 const result = parseGlobalArgs([
                     'node',
-                    'tw',
+                    'cm',
                     '--progress-jsonl',
                     '/tmp/first',
                     '--progress-jsonl=/tmp/second',
@@ -113,7 +113,7 @@ describe('parseGlobalArgs', () => {
             it('path then bare: bare reverts to true (no path)', () => {
                 const result = parseGlobalArgs([
                     'node',
-                    'tw',
+                    'cm',
                     '--progress-jsonl',
                     '/tmp/first',
                     '--progress-jsonl',
@@ -125,7 +125,7 @@ describe('parseGlobalArgs', () => {
             it('repeated =path forms: last wins', () => {
                 const result = parseGlobalArgs([
                     'node',
-                    'tw',
+                    'cm',
                     '--progress-jsonl=/tmp/first',
                     '--progress-jsonl=/tmp/second',
                 ])
@@ -141,7 +141,7 @@ describe('cached singleton', () => {
 
     beforeEach(() => {
         resetGlobalArgs()
-        process.argv = ['node', 'tw']
+        process.argv = ['node', 'cm']
     })
 
     afterEach(() => {
@@ -150,16 +150,16 @@ describe('cached singleton', () => {
     })
 
     it('returns fresh results after resetGlobalArgs()', () => {
-        process.argv = ['node', 'tw']
+        process.argv = ['node', 'cm']
         expect(isProgressJsonlEnabled()).toBe(false)
 
         resetGlobalArgs()
-        process.argv = ['node', 'tw', '--progress-jsonl']
+        process.argv = ['node', 'cm', '--progress-jsonl']
         expect(isProgressJsonlEnabled()).toBe(true)
     })
 
     it('exposes the resolved path via getProgressJsonlPath()', () => {
-        process.argv = ['node', 'tw', '--progress-jsonl', '/tmp/out.jsonl']
+        process.argv = ['node', 'cm', '--progress-jsonl', '/tmp/out.jsonl']
         expect(getProgressJsonlPath()).toBe('/tmp/out.jsonl')
     })
 })
@@ -169,13 +169,13 @@ describe('isAccessible', () => {
 
     beforeEach(() => {
         resetGlobalArgs()
-        process.argv = ['node', 'tw']
-        delete process.env.TW_ACCESSIBLE
+        process.argv = ['node', 'cm']
+        delete process.env.CM_ACCESSIBLE
     })
 
     afterEach(() => {
         process.argv = originalArgv
-        delete process.env.TW_ACCESSIBLE
+        delete process.env.CM_ACCESSIBLE
         resetGlobalArgs()
     })
 
@@ -183,20 +183,20 @@ describe('isAccessible', () => {
         expect(isAccessible()).toBe(false)
     })
 
-    it('returns true when TW_ACCESSIBLE=1', () => {
-        process.env.TW_ACCESSIBLE = '1'
+    it('returns true when CM_ACCESSIBLE=1', () => {
+        process.env.CM_ACCESSIBLE = '1'
         expect(isAccessible()).toBe(true)
     })
 
-    it('returns false when TW_ACCESSIBLE is set to other values', () => {
-        process.env.TW_ACCESSIBLE = '0'
+    it('returns false when CM_ACCESSIBLE is set to other values', () => {
+        process.env.CM_ACCESSIBLE = '0'
         expect(isAccessible()).toBe(false)
-        process.env.TW_ACCESSIBLE = 'true'
+        process.env.CM_ACCESSIBLE = 'true'
         expect(isAccessible()).toBe(false)
     })
 
     it('returns true when --accessible is in argv', () => {
-        process.argv = ['node', 'tw', '--accessible']
+        process.argv = ['node', 'cm', '--accessible']
         resetGlobalArgs()
         expect(isAccessible()).toBe(true)
     })
@@ -209,7 +209,7 @@ describe('isNonInteractive', () => {
     beforeEach(() => {
         originalIsTTY = process.stdin.isTTY
         resetGlobalArgs()
-        process.argv = ['node', 'tw']
+        process.argv = ['node', 'cm']
     })
 
     afterEach(() => {
@@ -242,7 +242,7 @@ describe('isNonInteractive', () => {
             value: true,
             configurable: true,
         })
-        process.argv = ['node', 'tw', '--non-interactive']
+        process.argv = ['node', 'cm', '--non-interactive']
         resetGlobalArgs()
         expect(isNonInteractive()).toBe(true)
     })
@@ -252,13 +252,13 @@ describe('isNonInteractive', () => {
             value: undefined,
             configurable: true,
         })
-        process.argv = ['node', 'tw', '--interactive']
+        process.argv = ['node', 'cm', '--interactive']
         resetGlobalArgs()
         expect(isNonInteractive()).toBe(false)
     })
 
     it('--interactive overrides --non-interactive', () => {
-        process.argv = ['node', 'tw', '--non-interactive', '--interactive']
+        process.argv = ['node', 'cm', '--non-interactive', '--interactive']
         resetGlobalArgs()
         expect(isNonInteractive()).toBe(false)
     })
@@ -270,7 +270,7 @@ describe('includePrivateChannels', () => {
 
     beforeEach(() => {
         resetGlobalArgs()
-        process.argv = ['node', 'tw']
+        process.argv = ['node', 'cm']
         delete process.env.COMMS_INCLUDE_PRIVATE_CHANNELS
     })
 
@@ -289,7 +289,7 @@ describe('includePrivateChannels', () => {
     })
 
     it('returns true when --include-private-channels is in argv', () => {
-        process.argv = ['node', 'tw', '--include-private-channels']
+        process.argv = ['node', 'cm', '--include-private-channels']
         resetGlobalArgs()
         expect(includePrivateChannels()).toBe(true)
     })
@@ -317,14 +317,14 @@ describe('shouldDisableSpinner', () => {
 
     beforeEach(() => {
         resetGlobalArgs()
-        process.argv = ['node', 'tw']
-        delete process.env.TW_SPINNER
+        process.argv = ['node', 'cm']
+        delete process.env.CM_SPINNER
         delete process.env.CI
     })
 
     afterEach(() => {
         process.argv = originalArgv
-        delete process.env.TW_SPINNER
+        delete process.env.CM_SPINNER
         delete process.env.CI
         resetGlobalArgs()
     })
@@ -333,8 +333,8 @@ describe('shouldDisableSpinner', () => {
         expect(shouldDisableSpinner()).toBe(false)
     })
 
-    it('returns true when TW_SPINNER=false', () => {
-        process.env.TW_SPINNER = 'false'
+    it('returns true when CM_SPINNER=false', () => {
+        process.env.CM_SPINNER = 'false'
         expect(shouldDisableSpinner()).toBe(true)
     })
 
@@ -352,11 +352,11 @@ describe('shouldDisableSpinner', () => {
     })
 
     it.each([
-        ['--json', ['node', 'tw', '--json']],
-        ['--ndjson', ['node', 'tw', '--ndjson']],
-        ['--no-spinner', ['node', 'tw', '--no-spinner']],
-        ['--progress-jsonl', ['node', 'tw', '--progress-jsonl']],
-        ['--non-interactive', ['node', 'tw', '--non-interactive']],
+        ['--json', ['node', 'cm', '--json']],
+        ['--ndjson', ['node', 'cm', '--ndjson']],
+        ['--no-spinner', ['node', 'cm', '--no-spinner']],
+        ['--progress-jsonl', ['node', 'cm', '--progress-jsonl']],
+        ['--non-interactive', ['node', 'cm', '--non-interactive']],
     ])('returns true with %s flag', (_flag, argv) => {
         process.argv = argv
         resetGlobalArgs()

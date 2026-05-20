@@ -28,13 +28,13 @@ export function registerChannelCommand(program: Command): void {
             'after',
             `
 Examples:
-  tw channels
-  tw channels --state all
-  tw channels --scope discoverable
-  tw channels --scope public --state archived
-  tw channels --scope public --state all --json
-  tw channels --json
-  tw channels "My Workspace" --scope discoverable --json
+  cm channels
+  cm channels --state all
+  cm channels --scope discoverable
+  cm channels --scope public --state archived
+  cm channels --scope public --state all --json
+  cm channels --json
+  cm channels "My Workspace" --scope discoverable --json
 
 Notes:
   Defaults to active channels that you have joined.
@@ -45,7 +45,7 @@ Notes:
   all           Both active and archived channels
   archived      Archived channels only
 
-  Twist does not expose unjoined private channels, so public/discoverable scopes never include them.`,
+  Comms does not expose unjoined private channels, so public/discoverable scopes never include them.`,
         )
         .action(listChannels)
 
@@ -74,12 +74,12 @@ Notes:
             'after',
             `
 Examples:
-  tw channel threads 12345
-  tw channel threads "general"
-  tw channel threads id:12345 --unread
-  tw channel threads 12345 --archive-filter all --since 2026-01-01
-  tw channel threads 12345 --limit 20 --json
-  tw channel threads 12345 --limit 20 --cursor <cursor-from-previous>
+  cm channel threads 12345
+  cm channel threads "general"
+  cm channel threads id:12345 --unread
+  cm channel threads 12345 --archive-filter all --since 2026-01-01
+  cm channel threads 12345 --limit 20 --json
+  cm channel threads 12345 --limit 20 --cursor <cursor-from-previous>
 
 Notes:
   Sorted newest-first by last activity. --limit, --cursor, --since, --until,
