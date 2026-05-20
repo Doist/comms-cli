@@ -73,6 +73,25 @@ export type CommsAccount = AuthAccount & {
 
 export type CommsTokenStore = KeyringTokenStore<CommsAccount>
 
+/**
+ * Sentinel for the `{ id: '', label: '' }` snapshot that `tdc auth token`
+ * persists when the user passes a raw token with no identity attached. The
+ * empty-id/empty-label pair is the contract between `loginWithToken` (writer)
+ * and `account current` / `account list` (readers); centralise it here so
+ * each call site agrees on the shape.
+ */
+export const MANUAL_TOKEN_ACCOUNT: CommsAccount = {
+    id: '',
+    label: '',
+    authMode: 'unknown',
+    authScope: '',
+}
+
+/** True when `account` is the identity-less snapshot produced by `tdc auth token`. */
+export function isManualTokenAccount(account: Pick<CommsAccount, 'id' | 'label'>): boolean {
+    return !account.id || !account.label
+}
+
 type CommsHandshake = Record<string, unknown> & {
     clientId: string
     clientSecret: string
@@ -284,7 +303,12 @@ export async function findAccountInStore(
     ref: AccountRef,
 ): Promise<CommsAccount> {
     const records = await store.list()
-    const match = records.find(({ account }) => matchCommsAccount(account, ref))
+    // Manual-token snapshots have no id/label and can't be the target of a
+    // ref-based command. Excluding them here keeps `tdc account use|remove`
+    // honest with what `tdc account list` shows.
+    const match = records
+        .filter(({ account }) => !isManualTokenAccount(account))
+        .find(({ account }) => matchCommsAccount(account, ref))
     if (!match) {
         throw new CliError('ACCOUNT_NOT_FOUND', `No stored account matches "${ref}".`, [
             'Run: tdc account list',
@@ -310,10 +334,7 @@ export function createCommsTokenStore(): CommsTokenStore {
             if (ref === undefined) {
                 const envToken = process.env[TOKEN_ENV_VAR]
                 if (envToken) {
-                    return {
-                        token: envToken,
-                        account: { id: '', label: '', authMode: 'unknown', authScope: '' },
-                    }
+                    return { token: envToken, account: MANUAL_TOKEN_ACCOUNT }
                 }
             }
             return inner.active(ref)

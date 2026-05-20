@@ -12,33 +12,20 @@ jobs:
         timeout-minutes: 10
 
         steps:
-            - name: Checkout Comms SDK (sibling dep via file:../comms-sdk-typescript)
-              uses: actions/checkout@v5
-              with:
-                  repository: Doist/comms-sdk-typescript
-                  path: comms-sdk-typescript
-                  token: ${{ secrets.GITHUB_TOKEN }}
-
             - name: Checkout
               uses: actions/checkout@v5
-              with:
-                  path: comms-cli
 
             - name: Setup Node.js
               uses: actions/setup-node@v6
               with:
-                  node-version-file: comms-cli/.nvmrc
+                  node-version-file: '.nvmrc'
                   cache: 'npm'
-                  cache-dependency-path: comms-cli/package-lock.json
 
             - name: Install dependencies
-              working-directory: comms-cli
               run: npm ci
 
             - name: Type check
-              working-directory: comms-cli
               run: npm run type-check
 
             - name: Lint & format check
-              working-directory: comms-cli
               run: npm run lint:check

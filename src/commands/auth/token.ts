@@ -1,6 +1,6 @@
 import { createInterface } from 'node:readline'
 import chalk from 'chalk'
-import { createCommsTokenStore } from '../../lib/auth-provider.js'
+import { createCommsTokenStore, MANUAL_TOKEN_ACCOUNT } from '../../lib/auth-provider.js'
 import { CliError } from '../../lib/errors.js'
 import { isNonInteractive } from '../../lib/global-args.js'
 import { logTokenStorageResult } from './helpers.js'
@@ -52,7 +52,7 @@ export async function loginWithToken(): Promise<void> {
     // `authUserId: undefined` for it and the synthesised record is what later
     // `active()` / `list()` reads will return.
     const store = createCommsTokenStore()
-    await store.set({ id: '', label: '', authMode: 'unknown', authScope: '' }, trimmed)
+    await store.set(MANUAL_TOKEN_ACCOUNT, trimmed)
     console.log(chalk.green('✓'), 'API token saved successfully!')
     const result = store.getLastStorageResult()
     if (result) {

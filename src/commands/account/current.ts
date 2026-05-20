@@ -1,6 +1,6 @@
 import { emitView } from '@doist/cli-core'
 import chalk from 'chalk'
-import type { CommsTokenStore } from '../../lib/auth-provider.js'
+import { type CommsTokenStore, isManualTokenAccount } from '../../lib/auth-provider.js'
 import { TOKEN_ENV_VAR } from '../../lib/auth.js'
 import { CliError } from '../../lib/errors.js'
 import type { ViewOptions } from '../../lib/options.js'
@@ -21,10 +21,10 @@ export async function currentAccount(options: ViewOptions, store: CommsTokenStor
     }
     const { account } = snapshot
 
-    // `tdc auth token` persists `{ id: '', label: '' }` because manual token
-    // entry has no identity. Render that case explicitly rather than printing
-    // blank fields.
-    if (!account.id || !account.label) {
+    // `tdc auth token` persists `MANUAL_TOKEN_ACCOUNT` (empty id/label) because
+    // manual token entry has no identity. Render that case explicitly rather
+    // than printing blank fields.
+    if (isManualTokenAccount(account)) {
         emitView(options, { source: 'token-only' }, () => [
             'Active token saved via `tdc auth token` (no associated identity).',
             chalk.dim('Run `tdc auth login` to attach an account to the token.'),

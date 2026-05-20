@@ -176,7 +176,12 @@ describe('account command', () => {
 
             const output = stdout()
             expect(output).toContain('saved via `tdc auth token`')
-            expect(output).not.toMatch(/Active account: id: {2}/)
+            // The token-only path must skip the regular `Active account: …`
+            // header entirely — otherwise a future change could resurrect a
+            // blank-fields render of the empty-id snapshot.
+            expect(output).not.toContain('Active account:')
+            expect(output).not.toContain('Mode:')
+            expect(output).not.toContain('Scope:')
         })
 
         it('emits {source:"token-only"} in --json mode for empty-id snapshots', async () => {
