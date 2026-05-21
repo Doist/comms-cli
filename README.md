@@ -90,6 +90,18 @@ export COMMS_API_TOKEN="your-token"
 
 `COMMS_API_TOKEN` always takes priority over the stored token.
 
+### Staging / alternate hosts
+
+Point the CLI at a non-production Comms instance with `COMMS_BASE_URL`:
+
+```bash
+export COMMS_BASE_URL=https://comms.staging.todoist.com
+export COMMS_API_TOKEN=<staging-token>
+tdc user
+```
+
+The base URL is threaded through both the SDK and the search endpoint. You need a token issued by that environment — production tokens are rejected.
+
 ### Auth commands
 
 ```bash
