@@ -1,10 +1,31 @@
+import type { CommsApi } from '@doist/comms-sdk'
 import chalk from 'chalk'
-import { assertBatchData, buildOptionalBatchNameMap, getCommsClient } from '../../lib/api.js'
+import { getCommsClient } from '../../lib/api.js'
 import { formatRelativeDate } from '../../lib/dates.js'
 import { renderMarkdown } from '../../lib/markdown.js'
 import { colors, filterEntityFields } from '../../lib/output.js'
 import { resolveConversationId } from '../../lib/refs.js'
 import { buildConversationTitle, type ConversationViewOptions } from './helpers.js'
+
+/** Per-ID lookup, deduped — avoids a workspace-wide fetch for a single conversation. */
+async function fetchUserNamesByIds(
+    client: CommsApi,
+    workspaceId: number,
+    userIds: readonly number[],
+): Promise<Map<number, string>> {
+    const unique = [...new Set(userIds)]
+    const entries = await Promise.all(
+        unique.map(async (userId) => {
+            try {
+                const user = await client.workspaceUsers.getUserById({ workspaceId, userId })
+                return [userId, user.fullName] as const
+            } catch {
+                return null
+            }
+        }),
+    )
+    return new Map(entries.filter((e): e is readonly [number, string] => e !== null))
+}
 
 export async function viewConversation(
     ref: string,
@@ -14,34 +35,16 @@ export async function viewConversation(
     const client = await getCommsClient()
     const limit = options.limit ? parseInt(options.limit, 10) : 50
 
-    const [convResponse, messagesResponse] = await client.batch(
-        client.conversations.getConversation(conversationId, { batch: true }),
-        client.conversationMessages.getMessages(
-            {
-                conversationId,
-                limit,
-            },
-            { batch: true },
-        ),
-    )
+    const [conversation, messages] = await Promise.all([
+        client.conversations.getConversation(conversationId),
+        client.conversationMessages.getMessages({ conversationId, limit }),
+    ])
 
-    const conversation = assertBatchData(convResponse, `conversation ${conversationId}`)
-    const messages = assertBatchData(
-        messagesResponse,
-        `messages for conversation ${conversationId}`,
-    )
+    const userMap = await fetchUserNamesByIds(client, conversation.workspaceId, [
+        ...conversation.userIds,
+        ...messages.map((m) => m.creator),
+    ])
 
-    const userIds = [
-        ...new Set<number>([...conversation.userIds, ...messages.map((m) => m.creator)]),
-    ]
-    const userCalls = userIds.map((id) =>
-        client.workspaceUsers.getUserById(
-            { workspaceId: conversation.workspaceId, userId: id },
-            { batch: true },
-        ),
-    )
-    const userResponses = await client.batch(...userCalls)
-    const userMap = buildOptionalBatchNameMap(userIds, userResponses, 'user')
     const conversationOutput = {
         ...conversation,
         participantNames: conversation.userIds.map((id) => userMap.get(id)),

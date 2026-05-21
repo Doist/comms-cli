@@ -2,9 +2,6 @@ import { describeEmptyMachineOutput } from '@doist/cli-core/testing'
 import { Command } from 'commander'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
-const mockBatch = vi.fn()
-const mockGetUserById = vi.fn()
-
 const apiMocks = vi.hoisted(() => ({
     getCurrentWorkspaceId: vi.fn().mockResolvedValue(1),
     getWorkspaceGroups: vi.fn(),
@@ -41,16 +38,23 @@ function createProgram() {
 
 const sampleGroups = [
     {
-        id: 100,
+        id: 'GR100',
         name: 'Frontend',
         description: 'Frontend team',
         workspaceId: 1,
         userIds: [1, 2, 3],
         version: 1,
     },
-    { id: 200, name: 'Backend', description: null, workspaceId: 1, userIds: [4, 5], version: 1 },
     {
-        id: 300,
+        id: 'GR200',
+        name: 'Backend',
+        description: null,
+        workspaceId: 1,
+        userIds: [4, 5],
+        version: 1,
+    },
+    {
+        id: 'GR300',
         name: 'Full Stack',
         description: 'Cross-team',
         workspaceId: 1,
@@ -61,15 +65,20 @@ const sampleGroups = [
 
 const frontend = sampleGroups[0]
 
+const workspaceUsers = [
+    { id: 1, fullName: 'Alice', email: 'a@d.com' },
+    { id: 2, fullName: 'Bob', email: 'b@d.com' },
+    { id: 3, fullName: 'Carol', email: 'c@d.com' },
+    { id: 4, fullName: 'Dave', email: 'd@d.com' },
+    { id: 5, fullName: 'Eve', email: 'e@d.com' },
+]
+
 beforeEach(() => {
     vi.clearAllMocks()
     vi.restoreAllMocks()
     apiMocks.getCurrentWorkspaceId.mockResolvedValue(1)
     apiMocks.getWorkspaceGroups.mockResolvedValue(sampleGroups)
-    apiMocks.getCommsClient.mockResolvedValue({
-        workspaceUsers: { getUserById: mockGetUserById },
-        batch: mockBatch,
-    })
+    apiMocks.getWorkspaceUsers.mockResolvedValue(workspaceUsers)
 })
 
 describeEmptyMachineOutput('tdc groups list empty output', {
@@ -104,7 +113,7 @@ describe('tdc groups list (default)', () => {
 
         const output = JSON.parse(consoleSpy.mock.calls[0][0])
         expect(output).toHaveLength(3)
-        expect(output[0].id).toBe(100)
+        expect(output[0].id).toBe('GR100')
     })
 
     it('still works with explicit list subcommand', async () => {
@@ -147,7 +156,7 @@ describe('tdc groups list (default)', () => {
         expect(consoleSpy).toHaveBeenCalledTimes(1)
         const lines = consoleSpy.mock.calls[0][0].split('\n').filter(Boolean)
         expect(lines).toHaveLength(3)
-        expect(JSON.parse(lines[0]).id).toBe(100)
+        expect(JSON.parse(lines[0]).id).toBe('GR100')
     })
 
     it('includes all fields with --json --full', async () => {
@@ -174,40 +183,49 @@ describe('tdc groups list (default)', () => {
 })
 
 describe('tdc groups view', () => {
-    const batchUserResponses = [
-        { code: 200, data: { id: 1, name: 'Alice', email: 'a@d.com' } },
-        { code: 200, data: { id: 2, name: 'Bob', email: 'b@d.com' } },
-        { code: 200, data: { id: 3, name: 'Carol', email: 'c@d.com' } },
-    ]
+    const mockGetUserById = vi.fn()
 
     beforeEach(() => {
         refsMocks.resolveGroupRef.mockResolvedValue(frontend)
-        mockBatch.mockResolvedValue(batchUserResponses)
+        mockGetUserById.mockImplementation(
+            async ({ userId }: { workspaceId: number; userId: number }) => {
+                const user = workspaceUsers.find((u) => u.id === userId)
+                if (!user) throw new Error(`User ${userId} not found`)
+                return user
+            },
+        )
+        apiMocks.getCommsClient.mockResolvedValue({
+            workspaceUsers: { getUserById: mockGetUserById },
+        })
     })
 
-    it('resolves group ref and batch-fetches only group members', async () => {
+    it('resolves group ref and fetches each member individually', async () => {
         const program = createProgram()
         const consoleSpy = vi.spyOn(console, 'log').mockImplementation(() => {})
 
         await program.parseAsync(['node', 'tdc', 'groups', 'view', 'Frontend'])
 
         expect(refsMocks.resolveGroupRef).toHaveBeenCalledWith('Frontend', 1)
-        // Should batch-fetch users, not load all workspace users
-        expect(mockBatch).toHaveBeenCalled()
+        // Per-member fetch, not a workspace-wide load
+        expect(mockGetUserById).toHaveBeenCalledTimes(frontend.userIds.length)
+        for (const userId of frontend.userIds) {
+            expect(mockGetUserById).toHaveBeenCalledWith({ workspaceId: 1, userId })
+        }
         expect(apiMocks.getWorkspaceUsers).not.toHaveBeenCalled()
         const text = consoleSpy.mock.calls.map((c) => c[0]).join('\n')
         expect(text).toContain('Alice')
         expect(text).toContain('Bob')
+        expect(text).toContain('Carol')
     })
 
     it('outputs JSON with enriched members (default shape)', async () => {
         const program = createProgram()
         const consoleSpy = vi.spyOn(console, 'log').mockImplementation(() => {})
 
-        await program.parseAsync(['node', 'tdc', 'groups', 'view', 'id:100', '--json'])
+        await program.parseAsync(['node', 'tdc', 'groups', 'view', 'id:GR100', '--json'])
 
         const output = JSON.parse(consoleSpy.mock.calls[0][0])
-        expect(output.id).toBe(100)
+        expect(output.id).toBe('GR100')
         expect(output.name).toBe('Frontend')
         expect(output.members).toHaveLength(3)
         expect(output.members[0]).toMatchObject({ id: 1, name: 'Alice', email: 'a@d.com' })
@@ -216,14 +234,28 @@ describe('tdc groups view', () => {
         expect(output).not.toHaveProperty('version')
     })
 
+    it('renders user:N for members whose lookup fails', async () => {
+        mockGetUserById.mockImplementationOnce(async () => {
+            throw new Error('User not found')
+        })
+        const program = createProgram()
+        const consoleSpy = vi.spyOn(console, 'log').mockImplementation(() => {})
+
+        await program.parseAsync(['node', 'tdc', 'groups', 'view', 'Frontend', '--json'])
+
+        const output = JSON.parse(consoleSpy.mock.calls[0][0])
+        const missing = output.members.find((m: { id: number }) => m.id === frontend.userIds[0])
+        expect(missing).toMatchObject({ id: 1, name: null, email: null })
+    })
+
     it('outputs JSON with all fields when --full', async () => {
         const program = createProgram()
         const consoleSpy = vi.spyOn(console, 'log').mockImplementation(() => {})
 
-        await program.parseAsync(['node', 'tdc', 'groups', 'view', 'id:100', '--json', '--full'])
+        await program.parseAsync(['node', 'tdc', 'groups', 'view', 'id:GR100', '--json', '--full'])
 
         const output = JSON.parse(consoleSpy.mock.calls[0][0])
-        expect(output.id).toBe(100)
+        expect(output.id).toBe('GR100')
         expect(output.members).toHaveLength(3)
         // Full shape includes everything
         expect(output).toHaveProperty('description')
@@ -232,7 +264,7 @@ describe('tdc groups view', () => {
 
 describe('tdc groups create', () => {
     beforeEach(() => {
-        apiMocks.createGroup.mockResolvedValue({ ...frontend, id: 999, name: 'Design' })
+        apiMocks.createGroup.mockResolvedValue({ ...frontend, id: 'GR999', name: 'Design' })
     })
 
     it('creates a group without users', async () => {
@@ -292,7 +324,11 @@ describe('tdc groups rename', () => {
 
         await program.parseAsync(['node', 'tdc', 'groups', 'rename', 'Frontend', 'FE Team'])
 
-        expect(apiMocks.updateGroup).toHaveBeenCalledWith({ id: 100, name: 'FE Team' })
+        expect(apiMocks.updateGroup).toHaveBeenCalledWith({
+            id: 'GR100',
+            workspaceId: 1,
+            name: 'FE Team',
+        })
         expect(consoleSpy.mock.calls[0][0]).toContain('FE Team')
     })
 })
@@ -318,7 +354,7 @@ describe('tdc groups delete', () => {
 
         await program.parseAsync(['node', 'tdc', 'groups', 'delete', 'Frontend', '--yes'])
 
-        expect(apiMocks.deleteGroup).toHaveBeenCalledWith(100)
+        expect(apiMocks.deleteGroup).toHaveBeenCalledWith('GR100', 1)
     })
 
     it('errors in --json mode without --yes', async () => {
@@ -350,7 +386,7 @@ describe('tdc groups add-user', () => {
         ])
 
         expect(refsMocks.resolveUserRefs).toHaveBeenCalledWith('carol@d.com,dave@d.com', 1)
-        expect(apiMocks.addUsersToGroup).toHaveBeenCalledWith(100, [3, 4])
+        expect(apiMocks.addUsersToGroup).toHaveBeenCalledWith('GR100', 1, [3, 4])
     })
 
     it('mixes comma- and space-separated refs', async () => {
@@ -363,7 +399,7 @@ describe('tdc groups add-user', () => {
             'tdc',
             'groups',
             'add-user',
-            'id:100',
+            'id:GR100',
             'a@d.com,b@d.com',
             'c@d.com',
         ])
@@ -378,7 +414,7 @@ describe('tdc groups add-user', () => {
 
         await program.parseAsync(['node', 'tdc', 'groups', 'add-user', 'Frontend', 'id:1,id:3'])
 
-        expect(apiMocks.addUsersToGroup).toHaveBeenCalledWith(100, [3])
+        expect(apiMocks.addUsersToGroup).toHaveBeenCalledWith('GR100', 1, [3])
     })
 
     it('makes no API call when all users are already members', async () => {
@@ -414,7 +450,7 @@ describe('tdc groups add-user', () => {
         ])
 
         // Should deduplicate before calling the API
-        expect(apiMocks.addUsersToGroup).toHaveBeenCalledWith(100, [3, 4])
+        expect(apiMocks.addUsersToGroup).toHaveBeenCalledWith('GR100', 1, [3, 4])
     })
 })
 
@@ -437,7 +473,7 @@ describe('tdc groups remove-user', () => {
             'id:2,id:3,id:99',
         ])
 
-        expect(apiMocks.removeUsersFromGroup).toHaveBeenCalledWith(100, [2, 3])
+        expect(apiMocks.removeUsersFromGroup).toHaveBeenCalledWith('GR100', 1, [2, 3])
     })
 
     it('makes no API call when none of the users are members', async () => {
@@ -480,6 +516,6 @@ describe('tdc groups remove-user', () => {
         ])
 
         // Should deduplicate before calling the API
-        expect(apiMocks.removeUsersFromGroup).toHaveBeenCalledWith(100, [2, 3])
+        expect(apiMocks.removeUsersFromGroup).toHaveBeenCalledWith('GR100', 1, [2, 3])
     })
 })

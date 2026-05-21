@@ -2,7 +2,14 @@ import type { SearchResult } from '@doist/comms-sdk'
 import { getApiToken } from './auth.js'
 import { CliError } from './errors.js'
 
-const BASE_URL = 'https://api.comms.todoist.com/api/v3'
+function getBaseUrl(): string {
+    const override = process.env.COMMS_BASE_URL
+    if (override) {
+        const trimmed = override.endsWith('/') ? override.slice(0, -1) : override
+        return `${trimmed}/api/v1`
+    }
+    return 'https://api.comms.todoist.com/api/v1'
+}
 
 export type SearchType = 'threads' | 'messages' | 'all'
 
@@ -11,8 +18,8 @@ export interface ExtendedSearchParams {
     query?: string
     title?: string
     type?: SearchType
-    channelIds?: number[]
-    conversationIds?: number[]
+    channelIds?: string[]
+    conversationIds?: string[]
     authorIds?: number[]
     toUserIds?: number[]
     mentionSelf?: boolean
@@ -87,7 +94,7 @@ export async function extendedSearch(
         searchParams.append(key, String(value))
     }
 
-    const url = `${BASE_URL}/search?${searchParams.toString()}`
+    const url = `${getBaseUrl()}/search?${searchParams.toString()}`
 
     const response = await fetch(url, {
         method: 'GET',

@@ -62,9 +62,9 @@ async function mutateGroupMembership(
 
     if (actionableIds.length > 0) {
         if (action === 'add') {
-            await addUsersToGroup(group.id, actionableIds)
+            await addUsersToGroup(group.id, workspaceId, actionableIds)
         } else {
-            await removeUsersFromGroup(group.id, actionableIds)
+            await removeUsersFromGroup(group.id, workspaceId, actionableIds)
         }
     }
 
@@ -77,7 +77,7 @@ async function mutateGroupMembership(
     if (options.json) {
         if (options.full) {
             // For --full we need the actual updated group from the API
-            const updated = await getGroup(group.id)
+            const updated = await getGroup(group.id, workspaceId)
             console.log(formatJson(updated, 'group', true))
         } else {
             const result: Record<string, unknown> = { id: group.id, memberCount: newMemberCount }

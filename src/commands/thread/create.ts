@@ -5,7 +5,7 @@ import { openEditor, readStdin } from '../../lib/input.js'
 import type { MutationOptions } from '../../lib/options.js'
 import { formatJson, printDryRun } from '../../lib/output.js'
 import { assertChannelIsPublic } from '../../lib/public-channels.js'
-import { parseUserIdRefs, resolveChannelId } from '../../lib/refs.js'
+import { parseNotifyIdRefs, resolveChannelId } from '../../lib/refs.js'
 import { type ResolvedNotify, formatNotifyLabel, resolveNotifyIds } from './helpers.js'
 
 type CreateOptions = MutationOptions & {
@@ -35,7 +35,7 @@ export async function createThread(
         )
     }
 
-    const allIds = options.notify ? parseUserIdRefs(options.notify) : undefined
+    const allIds = options.notify ? parseNotifyIdRefs(options.notify) : undefined
 
     const client = await getCommsClient()
     const channel = await client.channels.getChannel(channelId)

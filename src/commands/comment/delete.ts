@@ -1,4 +1,4 @@
-import { assertBatchData, getCommsClient } from '../../lib/api.js'
+import { getCommsClient } from '../../lib/api.js'
 import { CliError } from '../../lib/errors.js'
 import type { MutationOptions } from '../../lib/options.js'
 import { formatJson, printDryRun } from '../../lib/output.js'
@@ -11,13 +11,10 @@ export async function deleteComment(ref: string, options: DeleteOptions): Promis
     const commentId = resolveCommentId(ref)
 
     const client = await getCommsClient()
-    const [commentResponse, userResponse] = await client.batch(
-        client.comments.getComment(commentId, { batch: true }),
-        client.users.getSessionUser({ batch: true }),
-    )
-
-    const comment = assertBatchData(commentResponse, 'comment')
-    const user = assertBatchData(userResponse, 'user')
+    const [comment, user] = await Promise.all([
+        client.comments.getComment(commentId),
+        client.users.getSessionUser(),
+    ])
 
     await assertChannelIsPublic(comment.channelId, comment.workspaceId)
 
@@ -29,8 +26,8 @@ export async function deleteComment(ref: string, options: DeleteOptions): Promis
         const preview =
             comment.content.length > 200 ? `${comment.content.slice(0, 200)}...` : comment.content
         printDryRun('delete comment', {
-            Comment: String(commentId),
-            Thread: String(comment.threadId),
+            Comment: commentId,
+            Thread: comment.threadId,
             Content: preview,
         })
         return

@@ -1,13 +1,7 @@
 import type { ArchiveFilter } from '@doist/comms-sdk'
 import chalk from 'chalk'
 import { Command, Option } from 'commander'
-import {
-    assertBatchData,
-    buildBatchNameMap,
-    getCurrentWorkspaceId,
-    getOptionalBatchData,
-    getCommsClient,
-} from '../lib/api.js'
+import { getCommsClient, getCurrentWorkspaceId } from '../lib/api.js'
 import { withCaseInsensitiveChoices } from '../lib/completion.js'
 import { formatRelativeDate } from '../lib/dates.js'
 import { CliError } from '../lib/errors.js'
@@ -16,6 +10,7 @@ import type { PaginatedViewOptions } from '../lib/options.js'
 import { colors, formatJson, formatNdjson, printEmpty } from '../lib/output.js'
 import { getPublicChannelIds } from '../lib/public-channels.js'
 import { resolveWorkspaceRef } from '../lib/refs.js'
+import { fetchUnreadThreadIds } from '../lib/threads.js'
 
 type InboxOptions = PaginatedViewOptions & {
     workspace?: string
@@ -45,23 +40,17 @@ async function showInbox(workspaceRef: string | undefined, options: InboxOptions
     const client = await getCommsClient()
     const limit = options.limit ? parseInt(options.limit, 10) : 50
 
-    const [threadsResponse, unreadResponse] = await client.batch(
-        client.inbox.getInbox(
-            {
-                workspaceId,
-                newerThan: options.since ? new Date(options.since) : undefined,
-                olderThan: options.until ? new Date(options.until) : undefined,
-                limit,
-                archiveFilter: options.archiveFilter ?? 'active',
-            },
-            { batch: true },
-        ),
-        client.threads.getUnread(workspaceId, { batch: true }),
-    )
+    const [threads, unreadThreadIds] = await Promise.all([
+        client.inbox.getInbox({
+            workspaceId,
+            newerThan: options.since ? new Date(options.since) : undefined,
+            olderThan: options.until ? new Date(options.until) : undefined,
+            limit,
+            archiveFilter: options.archiveFilter ?? 'active',
+        }),
+        fetchUnreadThreadIds(client, workspaceId),
+    ])
 
-    const threads = assertBatchData(threadsResponse, 'inbox threads')
-    const unreadData = getOptionalBatchData(unreadResponse, 'unread threads') ?? []
-    const unreadThreadIds = new Set(unreadData.map((u) => u.threadId))
     let inboxThreads = threads.map((t) => ({
         ...t,
         isUnread: unreadThreadIds.has(t.id),
@@ -77,9 +66,10 @@ async function showInbox(workspaceRef: string | undefined, options: InboxOptions
     }
 
     const channelIds = [...new Set(inboxThreads.map((t) => t.channelId))]
-    const channelCalls = channelIds.map((id) => client.channels.getChannel(id, { batch: true }))
-    const channelResponses = await client.batch(...channelCalls)
-    const channelMap = buildBatchNameMap(channelIds, channelResponses, 'channel')
+    const channelEntries = await Promise.all(
+        channelIds.map(async (id) => [id, await client.channels.getChannel(id)] as const),
+    )
+    const channelMap = new Map(channelEntries.map(([id, ch]) => [id, ch.name]))
 
     if (!includePrivateChannels()) {
         const publicIds = await getPublicChannelIds(workspaceId)
@@ -111,7 +101,7 @@ async function showInbox(workspaceRef: string | undefined, options: InboxOptions
     }
 
     // Group by channel, unreads first within each channel, then sort by date (newest first)
-    const groupedByChannel = new Map<number, typeof inboxThreads>()
+    const groupedByChannel = new Map<string, typeof inboxThreads>()
     for (const thread of inboxThreads) {
         const group = groupedByChannel.get(thread.channelId) || []
         group.push(thread)
@@ -146,7 +136,7 @@ async function showInbox(workspaceRef: string | undefined, options: InboxOptions
         return
     }
 
-    let currentChannelId: number | null = null
+    let currentChannelId: string | null = null
     for (const thread of sortedChannelGroups) {
         if (thread.channelId !== currentChannelId) {
             const channelName = channelMap.get(thread.channelId) || `ch:${thread.channelId}`

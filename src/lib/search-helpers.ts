@@ -21,11 +21,11 @@ import {
     type SearchType,
 } from './search-api.js'
 
-function resolveNumericRefs(
+function resolveStringRefs(
     refs: string | undefined,
     entityType: string,
-    resolver: (ref: string) => number,
-): number[] | undefined {
+    resolver: (ref: string) => string,
+): string[] | undefined {
     if (!refs) return undefined
     return refs.split(',').map((raw) => {
         const ref = raw.trim()
@@ -124,12 +124,12 @@ async function buildSearchParams(
 ): Promise<ExtendedSearchParams> {
     const limit = options.limit ? parseInt(options.limit, 10) : 50
 
-    const channelIds = resolveNumericRefs(options.channel, 'channel', resolveChannelId)
+    const channelIds = resolveStringRefs(options.channel, 'channel', resolveChannelId)
     const authorIds = options.author
         ? await resolveUserRefs(options.author, workspaceId)
         : undefined
     const toUserIds = options.to ? await resolveUserRefs(options.to, workspaceId) : undefined
-    const conversationIds = resolveNumericRefs(
+    const conversationIds = resolveStringRefs(
         options.conversation,
         'conversation',
         resolveConversationId,
@@ -212,10 +212,10 @@ function buildSearchResultUrl(
     workspaceId: number,
     result: {
         type: string
-        threadId?: number | null
-        channelId?: number | null
-        conversationId?: number | null
-        commentId?: number | null
+        threadId?: string | null
+        channelId?: string | null
+        conversationId?: string | null
+        commentId?: string | null
     },
 ): string {
     if (result.type === 'thread' && result.threadId && result.channelId) {

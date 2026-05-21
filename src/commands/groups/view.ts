@@ -1,4 +1,4 @@
-import { getCurrentWorkspaceId, getCommsClient } from '../../lib/api.js'
+import { getCommsClient, getCurrentWorkspaceId } from '../../lib/api.js'
 import type { ViewOptions } from '../../lib/options.js'
 import { colors, formatJson, formatNdjson, pluralize } from '../../lib/output.js'
 import { resolveGroupRef } from '../../lib/refs.js'
@@ -9,21 +9,21 @@ export async function viewGroup(ref: string, options: GroupViewOptions): Promise
     const workspaceId = await getCurrentWorkspaceId()
     const group = await resolveGroupRef(ref, workspaceId)
 
-    // Batch-fetch only the users in this group, not the entire workspace
     const client = await getCommsClient()
-    const userCalls = group.userIds.map((userId) =>
-        client.workspaceUsers.getUserById({ workspaceId, userId }, { batch: true }),
+    // Per-member fetch avoids loading the whole workspace directory for a small group.
+    const members = await Promise.all(
+        group.userIds.map(async (id) => {
+            try {
+                const user = await client.workspaceUsers.getUserById({
+                    workspaceId,
+                    userId: id,
+                })
+                return { id, name: user.fullName, email: user.email ?? null }
+            } catch {
+                return { id, name: null as string | null, email: null as string | null }
+            }
+        }),
     )
-    const userResponses = group.userIds.length > 0 ? await client.batch(...userCalls) : []
-
-    const members = group.userIds.map((id, i) => {
-        const user = userResponses[i]?.data
-        return {
-            id,
-            name: user?.name ?? null,
-            email: user?.email ?? null,
-        }
-    })
 
     if (options.json) {
         if (options.full) {

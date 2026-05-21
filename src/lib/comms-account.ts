@@ -22,12 +22,12 @@ export function makeCommsAccount(input: {
  * `auth-provider.ts`'s runtime graph.
  */
 export function toCommsAccount(
-    sessionUser: { id: number; name: string },
+    sessionUser: { id: number; fullName: string },
     metadata: { authMode?: AuthMode; authScope?: string } = {},
 ): CommsAccount {
     return makeCommsAccount({
         id: String(sessionUser.id),
-        label: sessionUser.name,
+        label: sessionUser.fullName,
         authMode: metadata.authMode,
         authScope: metadata.authScope,
     })

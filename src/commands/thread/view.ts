@@ -1,6 +1,6 @@
 import type { CommsApi } from '@doist/comms-sdk'
 import chalk from 'chalk'
-import { assertBatchData, buildOptionalBatchNameMap, getCommsClient } from '../../lib/api.js'
+import { buildUserNameMap, getCommsClient } from '../../lib/api.js'
 import { formatRelativeDate } from '../../lib/dates.js'
 import { renderMarkdown } from '../../lib/markdown.js'
 import type { PaginatedViewOptions } from '../../lib/options.js'
@@ -17,32 +17,19 @@ type ViewOptions = PaginatedViewOptions & {
 
 async function viewSingleComment(
     client: CommsApi,
-    threadId: number,
-    commentId: number,
+    threadId: string,
+    commentId: string,
     options: ViewOptions,
 ): Promise<void> {
-    const [threadResponse, commentResponse] = await client.batch(
-        client.threads.getThread(threadId, { batch: true }),
-        client.comments.getComment(commentId, { batch: true }),
-    )
+    const [thread, comment] = await Promise.all([
+        client.threads.getThread(threadId),
+        client.comments.getComment(commentId),
+    ])
 
-    const thread = assertBatchData(threadResponse, 'thread')
-    const comment = assertBatchData(commentResponse, `comment ${commentId}`)
-
-    const userIds = [...new Set([thread.creator, comment.creator])]
-    const userCalls = userIds.map((id) =>
-        client.workspaceUsers.getUserById(
-            { workspaceId: thread.workspaceId, userId: id },
-            { batch: true },
-        ),
-    )
-    const [channelResponse, ...userResponses] = await client.batch(
-        client.channels.getChannel(thread.channelId, { batch: true }),
-        ...userCalls,
-    )
-
-    const channel = assertBatchData(channelResponse, 'channel')
-    const userMap = buildOptionalBatchNameMap(userIds, userResponses, 'user')
+    const [channel, userMap] = await Promise.all([
+        client.channels.getChannel(thread.channelId),
+        buildUserNameMap(thread.workspaceId, client),
+    ])
 
     if (options.json) {
         const output = {
@@ -76,7 +63,7 @@ export async function viewThread(ref: string, options: ViewOptions): Promise<voi
     const parsed = parseRef(ref)
     const threadId = resolveThreadId(ref)
     const urlCommentId = parsed.type === 'url' ? parsed.parsed.commentId : undefined
-    let commentId: number | undefined
+    let commentId: string | undefined
     if (options.comment !== undefined) {
         commentId = extractId(options.comment)
     } else {
@@ -90,20 +77,14 @@ export async function viewThread(ref: string, options: ViewOptions): Promise<voi
 
     const limit = options.limit ? parseInt(options.limit, 10) : 50
 
-    const [threadResponse, commentsResponse] = await client.batch(
-        client.threads.getThread(threadId, { batch: true }),
-        client.comments.getComments(
-            {
-                threadId,
-                newerThan: options.since ? new Date(options.since) : undefined,
-                limit,
-            },
-            { batch: true },
-        ),
-    )
-
-    const thread = assertBatchData(threadResponse, 'thread')
-    const comments = assertBatchData(commentsResponse, 'comments')
+    const [thread, comments] = await Promise.all([
+        client.threads.getThread(threadId),
+        client.comments.getComments({
+            threadId,
+            newerThan: options.since ? new Date(options.since) : undefined,
+            limit,
+        }),
+    ])
 
     await assertChannelIsPublic(thread.channelId, thread.workspaceId)
 
@@ -114,8 +95,8 @@ export async function viewThread(ref: string, options: ViewOptions): Promise<voi
     let hasUnread = false
 
     if (options.unread) {
-        const unreadData = await client.threads.getUnread(thread.workspaceId)
-        const threadUnread = unreadData.find((u) => u.threadId === threadId)
+        const unread = await client.threads.getUnread(thread.workspaceId)
+        const threadUnread = unread.data.find((u) => u.threadId === threadId)
 
         if (threadUnread) {
             lastReadObjIndex = threadUnread.objIndex
@@ -133,26 +114,10 @@ export async function viewThread(ref: string, options: ViewOptions): Promise<voi
         }
     }
 
-    const userIds = [
-        ...new Set<number>([
-            thread.creator,
-            ...displayComments.map((c) => c.creator),
-            ...contextComments.map((c) => c.creator),
-        ]),
-    ]
-    const userCalls = userIds.map((id) =>
-        client.workspaceUsers.getUserById(
-            { workspaceId: thread.workspaceId, userId: id },
-            { batch: true },
-        ),
-    )
-    const [channelResponse, ...userResponses] = await client.batch(
-        client.channels.getChannel(thread.channelId, { batch: true }),
-        ...userCalls,
-    )
-
-    const channel = assertBatchData(channelResponse, 'channel')
-    const userMap = buildOptionalBatchNameMap(userIds, userResponses, 'user')
+    const [channel, userMap] = await Promise.all([
+        client.channels.getChannel(thread.channelId),
+        buildUserNameMap(thread.workspaceId, client),
+    ])
 
     if (options.json) {
         const output = {

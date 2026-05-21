@@ -22,7 +22,7 @@ export function printSeparator(label: string): void {
 }
 
 export interface CommentLike {
-    id: number
+    id: string
     creator: number
     posted: Date
     content: string
@@ -40,7 +40,7 @@ export async function printComment(
     console.log('')
 }
 
-export type NamedEntity = { id: number; name: string }
+export type NamedEntity = { id: number | string; name: string }
 
 export interface NotifiedInfo {
     users: NamedEntity[]
@@ -49,12 +49,12 @@ export interface NotifiedInfo {
 
 export interface ResolvedNotify {
     recipients: number[] | undefined
-    groups: number[] | undefined
+    groups: string[] | undefined
     notified: NotifiedInfo
 }
 
 export async function resolveNotifyIds(
-    ids: number[],
+    ids: string[],
     workspaceId: number,
 ): Promise<ResolvedNotify> {
     const workspaceGroups = await getWorkspaceGroups(workspaceId)
@@ -63,7 +63,7 @@ export async function resolveNotifyIds(
     const recipients = partitioned.userIds.length > 0 ? partitioned.userIds : undefined
     const groups = partitioned.groupIds.length > 0 ? partitioned.groupIds : undefined
     const workspaceUserList = await getWorkspaceUsers(workspaceId)
-    const userMap = new Map(workspaceUserList.map((u) => [u.id, u.name]))
+    const userMap = new Map(workspaceUserList.map((u) => [u.id, u.fullName]))
     const groupMap = new Map(workspaceGroups.map((g) => [g.id, g.name]))
     const notified: NotifiedInfo = {
         users: (recipients ?? []).map((id) => ({ id, name: userMap.get(id) ?? `user:${id}` })),

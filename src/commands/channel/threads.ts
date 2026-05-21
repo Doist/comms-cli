@@ -1,11 +1,6 @@
 import type { ArchiveFilter, Thread } from '@doist/comms-sdk'
 import chalk from 'chalk'
-import {
-    assertBatchData,
-    getCurrentWorkspaceId,
-    getOptionalBatchData,
-    getCommsClient,
-} from '../../lib/api.js'
+import { getCommsClient, getCurrentWorkspaceId } from '../../lib/api.js'
 import { formatRelativeDate } from '../../lib/dates.js'
 import { CliError } from '../../lib/errors.js'
 import { isAccessible } from '../../lib/global-args.js'
@@ -18,6 +13,7 @@ import {
 } from '../../lib/output.js'
 import { assertChannelIsPublic } from '../../lib/public-channels.js'
 import { resolveChannelRef, resolveWorkspaceRef } from '../../lib/refs.js'
+import { fetchUnreadThreadIds } from '../../lib/threads.js'
 import { decodeCursor, encodeCursor } from './helpers.js'
 
 type ChannelThreadsOptions = PaginatedViewOptions & {
@@ -81,19 +77,15 @@ export async function showChannelThreads(
     const archived = archiveFilterToFlag(options.archiveFilter)
     const client = await getCommsClient()
 
-    const [threadsResp, unreadResp] = await client.batch(
+    const [threadsData, unreadThreadIds] = await Promise.all([
         client.threads.getThreads(
             archived === undefined
                 ? { workspaceId, channelId: channel.id }
                 : { workspaceId, channelId: channel.id, archived },
-            { batch: true },
         ),
-        client.threads.getUnread(workspaceId, { batch: true }),
-    )
+        fetchUnreadThreadIds(client, workspaceId),
+    ])
 
-    const threadsData = assertBatchData(threadsResp, 'threads')
-    const unreadData = getOptionalBatchData(unreadResp, 'unread threads') ?? []
-    const unreadThreadIds = new Set(unreadData.map((u) => u.threadId))
     let threads: DecoratedThread[] = threadsData.map((t) => ({
         ...t,
         isUnread: unreadThreadIds.has(t.id),

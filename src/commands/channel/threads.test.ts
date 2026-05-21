@@ -46,9 +46,9 @@ function createProgram() {
 }
 
 type Thread = {
-    id: number
+    id: string
     title: string
-    channelId: number
+    channelId: string
     workspaceId: number
     creator: number
     commentCount: number
@@ -63,18 +63,20 @@ type Thread = {
     content?: string
 }
 
-function createThread(id: number, overrides: Partial<Thread> = {}): Thread {
+function createThread(id: number | string, overrides: Partial<Thread> = {}): Thread {
+    const sid = String(id)
+    const numeric = typeof id === 'number' ? id : Number(id) || 1
     return {
-        id,
-        title: `Thread ${id}`,
-        channelId: 100,
+        id: sid,
+        title: `Thread ${sid}`,
+        channelId: 'CH100',
         workspaceId: 1,
         creator: 999,
         commentCount: 0,
-        lastUpdated: new Date(`2026-01-${String(id).padStart(2, '0')}T00:00:00Z`),
-        posted: new Date(`2026-01-${String(id).padStart(2, '0')}T00:00:00Z`),
+        lastUpdated: new Date(`2026-01-${String(numeric).padStart(2, '0')}T00:00:00Z`),
+        posted: new Date(`2026-01-${String(numeric).padStart(2, '0')}T00:00:00Z`),
         isArchived: false,
-        url: `https://comms.todoist.com/a/1/ch/100/t/${id}`,
+        url: `https://comms.todoist.com/a/1/ch/CH100/t/${sid}`,
         pinned: false,
         snippet: '',
         snippetCreator: 999,
@@ -89,24 +91,19 @@ function setupClient({
     unread = [],
 }: {
     threads?: Thread[]
-    unread?: { threadId: number }[] | null
+    unread?: { threadId: string }[] | null
 } = {}) {
-    const mockGetThreads = vi.fn().mockReturnValue('threads-descriptor')
-    const mockGetUnread = vi.fn().mockReturnValue('unread-descriptor')
-    const mockBatch = vi.fn().mockResolvedValue([
-        { code: 200, data: threads },
-        { code: 200, data: unread },
-    ])
+    const mockGetThreads = vi.fn().mockResolvedValue(threads)
+    const mockGetUnread = vi.fn().mockResolvedValue({ data: unread ?? [], version: 1 })
 
     apiMocks.getCommsClient.mockResolvedValue({
         threads: { getThreads: mockGetThreads, getUnread: mockGetUnread },
-        batch: mockBatch,
     })
 
-    return { mockGetThreads, mockGetUnread, mockBatch }
+    return { mockGetThreads, mockGetUnread }
 }
 
-function channel(id = 100, name = 'general') {
+function channel(id = 'CH100', name = 'general') {
     return { id, name, workspaceId: 1, archived: false, public: true }
 }
 
@@ -169,10 +166,11 @@ describe('channel threads', () => {
 
         await program.parseAsync(['node', 'tdc', 'channel', 'threads', '12345', '--json'])
 
-        expect(mockGetThreads).toHaveBeenCalledWith(
-            { workspaceId: 1, channelId: 100, archived: false },
-            { batch: true },
-        )
+        expect(mockGetThreads).toHaveBeenCalledWith({
+            workspaceId: 1,
+            channelId: 'CH100',
+            archived: false,
+        })
     })
 
     it('--archive-filter all omits archived', async () => {
@@ -190,10 +188,7 @@ describe('channel threads', () => {
             '--json',
         ])
 
-        expect(mockGetThreads).toHaveBeenCalledWith(
-            { workspaceId: 1, channelId: 100 },
-            { batch: true },
-        )
+        expect(mockGetThreads).toHaveBeenCalledWith({ workspaceId: 1, channelId: 'CH100' })
     })
 
     it('--archive-filter archived passes archived:true', async () => {
@@ -211,16 +206,17 @@ describe('channel threads', () => {
             '--json',
         ])
 
-        expect(mockGetThreads).toHaveBeenCalledWith(
-            { workspaceId: 1, channelId: 100, archived: true },
-            { batch: true },
-        )
+        expect(mockGetThreads).toHaveBeenCalledWith({
+            workspaceId: 1,
+            channelId: 'CH100',
+            archived: true,
+        })
     })
 
     it('merges isUnread from getUnread set', async () => {
         setupClient({
             threads: [createThread(1), createThread(2), createThread(3)],
-            unread: [{ threadId: 2 }],
+            unread: [{ threadId: '2' }],
         })
         const consoleSpy = vi.spyOn(console, 'log').mockImplementation(() => {})
         const program = createProgram()
@@ -228,9 +224,9 @@ describe('channel threads', () => {
         await program.parseAsync(['node', 'tdc', 'channel', 'threads', '12345', '--json'])
 
         const output = JSON.parse(consoleSpy.mock.calls[0][0])
-        expect(output.results.find((t: { id: number }) => t.id === 1).isUnread).toBe(false)
-        expect(output.results.find((t: { id: number }) => t.id === 2).isUnread).toBe(true)
-        expect(output.results.find((t: { id: number }) => t.id === 3).isUnread).toBe(false)
+        expect(output.results.find((t: { id: string }) => t.id === '1').isUnread).toBe(false)
+        expect(output.results.find((t: { id: string }) => t.id === '2').isUnread).toBe(true)
+        expect(output.results.find((t: { id: string }) => t.id === '3').isUnread).toBe(false)
 
         consoleSpy.mockRestore()
     })
@@ -238,7 +234,7 @@ describe('channel threads', () => {
     it('--unread filters to unread threads only', async () => {
         setupClient({
             threads: [createThread(1), createThread(2), createThread(3)],
-            unread: [{ threadId: 2 }],
+            unread: [{ threadId: '2' }],
         })
         const consoleSpy = vi.spyOn(console, 'log').mockImplementation(() => {})
         const program = createProgram()
@@ -255,7 +251,7 @@ describe('channel threads', () => {
 
         const output = JSON.parse(consoleSpy.mock.calls[0][0])
         expect(output.results).toHaveLength(1)
-        expect(output.results[0].id).toBe(2)
+        expect(output.results[0].id).toBe('2')
 
         consoleSpy.mockRestore()
     })
@@ -283,7 +279,7 @@ describe('channel threads', () => {
         ])
 
         const output = JSON.parse(consoleSpy.mock.calls[0][0])
-        expect(output.results.map((t: { id: number }) => t.id).sort()).toEqual([2, 3])
+        expect(output.results.map((t: { id: string }) => t.id).sort()).toEqual(['2', '3'])
 
         consoleSpy.mockRestore()
     })
@@ -311,7 +307,7 @@ describe('channel threads', () => {
         ])
 
         const output = JSON.parse(consoleSpy.mock.calls[0][0])
-        expect(output.results.map((t: { id: number }) => t.id)).toEqual([1])
+        expect(output.results.map((t: { id: string }) => t.id)).toEqual(['1'])
 
         consoleSpy.mockRestore()
     })
@@ -330,7 +326,7 @@ describe('channel threads', () => {
         await program.parseAsync(['node', 'tdc', 'channel', 'threads', '12345', '--json'])
 
         const output = JSON.parse(consoleSpy.mock.calls[0][0])
-        expect(output.results.map((t: { id: number }) => t.id)).toEqual([2, 3, 1])
+        expect(output.results.map((t: { id: string }) => t.id)).toEqual(['2', '3', '1'])
 
         consoleSpy.mockRestore()
     })
@@ -360,7 +356,7 @@ describe('channel threads', () => {
         ])
 
         const output = JSON.parse(consoleSpy.mock.calls[0][0])
-        expect(output.results.map((t: { id: number }) => t.id)).toEqual([1, 2])
+        expect(output.results.map((t: { id: string }) => t.id)).toEqual(['1', '2'])
         expect(output.nextCursor).toEqual(encodeCursor(2))
 
         consoleSpy.mockRestore()
@@ -393,7 +389,7 @@ describe('channel threads', () => {
         ])
 
         const output = JSON.parse(consoleSpy.mock.calls[0][0])
-        expect(output.results.map((t: { id: number }) => t.id)).toEqual([3, 4])
+        expect(output.results.map((t: { id: string }) => t.id)).toEqual(['3', '4'])
         expect(output.nextCursor).toEqual(encodeCursor(4))
 
         consoleSpy.mockRestore()
@@ -421,7 +417,7 @@ describe('channel threads', () => {
 
         await program.parseAsync(['node', 'tdc', 'channel', 'threads', '12345', '--json'])
 
-        expect(vi.mocked(assertChannelIsPublic)).toHaveBeenCalledWith(100, 1)
+        expect(vi.mocked(assertChannelIsPublic)).toHaveBeenCalledWith('CH100', 1)
 
         consoleSpy.mockRestore()
     })
@@ -493,7 +489,7 @@ describe('channel threads', () => {
     })
 
     it('prints empty-state message when no threads', async () => {
-        refsMocks.resolveChannelRef.mockResolvedValue(channel(100, 'general'))
+        refsMocks.resolveChannelRef.mockResolvedValue(channel('CH100', 'general'))
         setupClient({ threads: [] })
         const consoleSpy = vi.spyOn(console, 'log').mockImplementation(() => {})
         const program = createProgram()
@@ -508,7 +504,7 @@ describe('channel threads', () => {
     it('--json emits isUnread and url without --full', async () => {
         setupClient({
             threads: [createThread(1)],
-            unread: [{ threadId: 1 }],
+            unread: [{ threadId: '1' }],
         })
         const consoleSpy = vi.spyOn(console, 'log').mockImplementation(() => {})
         const program = createProgram()
@@ -517,9 +513,9 @@ describe('channel threads', () => {
 
         const output = JSON.parse(consoleSpy.mock.calls[0][0])
         expect(output.results[0]).toMatchObject({
-            id: 1,
+            id: '1',
             isUnread: true,
-            url: 'https://comms.todoist.com/a/1/ch/100/t/1',
+            url: 'https://comms.todoist.com/a/1/ch/CH100/t/1',
         })
 
         consoleSpy.mockRestore()
@@ -552,15 +548,15 @@ describe('channel threads', () => {
         const first = JSON.parse(lines[0])
         const second = JSON.parse(lines[1])
         const meta = JSON.parse(lines[2])
-        expect(first.id).toBe(1)
-        expect(second.id).toBe(2)
+        expect(first.id).toBe('1')
+        expect(second.id).toBe('2')
         expect(meta).toEqual({ _meta: true, nextCursor: encodeCursor(2) })
 
         consoleSpy.mockRestore()
     })
 
-    it('does not crash when unreadResp.data is null (regression: batch getUnread returning null)', async () => {
-        setupClient({ threads: [createThread(1)], unread: null })
+    it('treats getUnread returning empty data as no unread threads', async () => {
+        setupClient({ threads: [createThread(1)], unread: [] })
         const consoleSpy = vi.spyOn(console, 'log').mockImplementation(() => {})
         const program = createProgram()
 
@@ -575,23 +571,18 @@ describe('channel threads', () => {
         consoleSpy.mockRestore()
     })
 
-    it('surfaces API error when threads batch sub-request fails', async () => {
-        const mockBatch = vi.fn().mockResolvedValue([
-            { code: 403, data: { errorString: 'Channel access denied' } },
-            { code: 200, data: [] },
-        ])
+    it('surfaces API error when getThreads rejects', async () => {
         apiMocks.getCommsClient.mockResolvedValue({
             threads: {
-                getThreads: vi.fn().mockReturnValue('threads-descriptor'),
-                getUnread: vi.fn().mockReturnValue('unread-descriptor'),
+                getThreads: vi.fn().mockRejectedValue(new Error('Channel access denied')),
+                getUnread: vi.fn().mockResolvedValue({ data: [], version: 1 }),
             },
-            batch: mockBatch,
         })
         const program = createProgram()
 
         await expect(
             program.parseAsync(['node', 'tdc', 'channel', 'threads', '12345', '--json']),
-        ).rejects.toThrow('Failed to fetch threads: Channel access denied')
+        ).rejects.toThrow('Channel access denied')
     })
 
     it('--full bypasses the essential-field filter in JSON output', async () => {

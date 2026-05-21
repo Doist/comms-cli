@@ -98,9 +98,8 @@ function createProgram() {
 
 const TEST_USER: User = {
     id: 1,
-    name: 'Test User',
+    fullName: 'Test User',
     shortName: 'test',
-    bot: false,
     timezone: 'UTC',
     removed: false,
     email: 'test@example.com',
@@ -423,7 +422,7 @@ describe('auth command', () => {
         // which reaches it because no token resolves in the test environment.
         const SNAPSHOT_ACCOUNT: CommsAccount = {
             id: String(TEST_USER.id),
-            label: TEST_USER.name,
+            label: TEST_USER.fullName,
             authMode: 'read-write',
             authScope: 'user:read threads:read',
         }

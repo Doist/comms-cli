@@ -246,16 +246,6 @@ If a channel is not found in \`tdc channels\`, widen with broader listings such 
 
 \`tdc channel threads\` returns every thread in the channel; pagination filters (\`--limit\`, \`--cursor\`, \`--since\`, \`--until\`, \`--unread\`) are applied client-side after fetch. \`--archive-filter\` is applied server-side. Results are sorted newest-first by last activity. In \`--json\` / \`--ndjson\`, the response includes a \`nextCursor\` string (opaque) you can pass via \`--cursor\` to fetch the next page; NDJSON emits the cursor as a final \`{ "_meta": true, "nextCursor": "..." }\` line.
 
-## Away Status
-
-\`\`\`bash
-tdc away                          # Show current away status
-tdc away set <type> [until]       # Set away (type: vacation, parental, sickleave, other)
-tdc away set vacation 2026-03-20  # Away until March 20
-tdc away set vacation 2026-03-20 --from 2026-03-15  # Custom start date
-tdc away clear                    # Clear away status
-\`\`\`
-
 ## Reactions
 
 \`\`\`bash

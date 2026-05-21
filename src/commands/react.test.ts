@@ -46,7 +46,7 @@ describe('react refs', () => {
             '+1',
         ])
 
-        expect(apiMocks.addReaction).toHaveBeenCalledWith({ threadId: 99, reaction: '👍' })
+        expect(apiMocks.addReaction).toHaveBeenCalledWith({ threadId: '99', reaction: '👍' })
         logSpy.mockRestore()
     })
 
@@ -63,7 +63,7 @@ describe('react refs', () => {
             'heart',
         ])
 
-        expect(apiMocks.removeReaction).toHaveBeenCalledWith({ messageId: 44, reaction: '❤️' })
+        expect(apiMocks.removeReaction).toHaveBeenCalledWith({ messageId: '44', reaction: '❤️' })
         logSpy.mockRestore()
     })
 
@@ -73,11 +73,11 @@ describe('react refs', () => {
 
         await program.parseAsync(['node', 'tdc', 'react', 'thread', '99', '+1', '--json'])
 
-        expect(apiMocks.addReaction).toHaveBeenCalledWith({ threadId: 99, reaction: '👍' })
+        expect(apiMocks.addReaction).toHaveBeenCalledWith({ threadId: '99', reaction: '👍' })
         const output = JSON.parse(logSpy.mock.calls[0][0])
         expect(output).toEqual({
             targetType: 'thread',
-            targetId: 99,
+            targetId: '99',
             emoji: '👍',
             action: 'added',
         })
@@ -90,11 +90,11 @@ describe('react refs', () => {
 
         await program.parseAsync(['node', 'tdc', 'unreact', 'comment', '42', 'heart', '--json'])
 
-        expect(apiMocks.removeReaction).toHaveBeenCalledWith({ commentId: 42, reaction: '❤️' })
+        expect(apiMocks.removeReaction).toHaveBeenCalledWith({ commentId: '42', reaction: '❤️' })
         const output = JSON.parse(logSpy.mock.calls[0][0])
         expect(output).toEqual({
             targetType: 'comment',
-            targetId: 42,
+            targetId: '42',
             emoji: '❤️',
             action: 'removed',
         })
@@ -120,7 +120,7 @@ describe('react refs', () => {
         const output = JSON.parse(logSpy.mock.calls[0][0])
         expect(output).toEqual({
             targetType: 'message',
-            targetId: 77,
+            targetId: '77',
             emoji: '🎉',
             action: 'added',
             dryRun: true,

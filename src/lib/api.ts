@@ -1,7 +1,6 @@
 import {
-    type BatchResponse,
-    type Group,
     CommsApi,
+    type Group,
     type User,
     type Workspace,
     type WorkspaceUser,
@@ -23,6 +22,7 @@ const API_SPINNER_MESSAGES: Record<string, { text: string; color?: 'blue' | 'gre
 
         // Workspace operations
         'workspaces.getWorkspaces': { text: 'Loading workspaces...', color: 'blue' },
+        'workspaces.getDefaultWorkspace': { text: 'Loading default workspace...', color: 'blue' },
         'workspaces.getPublicChannels': { text: 'Loading public channels...', color: 'blue' },
         'workspaceUsers.getWorkspaceUsers': { text: 'Loading workspace users...', color: 'blue' },
         'workspaceUsers.getUserById': { text: 'Loading user details...', color: 'blue' },
@@ -57,7 +57,10 @@ const API_SPINNER_MESSAGES: Record<string, { text: string; color?: 'blue' | 'gre
         'conversations.getConversations': { text: 'Loading conversations...', color: 'blue' },
         'conversations.getConversation': { text: 'Loading conversation...', color: 'blue' },
         'conversations.getUnread': { text: 'Loading unread conversations...', color: 'blue' },
-        'conversations.createConversation': { text: 'Creating conversation...', color: 'green' },
+        'conversations.getOrCreateConversation': {
+            text: 'Opening conversation...',
+            color: 'green',
+        },
         'conversations.archiveConversation': { text: 'Archiving conversation...', color: 'yellow' },
         'conversations.unarchiveConversation': {
             text: 'Unarchiving conversation...',
@@ -89,9 +92,6 @@ const API_SPINNER_MESSAGES: Record<string, { text: string; color?: 'blue' | 'gre
         'inbox.getInbox': { text: 'Loading inbox...', color: 'blue' },
         'inbox.archiveThread': { text: 'Archiving thread...', color: 'yellow' },
         'inbox.unarchiveThread': { text: 'Unarchiving thread...', color: 'yellow' },
-
-        // Batch operations
-        batch: { text: 'Processing batch operations...', color: 'blue' },
     }
 
 function createSpinnerWrappedApi(api: CommsApi): CommsApi {
@@ -168,7 +168,7 @@ function wrapResult(
     progressTracker: ReturnType<typeof getProgressTracker>,
     spinnerConfig: (typeof API_SPINNER_MESSAGES)[string] | undefined,
 ): unknown {
-    // If the method returns a non-thenable (e.g. batch request builder), return as-is
+    // If the method returns a non-thenable, return as-is.
     if (!result || typeof (result as { then?: unknown }).then !== 'function') {
         return result
     }
@@ -232,7 +232,8 @@ function analyzeAndEmitApiResponse(
 let apiClient: CommsApi | null = null
 
 export function createWrappedCommsClient(token: string): CommsApi {
-    const rawApi = new CommsApi(token)
+    const baseUrl = process.env.COMMS_BASE_URL
+    const rawApi = new CommsApi(token, baseUrl ? { baseUrl } : undefined)
     return createSpinnerWrappedApi(rawApi)
 }
 
@@ -270,10 +271,13 @@ export async function getCurrentWorkspaceId(flagValue?: number): Promise<number>
         return config.currentWorkspace
     }
 
-    const sessionUser = await getSessionUser()
-    if (sessionUser.defaultWorkspace) {
-        await updateConfig({ currentWorkspace: sessionUser.defaultWorkspace })
-        return sessionUser.defaultWorkspace
+    const client = await getCommsClient()
+    try {
+        const defaultWorkspace = await client.workspaces.getDefaultWorkspace()
+        await updateConfig({ currentWorkspace: defaultWorkspace.id })
+        return defaultWorkspace.id
+    } catch {
+        // Fall back to the first workspace if the user has no preferred default.
     }
 
     const workspaces = await fetchWorkspaces()
@@ -297,9 +301,46 @@ export async function getSessionUser(): Promise<User> {
     return sessionUserCache
 }
 
-export async function getWorkspaceUsers(workspaceId: number): Promise<WorkspaceUser[]> {
+const workspaceUserCache = new Map<number, WorkspaceUser[]>()
+
+async function loadWorkspaceUsers(workspaceId: number): Promise<WorkspaceUser[]> {
+    const cached = workspaceUserCache.get(workspaceId)
+    if (cached) return cached
     const client = await getCommsClient()
-    return client.workspaceUsers.getWorkspaceUsers({ workspaceId })
+    const users = await client.workspaceUsers.getWorkspaceUsers({ workspaceId })
+    workspaceUserCache.set(workspaceId, users)
+    return users
+}
+
+export async function getWorkspaceUsers(workspaceId: number): Promise<WorkspaceUser[]> {
+    return loadWorkspaceUsers(workspaceId)
+}
+
+export function clearWorkspaceUserCache(): void {
+    workspaceUserCache.clear()
+}
+
+/**
+ * Returns a `userId → fullName` map for the workspace. Missing users (deleted,
+ * external) are absent; callers should fall back (e.g. `?? user:${id}`).
+ *
+ * Pass `client` to reuse an already-resolved client (so test mocks of
+ * `getCommsClient` from the calling module apply transparently).
+ */
+export async function buildUserNameMap(
+    workspaceId: number,
+    client?: CommsApi,
+): Promise<Map<number, string>> {
+    const cached = workspaceUserCache.get(workspaceId)
+    let users: WorkspaceUser[]
+    if (cached) {
+        users = cached
+    } else {
+        const api = client ?? (await getCommsClient())
+        users = await api.workspaceUsers.getWorkspaceUsers({ workspaceId })
+        workspaceUserCache.set(workspaceId, users)
+    }
+    return new Map(users.map((u) => [u.id, u.fullName]))
 }
 
 export async function getWorkspaceGroups(workspaceId: number): Promise<Group[]> {
@@ -307,9 +348,9 @@ export async function getWorkspaceGroups(workspaceId: number): Promise<Group[]> 
     return client.groups.getGroups(workspaceId)
 }
 
-export async function getGroup(id: number): Promise<Group> {
+export async function getGroup(id: string, workspaceId: number): Promise<Group> {
     const client = await getCommsClient()
-    return client.groups.getGroup(id)
+    return client.groups.getGroup({ id, workspaceId })
 }
 
 export async function createGroup(args: {
@@ -321,122 +362,40 @@ export async function createGroup(args: {
     return client.groups.createGroup(args)
 }
 
-export async function updateGroup(args: { id: number; name?: string }): Promise<Group> {
+export async function updateGroup(args: {
+    id: string
+    workspaceId: number
+    name?: string
+}): Promise<Group> {
     const client = await getCommsClient()
     return client.groups.updateGroup(args)
 }
 
-export async function deleteGroup(id: number): Promise<void> {
+export async function deleteGroup(id: string, workspaceId: number): Promise<void> {
     const client = await getCommsClient()
-    await client.groups.deleteGroup(id)
+    await client.groups.deleteGroup({ id, workspaceId })
 }
 
-export async function addUsersToGroup(id: number, userIds: number[]): Promise<void> {
+export async function addUsersToGroup(
+    id: string,
+    workspaceId: number,
+    userIds: number[],
+): Promise<void> {
     const client = await getCommsClient()
-    await client.groups.addUsers({ id, userIds })
+    await client.groups.addUsers({ id, workspaceId, userIds })
 }
 
-export async function removeUsersFromGroup(id: number, userIds: number[]): Promise<void> {
+export async function removeUsersFromGroup(
+    id: string,
+    workspaceId: number,
+    userIds: number[],
+): Promise<void> {
     const client = await getCommsClient()
-    await client.groups.removeUsers({ id, userIds })
+    await client.groups.removeUsers({ id, workspaceId, userIds })
 }
 
 export function clearUserCache(): void {
     sessionUserCache = null
-}
-
-type BatchResult<T> = Pick<BatchResponse<T>, 'code' | 'data'>
-
-function extractBatchErrorMessage(data: unknown): string | null {
-    if (!data || typeof data !== 'object') {
-        return null
-    }
-
-    const record = data as Record<string, unknown>
-
-    if (typeof record.errorString === 'string' && record.errorString.trim()) {
-        return record.errorString.trim()
-    }
-
-    if (typeof record.error_string === 'string' && record.error_string.trim()) {
-        return record.error_string.trim()
-    }
-
-    if (Array.isArray(record.error)) {
-        const [, message] = record.error
-        if (typeof message === 'string' && message.trim()) {
-            return message.trim()
-        }
-    }
-
-    return null
-}
-
-/**
- * Validates a batch response and returns the data, throwing on errors.
- * Also handles the case where the SDK fails to validate the response schema
- * (e.g. when the batch API wraps entities in a key like `{comment: {...}}`).
- * In that case, the raw transformed data is returned — check for expected fields.
- */
-export function assertBatchData<T>(response: BatchResult<T>, label: string): T {
-    if (response.code < 400 && response.data != null) {
-        return response.data
-    }
-
-    const detail = extractBatchErrorMessage(response.data)
-    if (detail) {
-        throw new CliError('API_ERROR', `Failed to fetch ${label}: ${detail}`)
-    }
-
-    throw new CliError('BATCH_FAILED', `Failed to fetch ${label}.`)
-}
-
-export function buildBatchNameMap<T extends { id: number; name: string }>(
-    ids: readonly number[],
-    responses: readonly BatchResult<T>[],
-    label: string,
-): Map<number, string> {
-    return new Map(
-        ids.map((id, index) => {
-            const entity = assertBatchData(responses[index], `${label} ${id}`)
-            return [entity.id, entity.name] as const
-        }),
-    )
-}
-
-/**
- * Like `assertBatchData` but tolerates a null `data` with a success code as a
- * valid empty state (e.g. `getUnread` returning null when there are no unread
- * threads). Real API errors (`code >= 400`) still throw. Returns `null` when
- * the response is a success-but-empty so the caller can fall back (e.g. `?? []`).
- */
-export function getOptionalBatchData<T>(response: BatchResult<T>, label: string): T | null {
-    if (response.code < 400) {
-        return response.data ?? null
-    }
-    return assertBatchData(response, label)
-}
-
-/**
- * Like `buildBatchNameMap` but skips entries whose `data` is null with a success
- * code (e.g. a user that no longer exists). Real API errors (`code >= 400`) still
- * throw via `assertBatchData`. Callers should provide a fallback for missing keys.
- */
-export function buildOptionalBatchNameMap<T extends { id: number; name: string }>(
-    ids: readonly number[],
-    responses: readonly BatchResult<T>[],
-    label: string,
-): Map<number, string> {
-    const entries: Array<readonly [number, string]> = []
-    ids.forEach((id, index) => {
-        const response = responses[index]
-        if (response.code < 400 && response.data == null) {
-            return
-        }
-        const entity = assertBatchData(response, `${label} ${id}`)
-        entries.push([entity.id, entity.name] as const)
-    })
-    return new Map(entries)
 }
 
 export type { Group, User, Workspace, WorkspaceUser }
