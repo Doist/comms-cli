@@ -130,9 +130,13 @@ function createProgram() {
     return program
 }
 
+// Cache lives in api.ts module scope, so reset between tests.
+beforeEach(() => {
+    clearWorkspaceUserCache()
+})
+
 describe('conversation implicit view', () => {
     beforeEach(() => {
-        clearWorkspaceUserCache()
         vi.clearAllMocks()
         apiMocks.getCommsClient.mockRejectedValue(new Error('MOCK_API_REACHED'))
     })
@@ -151,7 +155,6 @@ describe('conversation implicit view', () => {
 
 describe('conversation unread --workspace conflict', () => {
     beforeEach(() => {
-        clearWorkspaceUserCache()
         vi.clearAllMocks()
     })
 
@@ -174,7 +177,6 @@ describe('conversation unread --workspace conflict', () => {
 
 describeEmptyMachineOutput('conversation unread empty output', {
     setup: () => {
-        clearWorkspaceUserCache()
         vi.clearAllMocks()
         const client = createClient({})
         apiMocks.getCommsClient.mockResolvedValue(client)
@@ -188,7 +190,6 @@ describeEmptyMachineOutput('conversation unread empty output', {
 
 describe('conversation with', () => {
     beforeEach(() => {
-        clearWorkspaceUserCache()
         vi.clearAllMocks()
         refsMocks.resolveUserRefs.mockResolvedValue([2])
     })
@@ -345,7 +346,6 @@ describe('conversation with', () => {
 
 describe('conversation view machine output', () => {
     beforeEach(() => {
-        clearWorkspaceUserCache()
         vi.clearAllMocks()
     })
 
@@ -442,7 +442,6 @@ describe('conversation view machine output', () => {
 
 describe('conversation view error propagation', () => {
     beforeEach(() => {
-        clearWorkspaceUserCache()
         vi.clearAllMocks()
     })
 
@@ -459,11 +458,33 @@ describe('conversation view error propagation', () => {
             program.parseAsync(['node', 'tdc', 'conversation', 'view', '42']),
         ).rejects.toThrow('Conversation not found')
     })
+
+    it('renders user:N when participant name lookups all fail', async () => {
+        const conversation = createConversation(42, [1, 2], '2026-03-08T10:00:00.000Z')
+        const client = createClient({
+            activeConversations: [conversation],
+            messagesByConversation: { '42': [] },
+        })
+        client.workspaceUsers.getUserById.mockRejectedValue(new Error('User lookup failed'))
+        apiMocks.getCommsClient.mockResolvedValue(client)
+
+        const program = createProgram()
+        const consoleSpy = vi.spyOn(console, 'log').mockImplementation(() => {})
+
+        // view.ts swallows individual user-lookup failures and falls back to
+        // `user:${id}` — the conversation itself still renders.
+        await program.parseAsync(['node', 'tdc', 'conversation', 'view', '42'])
+
+        const output = consoleSpy.mock.calls.map((c) => c[0]).join('\n')
+        expect(output).toContain('user:1')
+        expect(output).toContain('user:2')
+
+        consoleSpy.mockRestore()
+    })
 })
 
 describe('conversation mute', () => {
     beforeEach(() => {
-        clearWorkspaceUserCache()
         vi.clearAllMocks()
     })
 
@@ -549,7 +570,6 @@ describe('conversation mute', () => {
 
 describe('conversation unmute', () => {
     beforeEach(() => {
-        clearWorkspaceUserCache()
         vi.clearAllMocks()
     })
 
@@ -606,7 +626,6 @@ describe('conversation unmute', () => {
 
 describe('conversation done', () => {
     beforeEach(() => {
-        clearWorkspaceUserCache()
         vi.clearAllMocks()
     })
 

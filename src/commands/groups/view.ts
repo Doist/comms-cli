@@ -1,4 +1,4 @@
-import { getCurrentWorkspaceId, getWorkspaceUsers } from '../../lib/api.js'
+import { getCommsClient, getCurrentWorkspaceId } from '../../lib/api.js'
 import type { ViewOptions } from '../../lib/options.js'
 import { colors, formatJson, formatNdjson, pluralize } from '../../lib/output.js'
 import { resolveGroupRef } from '../../lib/refs.js'
@@ -9,17 +9,21 @@ export async function viewGroup(ref: string, options: GroupViewOptions): Promise
     const workspaceId = await getCurrentWorkspaceId()
     const group = await resolveGroupRef(ref, workspaceId)
 
-    const workspaceUsers = await getWorkspaceUsers(workspaceId)
-    const userMap = new Map(workspaceUsers.map((u) => [u.id, u]))
-
-    const members = group.userIds.map((id) => {
-        const user = userMap.get(id)
-        return {
-            id,
-            name: user?.fullName ?? null,
-            email: user?.email ?? null,
-        }
-    })
+    const client = await getCommsClient()
+    // Per-member fetch avoids loading the whole workspace directory for a small group.
+    const members = await Promise.all(
+        group.userIds.map(async (id) => {
+            try {
+                const user = await client.workspaceUsers.getUserById({
+                    workspaceId,
+                    userId: id,
+                })
+                return { id, name: user.fullName, email: user.email ?? null }
+            } catch {
+                return { id, name: null as string | null, email: null as string | null }
+            }
+        }),
+    )
 
     if (options.json) {
         if (options.full) {

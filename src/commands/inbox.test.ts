@@ -159,3 +159,18 @@ describe('inbox empty output (channel filter)', () => {
         expect(logSpy).toHaveBeenCalledWith('[]')
     })
 })
+
+describe('inbox API errors', () => {
+    it('propagates SDK rejections through the Promise.all that replaced batch', async () => {
+        vi.clearAllMocks()
+        apiMocks.getCurrentWorkspaceId.mockResolvedValue(1)
+        mockClient({
+            getInbox: vi.fn().mockRejectedValue(new Error('limit must be <= 500')),
+        })
+        const program = createProgram()
+
+        await expect(
+            program.parseAsync(['node', 'tdc', 'inbox', '--limit', '1000']),
+        ).rejects.toThrow('limit must be <= 500')
+    })
+})

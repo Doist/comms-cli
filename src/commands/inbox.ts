@@ -10,6 +10,7 @@ import type { PaginatedViewOptions } from '../lib/options.js'
 import { colors, formatJson, formatNdjson, printEmpty } from '../lib/output.js'
 import { getPublicChannelIds } from '../lib/public-channels.js'
 import { resolveWorkspaceRef } from '../lib/refs.js'
+import { fetchUnreadThreadIds } from '../lib/threads.js'
 
 type InboxOptions = PaginatedViewOptions & {
     workspace?: string
@@ -39,7 +40,7 @@ async function showInbox(workspaceRef: string | undefined, options: InboxOptions
     const client = await getCommsClient()
     const limit = options.limit ? parseInt(options.limit, 10) : 50
 
-    const [threads, unread] = await Promise.all([
+    const [threads, unreadThreadIds] = await Promise.all([
         client.inbox.getInbox({
             workspaceId,
             newerThan: options.since ? new Date(options.since) : undefined,
@@ -47,10 +48,9 @@ async function showInbox(workspaceRef: string | undefined, options: InboxOptions
             limit,
             archiveFilter: options.archiveFilter ?? 'active',
         }),
-        client.threads.getUnread(workspaceId),
+        fetchUnreadThreadIds(client, workspaceId),
     ])
 
-    const unreadThreadIds = new Set(unread.data.map((u) => u.threadId))
     let inboxThreads = threads.map((t) => ({
         ...t,
         isUnread: unreadThreadIds.has(t.id),

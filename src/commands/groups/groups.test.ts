@@ -183,18 +183,35 @@ describe('tdc groups list (default)', () => {
 })
 
 describe('tdc groups view', () => {
+    const mockGetUserById = vi.fn()
+
     beforeEach(() => {
         refsMocks.resolveGroupRef.mockResolvedValue(frontend)
+        mockGetUserById.mockImplementation(
+            async ({ userId }: { workspaceId: number; userId: number }) => {
+                const user = workspaceUsers.find((u) => u.id === userId)
+                if (!user) throw new Error(`User ${userId} not found`)
+                return user
+            },
+        )
+        apiMocks.getCommsClient.mockResolvedValue({
+            workspaceUsers: { getUserById: mockGetUserById },
+        })
     })
 
-    it('resolves group ref and fetches members via workspace users', async () => {
+    it('resolves group ref and fetches each member individually', async () => {
         const program = createProgram()
         const consoleSpy = vi.spyOn(console, 'log').mockImplementation(() => {})
 
         await program.parseAsync(['node', 'tdc', 'groups', 'view', 'Frontend'])
 
         expect(refsMocks.resolveGroupRef).toHaveBeenCalledWith('Frontend', 1)
-        expect(apiMocks.getWorkspaceUsers).toHaveBeenCalledWith(1)
+        // Per-member fetch, not a workspace-wide load
+        expect(mockGetUserById).toHaveBeenCalledTimes(frontend.userIds.length)
+        for (const userId of frontend.userIds) {
+            expect(mockGetUserById).toHaveBeenCalledWith({ workspaceId: 1, userId })
+        }
+        expect(apiMocks.getWorkspaceUsers).not.toHaveBeenCalled()
         const text = consoleSpy.mock.calls.map((c) => c[0]).join('\n')
         expect(text).toContain('Alice')
         expect(text).toContain('Bob')
@@ -215,6 +232,20 @@ describe('tdc groups view', () => {
         // Default shape should not include raw SDK fields like description, version
         expect(output).not.toHaveProperty('description')
         expect(output).not.toHaveProperty('version')
+    })
+
+    it('renders user:N for members whose lookup fails', async () => {
+        mockGetUserById.mockImplementationOnce(async () => {
+            throw new Error('User not found')
+        })
+        const program = createProgram()
+        const consoleSpy = vi.spyOn(console, 'log').mockImplementation(() => {})
+
+        await program.parseAsync(['node', 'tdc', 'groups', 'view', 'Frontend', '--json'])
+
+        const output = JSON.parse(consoleSpy.mock.calls[0][0])
+        const missing = output.members.find((m: { id: number }) => m.id === frontend.userIds[0])
+        expect(missing).toMatchObject({ id: 1, name: null, email: null })
     })
 
     it('outputs JSON with all fields when --full', async () => {

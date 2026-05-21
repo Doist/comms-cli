@@ -64,34 +64,51 @@ export async function getAllConversations(workspaceId: number): Promise<Conversa
     return [...byId.values()].sort(sortByLastActiveDescending)
 }
 
-export async function findDirectConversation(
-    workspaceId: number,
+function scanForDirectConversation(
+    conversations: readonly Conversation[],
     sessionUserId: number,
     targetUserId: number,
-): Promise<ConversationLookupResult> {
-    const conversations = await getAllConversations(workspaceId)
-    let groupConversationCount = 0
-
+): { match?: Conversation; extraGroupCount: number } {
+    let extraGroupCount = 0
     for (const conversation of conversations) {
-        if (!conversation.userIds.includes(targetUserId)) {
-            continue
-        }
+        if (!conversation.userIds.includes(targetUserId)) continue
 
         const isSelfConversation = sessionUserId === targetUserId
         const isDirect = isSelfConversation
             ? conversation.userIds.length === 1
             : conversation.userIds.length === 2 && conversation.userIds.includes(sessionUserId)
 
-        if (isDirect) {
-            return { directConversation: conversation, groupConversationCount }
-        }
+        if (isDirect) return { match: conversation, extraGroupCount }
 
         if (conversation.userIds.length > (isSelfConversation ? 1 : 2)) {
-            groupConversationCount += 1
+            extraGroupCount += 1
+        }
+    }
+    return { extraGroupCount }
+}
+
+export async function findDirectConversation(
+    workspaceId: number,
+    sessionUserId: number,
+    targetUserId: number,
+): Promise<ConversationLookupResult> {
+    const client = await getCommsClient()
+    // Active first — only scan archived on miss.
+    const active = await client.conversations.getConversations({ workspaceId })
+    const activeScan = scanForDirectConversation(active, sessionUserId, targetUserId)
+    if (activeScan.match) {
+        return {
+            directConversation: activeScan.match,
+            groupConversationCount: activeScan.extraGroupCount,
         }
     }
 
-    return { groupConversationCount }
+    const archived = await client.conversations.getConversations({ workspaceId, archived: true })
+    const archivedScan = scanForDirectConversation(archived, sessionUserId, targetUserId)
+    return {
+        directConversation: archivedScan.match,
+        groupConversationCount: activeScan.extraGroupCount + archivedScan.extraGroupCount,
+    }
 }
 
 export async function listConversationsWithUser(

@@ -13,6 +13,7 @@ import {
 } from '../../lib/output.js'
 import { assertChannelIsPublic } from '../../lib/public-channels.js'
 import { resolveChannelRef, resolveWorkspaceRef } from '../../lib/refs.js'
+import { fetchUnreadThreadIds } from '../../lib/threads.js'
 import { decodeCursor, encodeCursor } from './helpers.js'
 
 type ChannelThreadsOptions = PaginatedViewOptions & {
@@ -76,16 +77,15 @@ export async function showChannelThreads(
     const archived = archiveFilterToFlag(options.archiveFilter)
     const client = await getCommsClient()
 
-    const [threadsData, unread] = await Promise.all([
+    const [threadsData, unreadThreadIds] = await Promise.all([
         client.threads.getThreads(
             archived === undefined
                 ? { workspaceId, channelId: channel.id }
                 : { workspaceId, channelId: channel.id, archived },
         ),
-        client.threads.getUnread(workspaceId),
+        fetchUnreadThreadIds(client, workspaceId),
     ])
 
-    const unreadThreadIds = new Set(unread.data.map((u) => u.threadId))
     let threads: DecoratedThread[] = threadsData.map((t) => ({
         ...t,
         isUnread: unreadThreadIds.has(t.id),
