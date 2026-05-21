@@ -30,7 +30,7 @@ export async function deleteGroupCommand(ref: string, options: DeleteGroupOption
         return
     }
 
-    await deleteGroup(group.id)
+    await deleteGroup(group.id, workspaceId)
 
     if (options.json) {
         console.log(formatJson({ id: group.id, deleted: true }))

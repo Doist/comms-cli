@@ -1,10 +1,5 @@
 import chalk from 'chalk'
-import {
-    assertBatchData,
-    buildOptionalBatchNameMap,
-    getCurrentWorkspaceId,
-    getCommsClient,
-} from '../../lib/api.js'
+import { buildUserNameMap, getCommsClient, getCurrentWorkspaceId } from '../../lib/api.js'
 import { CliError } from '../../lib/errors.js'
 import { isAccessible } from '../../lib/global-args.js'
 import { colors, formatJson, formatNdjson, printEmpty } from '../../lib/output.js'
@@ -33,37 +28,19 @@ export async function showUnread(
     }
 
     const client = await getCommsClient()
-    const unreadConversations = await client.conversations.getUnread(workspaceId)
+    const unreadResponse = await client.conversations.getUnread(workspaceId)
+    const unreadConversations = unreadResponse.data
 
     if (unreadConversations.length === 0) {
         printEmpty({ options, type: 'conversation', message: 'No unread conversations.' })
         return
     }
 
-    const conversationCalls = unreadConversations.map((uc) =>
-        client.conversations.getConversation(uc.conversationId, { batch: true }),
-    )
-    const conversationResponses = await client.batch(...conversationCalls)
-    const conversations = unreadConversations.map((conversation, index) =>
-        assertBatchData(
-            conversationResponses[index],
-            `conversation ${conversation.conversationId}`,
-        ),
+    const conversations = await Promise.all(
+        unreadConversations.map((uc) => client.conversations.getConversation(uc.conversationId)),
     )
 
-    const userIds = new Set<number>()
-    for (const conv of conversations) {
-        for (const id of conv.userIds) {
-            userIds.add(id)
-        }
-    }
-
-    const userIdList = [...userIds]
-    const userCalls = userIdList.map((id) =>
-        client.workspaceUsers.getUserById({ workspaceId, userId: id }, { batch: true }),
-    )
-    const userResponses = await client.batch(...userCalls)
-    const userMap = buildOptionalBatchNameMap(userIdList, userResponses, 'user')
+    const userMap = await buildUserNameMap(workspaceId, client)
 
     if (options.json) {
         const output = conversations.map((c) => ({

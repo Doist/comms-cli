@@ -286,7 +286,7 @@ export function createCommsAuthProvider(): AuthProvider<CommsAccount> {
  */
 export function matchCommsAccount(account: CommsAccount, ref: AccountRef): boolean {
     const parsed = parseRef(ref)
-    if (parsed.type === 'id') return Number(account.id) === parsed.id
+    if (parsed.type === 'id') return account.id === parsed.id
     if (parsed.type === 'name') return account.label.toLowerCase() === parsed.name.toLowerCase()
     return false
 }

@@ -1,4 +1,3 @@
-import type { BatchResponse as CommsBatchResponse } from '@doist/comms-sdk'
 import { Command } from 'commander'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
@@ -42,81 +41,81 @@ vi.mock('../../lib/input.js', () => ({
 
 vi.mock('chalk')
 
+import { clearWorkspaceUserCache } from '../../lib/api.js'
 import { readStdin } from '../../lib/input.js'
 import { registerThreadCommand } from './index.js'
 
-function createThreadFixture(id: number) {
+function createThreadFixture(id: number | string) {
+    const sid = String(id)
     return {
-        id,
+        id: sid,
         title: 'Test Thread',
         content: 'Thread body',
         creator: 1,
-        channelId: 100,
+        channelId: 'CH100',
         workspaceId: 10,
         posted: new Date('2026-03-01T00:00:00.000Z'),
         commentCount: 3,
         isArchived: false,
         reactions: [],
-        url: `https://comms.todoist.com/a/10/ch/100/t/${id}`,
+        url: `https://comms.todoist.com/a/10/ch/CH100/t/${sid}`,
     }
 }
 
-function createComment(id: number, objIndex: number) {
+function createComment(id: number | string, objIndex: number) {
+    const sid = String(id)
     return {
-        id,
-        content: `Comment ${id}`,
+        id: sid,
+        content: `Comment ${sid}`,
         creator: 2,
-        threadId: 500,
+        threadId: '500',
+        channelId: 'CH100',
+        workspaceId: 10,
         posted: new Date('2026-03-02T00:00:00.000Z'),
         reactions: [],
         objIndex,
-        url: `https://comms.todoist.com/a/10/ch/100/t/500/c/${id}`,
+        url: `https://comms.todoist.com/a/10/ch/CH100/t/500/c/${sid}`,
     }
 }
-
-type BatchResult = Pick<CommsBatchResponse<unknown>, 'code' | 'data'>
 
 function createClient({
     thread = createThreadFixture(500),
     comments = [] as ReturnType<typeof createComment>[],
     unreadThreads = [] as Array<{
-        threadId: number
-        channelId: number
+        threadId: string
+        channelId: string
         objIndex: number
         directMention: boolean
     }>,
-    users = {} as Record<number, { id: number; name: string }>,
-    channel = { id: 100, name: 'General', workspaceId: 10 },
-    sessionUser = { id: 1, name: 'Test User' },
+    users = {} as Record<number, { id: number; fullName: string }>,
+    channel = { id: 'CH100', name: 'General', workspaceId: 10 },
+    sessionUser = { id: 1, fullName: 'Test User' },
 } = {}) {
     return {
         threads: {
-            getThread: vi.fn((_id: number, options?: { batch?: boolean }) => {
-                if (options?.batch) return { kind: 'thread', id: _id }
-                return Promise.resolve(thread)
-            }),
-            getUnread: vi.fn(async () => unreadThreads),
+            getThread: vi.fn(async (_id: string) => thread),
+            getUnread: vi.fn(async () => ({ data: unreadThreads, version: 1 })),
             createThread: vi.fn(
-                async (_args: { channelId: number; content: string; title?: string | null }) =>
+                async (_args: { channelId: string; content: string; title?: string | null }) =>
                     createThreadFixture(999),
             ),
-            closeThread: vi.fn(async (_args: { id: number; content: string }) =>
+            closeThread: vi.fn(async (_args: { id: string; content: string }) =>
                 createComment(10, 10),
             ),
-            reopenThread: vi.fn(async (_args: { id: number; content: string }) =>
+            reopenThread: vi.fn(async (_args: { id: string; content: string }) =>
                 createComment(11, 11),
             ),
-            muteThread: vi.fn(async (_args: { id: number; minutes: number }) => ({
+            muteThread: vi.fn(async (_args: { id: string; minutes: number }) => ({
                 ...thread,
                 mutedUntil: new Date(Date.now() + _args.minutes * 60000),
             })),
-            unmuteThread: vi.fn(async (_id: number) => ({
+            unmuteThread: vi.fn(async (_id: string) => ({
                 ...thread,
                 mutedUntil: null,
             })),
             deleteThread: vi.fn(async () => undefined),
             updateThread: vi.fn(
-                async (_args: { id: number; title?: string | null; content?: string | null }) => ({
+                async (_args: { id: string; title?: string | null; content?: string | null }) => ({
                     ...thread,
                     title: _args.title ?? thread.title,
                     content: _args.content ?? thread.content,
@@ -124,29 +123,19 @@ function createClient({
             ),
         },
         users: {
-            getSessionUser: vi.fn((_options?: { batch?: boolean }) => {
-                if (_options?.batch) return { kind: 'sessionUser' }
-                return Promise.resolve(sessionUser)
-            }),
+            getSessionUser: vi.fn(async () => sessionUser),
         },
         comments: {
-            getComments: vi.fn((_args: unknown, options?: { batch?: boolean }) => {
-                if (options?.batch) return { kind: 'comments' }
-                return Promise.resolve(comments)
-            }),
-            getComment: vi.fn((_id: number, options?: { batch?: boolean }) => {
-                if (options?.batch) return { kind: 'comment', id: _id }
-                return Promise.resolve(undefined)
-            }),
-            createComment: vi.fn(async (_args: { threadId: number; content: string }) =>
+            getComments: vi.fn(async (_args: unknown) => comments),
+            getComment: vi.fn(
+                async (id: string) => comments.find((c) => c.id === id) ?? comments[0],
+            ),
+            createComment: vi.fn(async (_args: { threadId: string; content: string }) =>
                 createComment(12, 12),
             ),
         },
         channels: {
-            getChannel: vi.fn((_id: number, options?: { batch?: boolean }) => {
-                if (options?.batch) return { kind: 'channel' }
-                return Promise.resolve(channel)
-            }),
+            getChannel: vi.fn(async (_id: string) => channel),
         },
         inbox: {
             archiveThread: vi.fn(async () => undefined),
@@ -154,44 +143,10 @@ function createClient({
         },
         workspaceUsers: {
             getUserById: vi.fn(
-                (
-                    { userId }: { workspaceId: number; userId: number },
-                    options?: { batch?: boolean },
-                ) => {
-                    if (options?.batch) return { kind: 'user', userId }
-                    return Promise.resolve(users[userId])
-                },
+                async ({ userId }: { workspaceId: number; userId: number }) => users[userId],
             ),
+            getWorkspaceUsers: vi.fn(async () => Object.values(users)),
         },
-        batch: vi.fn(
-            async (
-                ...requests: Array<{ kind: string; id?: number; userId?: number }>
-            ): Promise<BatchResult[]> =>
-                requests.map((request): BatchResult => {
-                    if (request.kind === 'thread') return { code: 200, data: thread }
-                    if (request.kind === 'comments') return { code: 200, data: comments }
-                    if (request.kind === 'comment') {
-                        return {
-                            code: 200,
-                            data: comments.find((c) => c.id === request.id) ?? comments[0],
-                        }
-                    }
-                    if (request.kind === 'channel') return { code: 200, data: channel }
-                    if (request.kind === 'sessionUser') {
-                        return { code: 200, data: sessionUser }
-                    }
-                    if (request.kind === 'user' && request.userId) {
-                        return {
-                            code: 200,
-                            data: users[request.userId] ?? {
-                                id: request.userId,
-                                name: `user:${request.userId}`,
-                            },
-                        }
-                    }
-                    throw new Error(`Unexpected batch request: ${JSON.stringify(request)}`)
-                }),
-        ),
     }
 }
 
@@ -204,6 +159,7 @@ function createProgram() {
 
 describe('thread implicit view', () => {
     beforeEach(() => {
+        clearWorkspaceUserCache()
         vi.clearAllMocks()
         apiMocks.getCommsClient.mockRejectedValue(new Error('MOCK_API_REACHED'))
     })
@@ -308,7 +264,7 @@ describe('thread implicit view', () => {
         await program.parseAsync(['node', 'tdc', 'thread', 'reply', '500', '--close'])
 
         expect(client.threads.closeThread).toHaveBeenCalledWith(
-            expect.objectContaining({ id: 500, content: 'closing comment' }),
+            expect.objectContaining({ id: '500', content: 'closing comment' }),
         )
         expect(client.comments.createComment).not.toHaveBeenCalled()
         consoleSpy.mockRestore()
@@ -325,7 +281,7 @@ describe('thread implicit view', () => {
         await program.parseAsync(['node', 'tdc', 'thread', 'reply', '500', '--reopen'])
 
         expect(client.threads.reopenThread).toHaveBeenCalledWith(
-            expect.objectContaining({ id: 500, content: 'reopening comment' }),
+            expect.objectContaining({ id: '500', content: 'reopening comment' }),
         )
         expect(client.comments.createComment).not.toHaveBeenCalled()
         consoleSpy.mockRestore()
@@ -351,14 +307,18 @@ describe('thread implicit view', () => {
 
 describe('thread view --unread', () => {
     beforeEach(() => {
-        vi.resetAllMocks()
+        clearWorkspaceUserCache()
+        vi.clearAllMocks()
+        configMocks.getConfig.mockResolvedValue({})
+        groupsMock.getWorkspaceGroups.mockResolvedValue([])
+        groupsMock.getWorkspaceUsers.mockResolvedValue([])
     })
 
     it('shows original post and "No unread comments" when thread has no unread data', async () => {
         const client = createClient({
             comments: [createComment(1, 1), createComment(2, 2)],
             unreadThreads: [],
-            users: { 1: { id: 1, name: 'Alice' }, 2: { id: 2, name: 'Bob' } },
+            users: { 1: { id: 1, fullName: 'Alice' }, 2: { id: 2, fullName: 'Bob' } },
         })
         apiMocks.getCommsClient.mockResolvedValue(client)
 
@@ -378,8 +338,10 @@ describe('thread view --unread', () => {
     it('filters to only unread comments in human-readable output', async () => {
         const client = createClient({
             comments: [createComment(1, 1), createComment(2, 2), createComment(3, 3)],
-            unreadThreads: [{ threadId: 500, channelId: 100, objIndex: 1, directMention: false }],
-            users: { 1: { id: 1, name: 'Alice' }, 2: { id: 2, name: 'Bob' } },
+            unreadThreads: [
+                { threadId: '500', channelId: 'CH100', objIndex: 1, directMention: false },
+            ],
+            users: { 1: { id: 1, fullName: 'Alice' }, 2: { id: 2, fullName: 'Bob' } },
         })
         apiMocks.getCommsClient.mockResolvedValue(client)
 
@@ -405,8 +367,10 @@ describe('thread view --unread', () => {
     it('filters comments in --json output when --unread is set', async () => {
         const client = createClient({
             comments: [createComment(1, 1), createComment(2, 2), createComment(3, 3)],
-            unreadThreads: [{ threadId: 500, channelId: 100, objIndex: 2, directMention: false }],
-            users: { 1: { id: 1, name: 'Alice' }, 2: { id: 2, name: 'Bob' } },
+            unreadThreads: [
+                { threadId: '500', channelId: 'CH100', objIndex: 2, directMention: false },
+            ],
+            users: { 1: { id: 1, fullName: 'Alice' }, 2: { id: 2, fullName: 'Bob' } },
         })
         apiMocks.getCommsClient.mockResolvedValue(client)
 
@@ -416,10 +380,10 @@ describe('thread view --unread', () => {
         await program.parseAsync(['node', 'tdc', 'thread', 'view', '500', '--unread', '--json'])
 
         const jsonOutput = JSON.parse(consoleSpy.mock.calls[0][0])
-        expect(jsonOutput.thread.id).toBe(500)
+        expect(jsonOutput.thread.id).toBe('500')
         // Only comment 3 is unread (objIndex 3 > lastReadObjIndex 2)
         expect(jsonOutput.comments).toHaveLength(1)
-        expect(jsonOutput.comments[0].id).toBe(3)
+        expect(jsonOutput.comments[0].id).toBe('3')
 
         consoleSpy.mockRestore()
     })
@@ -428,7 +392,7 @@ describe('thread view --unread', () => {
         const client = createClient({
             comments: [createComment(1, 1), createComment(2, 2)],
             unreadThreads: [],
-            users: { 1: { id: 1, name: 'Alice' }, 2: { id: 2, name: 'Bob' } },
+            users: { 1: { id: 1, fullName: 'Alice' }, 2: { id: 2, fullName: 'Bob' } },
         })
         apiMocks.getCommsClient.mockResolvedValue(client)
 
@@ -438,7 +402,7 @@ describe('thread view --unread', () => {
         await program.parseAsync(['node', 'tdc', 'thread', 'view', '500', '--unread', '--json'])
 
         const jsonOutput = JSON.parse(consoleSpy.mock.calls[0][0])
-        expect(jsonOutput.thread.id).toBe(500)
+        expect(jsonOutput.thread.id).toBe('500')
         expect(jsonOutput.comments).toHaveLength(0)
 
         consoleSpy.mockRestore()
@@ -447,8 +411,10 @@ describe('thread view --unread', () => {
     it('filters comments in --ndjson output when --unread is set', async () => {
         const client = createClient({
             comments: [createComment(1, 1), createComment(2, 2), createComment(3, 3)],
-            unreadThreads: [{ threadId: 500, channelId: 100, objIndex: 1, directMention: false }],
-            users: { 1: { id: 1, name: 'Alice' }, 2: { id: 2, name: 'Bob' } },
+            unreadThreads: [
+                { threadId: '500', channelId: 'CH100', objIndex: 1, directMention: false },
+            ],
+            users: { 1: { id: 1, fullName: 'Alice' }, 2: { id: 2, fullName: 'Bob' } },
         })
         apiMocks.getCommsClient.mockResolvedValue(client)
 
@@ -463,8 +429,8 @@ describe('thread view --unread', () => {
         // Only unread comments (objIndex > 1)
         const commentLines = lines.filter((l) => l.type === 'comment')
         expect(commentLines).toHaveLength(2)
-        expect(commentLines[0].id).toBe(2)
-        expect(commentLines[1].id).toBe(3)
+        expect(commentLines[0].id).toBe('2')
+        expect(commentLines[1].id).toBe('3')
 
         consoleSpy.mockRestore()
     })
@@ -472,8 +438,10 @@ describe('thread view --unread', () => {
     it('returns all comments in --json without --unread', async () => {
         const client = createClient({
             comments: [createComment(1, 1), createComment(2, 2)],
-            unreadThreads: [{ threadId: 500, channelId: 100, objIndex: 1, directMention: false }],
-            users: { 1: { id: 1, name: 'Alice' }, 2: { id: 2, name: 'Bob' } },
+            unreadThreads: [
+                { threadId: '500', channelId: 'CH100', objIndex: 1, directMention: false },
+            ],
+            users: { 1: { id: 1, fullName: 'Alice' }, 2: { id: 2, fullName: 'Bob' } },
         })
         apiMocks.getCommsClient.mockResolvedValue(client)
 
@@ -494,13 +462,17 @@ describe('thread view --unread', () => {
 
 describe('thread view --since', () => {
     beforeEach(() => {
-        vi.resetAllMocks()
+        clearWorkspaceUserCache()
+        vi.clearAllMocks()
+        configMocks.getConfig.mockResolvedValue({})
+        groupsMock.getWorkspaceGroups.mockResolvedValue([])
+        groupsMock.getWorkspaceUsers.mockResolvedValue([])
     })
 
     it('maps --since to newerThan for getComments', async () => {
         const client = createClient({
             comments: [createComment(1, 1)],
-            users: { 1: { id: 1, name: 'Alice' }, 2: { id: 2, name: 'Bob' } },
+            users: { 1: { id: 1, fullName: 'Alice' }, 2: { id: 2, fullName: 'Bob' } },
         })
         apiMocks.getCommsClient.mockResolvedValue(client)
 
@@ -520,10 +492,9 @@ describe('thread view --since', () => {
 
         expect(client.comments.getComments).toHaveBeenCalledWith(
             expect.objectContaining({
-                threadId: 500,
+                threadId: '500',
                 newerThan: new Date('2026-01-01'),
             }),
-            { batch: true },
         )
         const [args] = client.comments.getComments.mock.calls[0] as [Record<string, unknown>]
         expect(args).not.toHaveProperty('from')
@@ -532,20 +503,20 @@ describe('thread view --since', () => {
     })
 })
 
-describe('thread view with failed batch response', () => {
+describe('thread view error propagation', () => {
     beforeEach(() => {
-        vi.resetAllMocks()
+        clearWorkspaceUserCache()
+        vi.clearAllMocks()
+        configMocks.getConfig.mockResolvedValue({})
+        groupsMock.getWorkspaceGroups.mockResolvedValue([])
+        groupsMock.getWorkspaceUsers.mockResolvedValue([])
     })
 
-    it('throws a clear error when comment batch response fails', async () => {
+    it('surfaces the API error when fetching a missing comment', async () => {
         const client = createClient({
-            users: { 1: { id: 1, name: 'Alice' } },
+            users: { 1: { id: 1, fullName: 'Alice' } },
         })
-        // Override batch to return a 404 for the comment
-        client.batch.mockResolvedValueOnce([
-            { code: 200, data: createThreadFixture(500) },
-            { code: 404, data: null as never },
-        ])
+        client.comments.getComment.mockRejectedValueOnce(new Error('Comment not found'))
         apiMocks.getCommsClient.mockResolvedValue(client)
 
         const program = createProgram()
@@ -553,80 +524,33 @@ describe('thread view with failed batch response', () => {
 
         await expect(
             program.parseAsync(['node', 'tdc', 'thread', 'view', '500', '--comment', '99999']),
-        ).rejects.toThrow('Failed to fetch comment 99999.')
+        ).rejects.toThrow('Comment not found')
 
         consoleSpy.mockRestore()
     })
 
-    it('throws a clear error when thread batch response fails', async () => {
+    it('surfaces the API error when fetching a missing thread', async () => {
         const client = createClient()
-        // Override batch to return a 404 for the thread
-        client.batch.mockResolvedValueOnce([
-            { code: 404, data: null as never },
-            { code: 200, data: [] },
-        ])
+        client.threads.getThread.mockRejectedValueOnce(new Error('Thread not found'))
         apiMocks.getCommsClient.mockResolvedValue(client)
 
         const program = createProgram()
         const consoleSpy = vi.spyOn(console, 'log').mockImplementation(() => {})
 
         await expect(program.parseAsync(['node', 'tdc', 'thread', 'view', '500'])).rejects.toThrow(
-            'Failed to fetch thread.',
+            'Thread not found',
         )
 
         consoleSpy.mockRestore()
     })
-})
 
-describe('thread view with failed user batch response', () => {
-    beforeEach(() => {
-        vi.resetAllMocks()
-    })
-
-    it('throws a clear error when a batched user lookup fails', async () => {
-        const comments = [createComment(1, 1)]
-        const client = createClient({
-            comments,
-            users: {
-                1: { id: 1, name: 'Alice' },
-                2: { id: 2, name: 'Bob' },
-            },
-        })
-        client.batch
-            .mockResolvedValueOnce([
-                { code: 200, data: createThreadFixture(500) },
-                { code: 200, data: comments },
-            ])
-            .mockResolvedValueOnce([
-                { code: 200, data: { id: 100, name: 'General', workspaceId: 10 } },
-                { code: 200, data: { id: 1, name: 'Alice' } },
-                { code: 403, data: { errorString: 'User lookup failed' } },
-            ])
-        apiMocks.getCommsClient.mockResolvedValue(client)
-
-        const program = createProgram()
-
-        await expect(program.parseAsync(['node', 'tdc', 'thread', 'view', '500'])).rejects.toThrow(
-            'Failed to fetch user 2: User lookup failed',
-        )
-    })
-
-    it('renders the thread when a user lookup returns null data with a success code', async () => {
+    it('renders the thread when a user is missing from the workspace map', async () => {
         const comments = [createComment(1, 1), createComment(2, 2)]
         const client = createClient({
             comments,
-            users: { 1: { id: 1, name: 'Alice' } },
+            // Only user 1 in workspace; comment 2's creator (user 2) won't resolve to a name
+            users: { 1: { id: 1, fullName: 'Alice' } },
         })
-        client.batch
-            .mockResolvedValueOnce([
-                { code: 200, data: createThreadFixture(500) },
-                { code: 200, data: comments },
-            ])
-            .mockResolvedValueOnce([
-                { code: 200, data: { id: 100, name: 'General', workspaceId: 10 } },
-                { code: 200, data: { id: 1, name: 'Alice' } },
-                { code: 200, data: null },
-            ])
         apiMocks.getCommsClient.mockResolvedValue(client)
 
         const program = createProgram()
@@ -644,6 +568,7 @@ describe('thread view with failed user batch response', () => {
 
 describe('thread create', () => {
     beforeEach(() => {
+        clearWorkspaceUserCache()
         vi.clearAllMocks()
         configMocks.getConfig.mockResolvedValue({})
     })
@@ -667,7 +592,7 @@ describe('thread create', () => {
 
         expect(client.threads.createThread).toHaveBeenCalledWith(
             expect.objectContaining({
-                channelId: 100,
+                channelId: '100',
                 title: 'My Title',
                 content: 'Thread body content',
             }),
@@ -721,8 +646,8 @@ describe('thread create', () => {
         ])
 
         const jsonOutput = JSON.parse(consoleSpy.mock.calls[0][0])
-        expect(jsonOutput.id).toBe(999)
-        expect(jsonOutput.channelId).toBe(100)
+        expect(jsonOutput.id).toBe('999')
+        expect(jsonOutput.channelId).toBe('CH100')
 
         consoleSpy.mockRestore()
     })
@@ -739,7 +664,7 @@ describe('thread create', () => {
 
         expect(client.threads.createThread).toHaveBeenCalledWith(
             expect.objectContaining({
-                channelId: 100,
+                channelId: '100',
                 title: 'My Title',
                 content: 'Content from stdin',
             }),
@@ -753,8 +678,8 @@ describe('thread create', () => {
         apiMocks.getCommsClient.mockResolvedValue(client)
         groupsMock.getWorkspaceGroups.mockResolvedValue([])
         groupsMock.getWorkspaceUsers.mockResolvedValue([
-            { id: 123, name: 'Alice' },
-            { id: 456, name: 'Bob' },
+            { id: 123, fullName: 'Alice' },
+            { id: 456, fullName: 'Bob' },
         ])
 
         const program = createProgram()
@@ -774,7 +699,7 @@ describe('thread create', () => {
 
         expect(client.threads.createThread).toHaveBeenCalledWith(
             expect.objectContaining({
-                channelId: 100,
+                channelId: '100',
                 content: 'Thread body',
                 recipients: [123, 456],
             }),
@@ -787,9 +712,9 @@ describe('thread create', () => {
         const client = createClient()
         apiMocks.getCommsClient.mockResolvedValue(client)
         groupsMock.getWorkspaceGroups.mockResolvedValue([
-            { id: 456, name: 'Frontend', workspaceId: 10, userIds: [1, 2], version: 1 },
+            { id: 'GR456', name: 'Frontend', workspaceId: 10, userIds: [1, 2], version: 1 },
         ])
-        groupsMock.getWorkspaceUsers.mockResolvedValue([{ id: 123, name: 'Alice' }])
+        groupsMock.getWorkspaceUsers.mockResolvedValue([{ id: 123, fullName: 'Alice' }])
 
         const program = createProgram()
         const consoleSpy = vi.spyOn(console, 'log').mockImplementation(() => {})
@@ -803,15 +728,15 @@ describe('thread create', () => {
             'Title',
             'Thread body',
             '--notify',
-            '123,456',
+            '123,GR456',
         ])
 
         expect(client.threads.createThread).toHaveBeenCalledWith(
             expect.objectContaining({
-                channelId: 100,
+                channelId: '100',
                 content: 'Thread body',
                 recipients: [123],
-                groups: [456],
+                groups: ['GR456'],
             }),
         )
 
@@ -857,7 +782,7 @@ describe('thread create', () => {
             '--unarchive',
         ])
 
-        expect(client.inbox.unarchiveThread).toHaveBeenCalledWith(999)
+        expect(client.inbox.unarchiveThread).toHaveBeenCalledWith('999')
         consoleSpy.mockRestore()
     })
 
@@ -873,7 +798,7 @@ describe('thread create', () => {
 
         await program.parseAsync(['node', 'tdc', 'thread', 'create', '100', 'T', 'body'])
 
-        expect(client.inbox.unarchiveThread).toHaveBeenCalledWith(999)
+        expect(client.inbox.unarchiveThread).toHaveBeenCalledWith('999')
         consoleSpy.mockRestore()
     })
 
@@ -932,6 +857,7 @@ describe('thread create', () => {
 
 describe('thread mute', () => {
     beforeEach(() => {
+        clearWorkspaceUserCache()
         vi.clearAllMocks()
     })
 
@@ -944,7 +870,7 @@ describe('thread mute', () => {
 
         await program.parseAsync(['node', 'tdc', 'thread', 'mute', '500'])
 
-        expect(client.threads.muteThread).toHaveBeenCalledWith({ id: 500, minutes: 60 })
+        expect(client.threads.muteThread).toHaveBeenCalledWith({ id: '500', minutes: 60 })
         expect(consoleSpy).toHaveBeenCalledWith('Thread 500 muted for 60 minutes.')
 
         consoleSpy.mockRestore()
@@ -959,7 +885,7 @@ describe('thread mute', () => {
 
         await program.parseAsync(['node', 'tdc', 'thread', 'mute', '500', '--minutes', '480'])
 
-        expect(client.threads.muteThread).toHaveBeenCalledWith({ id: 500, minutes: 480 })
+        expect(client.threads.muteThread).toHaveBeenCalledWith({ id: '500', minutes: 480 })
         expect(consoleSpy).toHaveBeenCalledWith('Thread 500 muted for 480 minutes.')
 
         consoleSpy.mockRestore()
@@ -1005,7 +931,7 @@ describe('thread mute', () => {
         await program.parseAsync(['node', 'tdc', 'thread', 'mute', '500', '--json'])
 
         const jsonOutput = JSON.parse(consoleSpy.mock.calls[0][0])
-        expect(jsonOutput.id).toBe(500)
+        expect(jsonOutput.id).toBe('500')
         expect(jsonOutput.mutedUntil).toBeDefined()
         expect(Object.keys(jsonOutput)).toEqual(['id', 'mutedUntil'])
 
@@ -1023,6 +949,7 @@ describe('thread mute', () => {
 
 describe('thread unmute', () => {
     beforeEach(() => {
+        clearWorkspaceUserCache()
         vi.clearAllMocks()
     })
 
@@ -1035,7 +962,7 @@ describe('thread unmute', () => {
 
         await program.parseAsync(['node', 'tdc', 'thread', 'unmute', '500'])
 
-        expect(client.threads.unmuteThread).toHaveBeenCalledWith(500)
+        expect(client.threads.unmuteThread).toHaveBeenCalledWith('500')
         expect(consoleSpy).toHaveBeenCalledWith('Thread 500 unmuted.')
 
         consoleSpy.mockRestore()
@@ -1073,6 +1000,7 @@ describe('thread unmute', () => {
 
 describe('thread delete', () => {
     beforeEach(() => {
+        clearWorkspaceUserCache()
         vi.clearAllMocks()
     })
 
@@ -1084,7 +1012,7 @@ describe('thread delete', () => {
 
         await program.parseAsync(['node', 'tdc', 'thread', 'delete', '500', '--yes'])
 
-        expect(client.threads.deleteThread).toHaveBeenCalledWith(500)
+        expect(client.threads.deleteThread).toHaveBeenCalledWith('500')
         expect(consoleSpy).toHaveBeenCalledWith('Thread Test Thread (500) deleted.')
         consoleSpy.mockRestore()
     })
@@ -1126,7 +1054,7 @@ describe('thread delete', () => {
         await program.parseAsync(['node', 'tdc', 'thread', 'delete', '500', '--json', '--yes'])
 
         const jsonOutput = JSON.parse(consoleSpy.mock.calls[0][0])
-        expect(jsonOutput).toEqual({ id: 500, deleted: true })
+        expect(jsonOutput).toEqual({ id: '500', deleted: true })
         consoleSpy.mockRestore()
     })
 
@@ -1143,7 +1071,7 @@ describe('thread delete', () => {
     })
 
     it('errors when thread creator does not match session user', async () => {
-        const client = createClient({ sessionUser: { id: 999, name: 'Other User' } })
+        const client = createClient({ sessionUser: { id: 999, fullName: 'Other User' } })
         apiMocks.getCommsClient.mockResolvedValue(client)
         const program = createProgram()
 
@@ -1157,6 +1085,7 @@ describe('thread delete', () => {
 
 describe('thread rename', () => {
     beforeEach(() => {
+        clearWorkspaceUserCache()
         vi.clearAllMocks()
     })
 
@@ -1169,7 +1098,7 @@ describe('thread rename', () => {
 
         await program.parseAsync(['node', 'tdc', 'thread', 'rename', '500', 'New Title'])
 
-        expect(client.threads.updateThread).toHaveBeenCalledWith({ id: 500, title: 'New Title' })
+        expect(client.threads.updateThread).toHaveBeenCalledWith({ id: '500', title: 'New Title' })
         expect(consoleSpy).toHaveBeenCalledWith('Thread 500 renamed to "New Title".')
 
         consoleSpy.mockRestore()
@@ -1231,7 +1160,7 @@ describe('thread rename', () => {
         await program.parseAsync(['node', 'tdc', 'thread', 'rename', '500', 'New Title', '--json'])
 
         const jsonOutput = JSON.parse(consoleSpy.mock.calls[0][0])
-        expect(jsonOutput.id).toBe(500)
+        expect(jsonOutput.id).toBe('500')
         expect(jsonOutput.title).toBe('New Title')
         expect(Object.keys(jsonOutput)).toEqual(['id', 'title'])
 
@@ -1257,7 +1186,7 @@ describe('thread rename', () => {
         ])
 
         const jsonOutput = JSON.parse(consoleSpy.mock.calls[0][0])
-        expect(jsonOutput.id).toBe(500)
+        expect(jsonOutput.id).toBe('500')
         expect(jsonOutput.title).toBe('New Title')
         // Full output includes more fields
         expect(Object.keys(jsonOutput).length).toBeGreaterThan(2)
@@ -1268,6 +1197,7 @@ describe('thread rename', () => {
 
 describe('thread update', () => {
     beforeEach(() => {
+        clearWorkspaceUserCache()
         vi.clearAllMocks()
     })
 
@@ -1281,7 +1211,7 @@ describe('thread update', () => {
         await program.parseAsync(['node', 'tdc', 'thread', 'update', '500', 'New body'])
 
         expect(client.threads.updateThread).toHaveBeenCalledWith({
-            id: 500,
+            id: '500',
             content: 'New body',
         })
         expect(consoleSpy).toHaveBeenCalledWith('Thread 500 updated.')
@@ -1325,7 +1255,7 @@ describe('thread update', () => {
         await program.parseAsync(['node', 'tdc', 'thread', 'update', '500'])
 
         expect(client.threads.updateThread).toHaveBeenCalledWith({
-            id: 500,
+            id: '500',
             content: 'Body from stdin',
         })
 
@@ -1353,7 +1283,7 @@ describe('thread update', () => {
         await program.parseAsync(['node', 'tdc', 'thread', 'update', '500', 'New body', '--json'])
 
         const jsonOutput = JSON.parse(consoleSpy.mock.calls[0][0])
-        expect(jsonOutput.id).toBe(500)
+        expect(jsonOutput.id).toBe('500')
         expect(jsonOutput.content).toBe('New body')
         expect(Object.keys(jsonOutput)).toEqual(['id', 'content'])
 
@@ -1376,6 +1306,7 @@ describe('thread update', () => {
 
 describe('thread done', () => {
     beforeEach(() => {
+        clearWorkspaceUserCache()
         vi.clearAllMocks()
     })
 
@@ -1388,7 +1319,7 @@ describe('thread done', () => {
 
         await program.parseAsync(['node', 'tdc', 'thread', 'done', '500'])
 
-        expect(client.inbox.archiveThread).toHaveBeenCalledWith(500)
+        expect(client.inbox.archiveThread).toHaveBeenCalledWith('500')
         expect(consoleSpy).toHaveBeenCalledWith('Thread 500 archived.')
 
         consoleSpy.mockRestore()

@@ -1,17 +1,17 @@
 import { describeEmptyMachineOutput } from '@doist/cli-core/testing'
-import type { BatchResponse as CommsBatchResponse } from '@doist/comms-sdk'
 import { Command } from 'commander'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { clearWorkspaceUserCache } from '../../lib/api.js'
 import { CliError } from '../../lib/errors.js'
 
 const apiMocks = vi.hoisted(() => ({
     getCommsClient: vi.fn(),
     getCurrentWorkspaceId: vi.fn().mockResolvedValue(1),
-    getSessionUser: vi.fn().mockResolvedValue({ id: 1, name: 'Me' }),
+    getSessionUser: vi.fn().mockResolvedValue({ id: 1, fullName: 'Me' }),
 }))
 
 const refsMocks = vi.hoisted(() => ({
-    resolveConversationId: vi.fn((ref: string) => Number(ref)),
+    resolveConversationId: vi.fn((ref: string) => ref),
     resolveWorkspaceRef: vi.fn(),
     resolveUserRefs: vi.fn(),
 }))
@@ -32,7 +32,7 @@ vi.mock('chalk')
 import { registerConversationCommand } from './index.js'
 
 type TestConversation = {
-    id: number
+    id: string
     workspaceId: number
     userIds: number[]
     title: string | null
@@ -48,9 +48,14 @@ type TestConversation = {
     lastMessage: null
 }
 
-function createConversation(id: number, userIds: number[], lastActive: string): TestConversation {
+function createConversation(
+    id: number | string,
+    userIds: number[],
+    lastActive: string,
+): TestConversation {
+    const sid = String(id)
     return {
-        id,
+        id: sid,
         workspaceId: 1,
         userIds,
         title: null,
@@ -60,14 +65,12 @@ function createConversation(id: number, userIds: number[], lastActive: string): 
         created: new Date('2026-03-01T00:00:00.000Z'),
         creator: userIds[0],
         lastObjIndex: 1,
-        snippet: `Snippet ${id}`,
+        snippet: `Snippet ${sid}`,
         snippetCreators: [userIds[0]],
-        url: `https://comms.todoist.com/a/1/msg/${id}`,
+        url: `https://comms.todoist.com/a/1/msg/${sid}`,
         lastMessage: null,
     }
 }
-
-type BatchResult = Pick<CommsBatchResponse<unknown>, 'code' | 'data'>
 
 function createClient({
     activeConversations = [],
@@ -77,8 +80,8 @@ function createClient({
 }: {
     activeConversations?: TestConversation[]
     archivedConversations?: TestConversation[]
-    messagesByConversation?: Record<number, Array<Record<string, unknown>>>
-    users?: Record<number, { id: number; name: string }>
+    messagesByConversation?: Record<string, Array<Record<string, unknown>>>
+    users?: Record<number, { id: number; fullName: string }>
 }) {
     const conversationsById = new Map(
         [...activeConversations, ...archivedConversations].map((conversation) => [
@@ -87,107 +90,36 @@ function createClient({
         ]),
     )
 
-    const getPage = (
-        conversations: TestConversation[],
-        { limit, beforeId }: { limit?: number; beforeId?: number },
-    ) => {
-        const startIndex = beforeId
-            ? conversations.findIndex((conversation) => conversation.id === beforeId) + 1
-            : 0
-
-        if (beforeId && startIndex === 0) {
-            return []
-        }
-
-        return conversations.slice(startIndex, startIndex + (limit ?? conversations.length))
-    }
-
     return {
         conversations: {
-            getConversations: vi.fn(
-                async ({
-                    archived,
-                    limit,
-                    beforeId,
-                }: {
-                    archived?: boolean
-                    limit?: number
-                    beforeId?: number
-                }) =>
-                    getPage(archived ? archivedConversations : activeConversations, {
-                        limit,
-                        beforeId,
-                    }),
+            getConversations: vi.fn(async ({ archived }: { archived?: boolean }) =>
+                archived ? archivedConversations : activeConversations,
             ),
-            getUnread: vi.fn(),
-            getConversation: vi.fn((id: number, options?: { batch?: boolean }) => {
-                if (options?.batch) {
-                    return { kind: 'conversation', id }
-                }
-                return Promise.resolve(conversationsById.get(id))
-            }),
+            getUnread: vi.fn().mockResolvedValue({ data: [], version: 1 }),
+            getConversation: vi.fn(async (id: string) => conversationsById.get(id)),
             archiveConversation: vi.fn(),
-            muteConversation: vi.fn(async ({ id, minutes }: { id: number; minutes: number }) => ({
+            muteConversation: vi.fn(async ({ id, minutes }: { id: string; minutes: number }) => ({
                 ...conversationsById.get(id),
                 mutedUntil: new Date(Date.now() + minutes * 60000),
             })),
-            unmuteConversation: vi.fn(async (id: number) => ({
+            unmuteConversation: vi.fn(async (id: string) => ({
                 ...conversationsById.get(id),
                 mutedUntil: null,
             })),
         },
         conversationMessages: {
             getMessages: vi.fn(
-                (
-                    { conversationId, limit }: { conversationId: number; limit: number },
-                    options?: { batch?: boolean },
-                ) => {
-                    if (options?.batch) {
-                        return { kind: 'messages', conversationId, limit }
-                    }
-                    return Promise.resolve(messagesByConversation[conversationId] ?? [])
-                },
+                async ({ conversationId }: { conversationId: string; limit?: number }) =>
+                    messagesByConversation[conversationId] ?? [],
             ),
             createMessage: vi.fn(),
         },
         workspaceUsers: {
             getUserById: vi.fn(
-                (
-                    { workspaceId, userId }: { workspaceId: number; userId: number },
-                    options?: { batch?: boolean },
-                ) => {
-                    if (options?.batch) {
-                        return { kind: 'user', workspaceId, userId }
-                    }
-                    return Promise.resolve(users[userId])
-                },
+                async ({ userId }: { workspaceId: number; userId: number }) => users[userId],
             ),
+            getWorkspaceUsers: vi.fn(async () => Object.values(users)),
         },
-        batch: vi.fn(
-            async (
-                ...requests: Array<{
-                    kind: string
-                    id?: number
-                    userId?: number
-                    conversationId?: number
-                }>
-            ): Promise<BatchResult[]> =>
-                requests.map((request): BatchResult => {
-                    if (request.kind === 'conversation' && request.id) {
-                        return { code: 200, data: conversationsById.get(request.id) }
-                    }
-                    if (request.kind === 'messages') {
-                        return {
-                            code: 200,
-                            data: messagesByConversation[request.conversationId ?? -1] ?? [],
-                        }
-                    }
-                    if (request.kind === 'user' && request.userId) {
-                        return { code: 200, data: users[request.userId] }
-                    }
-                    throw new Error(`Unexpected batch request: ${JSON.stringify(request)}`)
-                }),
-        ),
     }
 }
 
@@ -200,6 +132,7 @@ function createProgram() {
 
 describe('conversation implicit view', () => {
     beforeEach(() => {
+        clearWorkspaceUserCache()
         vi.clearAllMocks()
         apiMocks.getCommsClient.mockRejectedValue(new Error('MOCK_API_REACHED'))
     })
@@ -218,6 +151,7 @@ describe('conversation implicit view', () => {
 
 describe('conversation unread --workspace conflict', () => {
     beforeEach(() => {
+        clearWorkspaceUserCache()
         vi.clearAllMocks()
     })
 
@@ -240,9 +174,9 @@ describe('conversation unread --workspace conflict', () => {
 
 describeEmptyMachineOutput('conversation unread empty output', {
     setup: () => {
+        clearWorkspaceUserCache()
         vi.clearAllMocks()
         const client = createClient({})
-        client.conversations.getUnread = vi.fn().mockResolvedValue([])
         apiMocks.getCommsClient.mockResolvedValue(client)
     },
     run: async (extraArgs) => {
@@ -254,6 +188,7 @@ describeEmptyMachineOutput('conversation unread empty output', {
 
 describe('conversation with', () => {
     beforeEach(() => {
+        clearWorkspaceUserCache()
         vi.clearAllMocks()
         refsMocks.resolveUserRefs.mockResolvedValue([2])
     })
@@ -264,9 +199,9 @@ describe('conversation with', () => {
         const client = createClient({
             activeConversations: [directConversation, groupConversation],
             users: {
-                1: { id: 1, name: 'Me' },
-                2: { id: 2, name: 'Alice Example' },
-                3: { id: 3, name: 'Bob Example' },
+                1: { id: 1, fullName: 'Me' },
+                2: { id: 2, fullName: 'Alice Example' },
+                3: { id: 3, fullName: 'Bob Example' },
             },
         })
 
@@ -279,65 +214,21 @@ describe('conversation with', () => {
 
         expect(refsMocks.resolveUserRefs).toHaveBeenCalledWith('Alice', 1)
         expect(refsMocks.resolveConversationId).not.toHaveBeenCalled()
-        expect(client.conversationMessages.getMessages).not.toHaveBeenCalled()
         expect(consoleSpy).toHaveBeenCalledWith('Conversation with Me, Alice Example')
-        expect(client.conversations.getConversations).toHaveBeenCalledWith({
-            workspaceId: 1,
-            archived: undefined,
-            limit: 100,
-            beforeId: undefined,
-        })
-        expect(client.conversations.getConversations).not.toHaveBeenCalledWith(
-            expect.objectContaining({ archived: true }),
-        )
+        expect(client.conversations.getConversations).toHaveBeenCalledWith({ workspaceId: 1 })
 
         consoleSpy.mockRestore()
     })
 
-    it('pages through older conversations to find a 1:1 DM', async () => {
-        const recentGroups = Array.from({ length: 100 }, (_, index) =>
-            createConversation(2000 - index, [1, 3], '2026-03-08T10:00:00.000Z'),
-        )
-        const directConversation = createConversation(42, [1, 2], '2024-05-31T12:52:09.000Z')
-        const client = createClient({
-            activeConversations: [...recentGroups, directConversation],
-            users: {
-                1: { id: 1, name: 'Me' },
-                2: { id: 2, name: 'Alice Example' },
-                3: { id: 3, name: 'Bob Example' },
-            },
-        })
-
-        apiMocks.getCommsClient.mockResolvedValue(client)
-
-        const program = createProgram()
-        const consoleSpy = vi.spyOn(console, 'log').mockImplementation(() => {})
-
-        await program.parseAsync(['node', 'tdc', 'conversation', 'with', 'Alice'])
-
-        expect(client.conversations.getConversations).toHaveBeenCalledWith({
-            workspaceId: 1,
-            limit: 100,
-        })
-        expect(client.conversations.getConversations).toHaveBeenCalledWith({
-            workspaceId: 1,
-            limit: 100,
-            beforeId: 1901,
-        })
-        expect(refsMocks.resolveConversationId).not.toHaveBeenCalled()
-
-        consoleSpy.mockRestore()
-    })
-
-    it('checks archived conversations only after active pages miss', async () => {
+    it('searches archived conversations when no active 1:1 is found', async () => {
         const archivedConversation = createConversation(42, [1, 2], '2024-05-31T12:52:09.000Z')
         const client = createClient({
             activeConversations: [createConversation(43, [1, 3], '2026-03-08T10:00:00.000Z')],
             archivedConversations: [archivedConversation],
             users: {
-                1: { id: 1, name: 'Me' },
-                2: { id: 2, name: 'Alice Example' },
-                3: { id: 3, name: 'Bob Example' },
+                1: { id: 1, fullName: 'Me' },
+                2: { id: 2, fullName: 'Alice Example' },
+                3: { id: 3, fullName: 'Bob Example' },
             },
         })
 
@@ -348,23 +239,10 @@ describe('conversation with', () => {
 
         await program.parseAsync(['node', 'tdc', 'conversation', 'with', 'Alice'])
 
-        expect(client.conversations.getConversations).toHaveBeenNthCalledWith(1, {
-            workspaceId: 1,
-            archived: undefined,
-            limit: 100,
-            beforeId: undefined,
-        })
-        expect(client.conversations.getConversations).toHaveBeenNthCalledWith(2, {
-            workspaceId: 1,
-            archived: undefined,
-            limit: 100,
-            beforeId: 43,
-        })
-        expect(client.conversations.getConversations).toHaveBeenNthCalledWith(3, {
+        expect(client.conversations.getConversations).toHaveBeenCalledWith({ workspaceId: 1 })
+        expect(client.conversations.getConversations).toHaveBeenCalledWith({
             workspaceId: 1,
             archived: true,
-            limit: 100,
-            beforeId: undefined,
         })
 
         consoleSpy.mockRestore()
@@ -376,9 +254,9 @@ describe('conversation with', () => {
         const client = createClient({
             activeConversations: [directConversation, groupConversation],
             users: {
-                1: { id: 1, name: 'Me' },
-                2: { id: 2, name: 'Alice Example' },
-                3: { id: 3, name: 'Bob Example' },
+                1: { id: 1, fullName: 'Me' },
+                2: { id: 2, fullName: 'Alice Example' },
+                3: { id: 3, fullName: 'Bob Example' },
             },
         })
 
@@ -400,9 +278,9 @@ describe('conversation with', () => {
         expect(refsMocks.resolveConversationId).not.toHaveBeenCalled()
         expect(
             JSON.parse(consoleSpy.mock.calls[0][0]).map(
-                (conversation: { id: number }) => conversation.id,
+                (conversation: { id: string }) => conversation.id,
             ),
-        ).toEqual([43, 42])
+        ).toEqual(['43', '42'])
 
         consoleSpy.mockRestore()
     })
@@ -412,7 +290,7 @@ describe('conversation with', () => {
         const selfConversation = createConversation(10, [1], '2026-03-10T10:00:00.000Z')
         const client = createClient({
             activeConversations: [selfConversation],
-            users: { 1: { id: 1, name: 'Me' } },
+            users: { 1: { id: 1, fullName: 'Me' } },
         })
 
         apiMocks.getCommsClient.mockResolvedValue(client)
@@ -431,8 +309,8 @@ describe('conversation with', () => {
         const client = createClient({
             activeConversations: [],
             users: {
-                1: { id: 1, name: 'Me' },
-                2: { id: 2, name: 'Alice Example' },
+                1: { id: 1, fullName: 'Me' },
+                2: { id: 2, fullName: 'Alice Example' },
             },
         })
 
@@ -467,6 +345,7 @@ describe('conversation with', () => {
 
 describe('conversation view machine output', () => {
     beforeEach(() => {
+        clearWorkspaceUserCache()
         vi.clearAllMocks()
     })
 
@@ -475,12 +354,13 @@ describe('conversation view machine output', () => {
         const client = createClient({
             activeConversations: [conversation],
             messagesByConversation: {
-                42: [
+                '42': [
                     {
-                        id: 99,
+                        id: '99',
                         content: '**hello**',
                         creator: 2,
-                        conversationId: 42,
+                        conversationId: '42',
+                        workspaceId: 1,
                         posted: new Date('2026-03-08T10:05:00.000Z'),
                         reactions: [],
                         extra: 'message-extra',
@@ -488,8 +368,8 @@ describe('conversation view machine output', () => {
                 ],
             },
             users: {
-                1: { id: 1, name: 'Me' },
-                2: { id: 2, name: 'Alice Example' },
+                1: { id: 1, fullName: 'Me' },
+                2: { id: 2, fullName: 'Alice Example' },
             },
         })
 
@@ -502,7 +382,7 @@ describe('conversation view machine output', () => {
 
         const jsonOutput = JSON.parse(consoleSpy.mock.calls[0][0])
         expect(jsonOutput.conversation).toEqual({
-            id: 42,
+            id: '42',
             workspaceId: 1,
             userIds: [1, 2],
             title: null,
@@ -512,10 +392,10 @@ describe('conversation view machine output', () => {
         })
         expect(jsonOutput.messages).toEqual([
             {
-                id: 99,
+                id: '99',
                 content: '**hello**',
                 creator: 2,
-                conversationId: 42,
+                conversationId: '42',
                 posted: '2026-03-08T10:05:00.000Z',
                 reactions: [],
             },
@@ -528,7 +408,7 @@ describe('conversation view machine output', () => {
         expect(consoleSpy.mock.calls.map((call) => JSON.parse(call[0]))).toEqual([
             {
                 type: 'conversation',
-                id: 42,
+                id: '42',
                 workspaceId: 1,
                 userIds: [1, 2],
                 title: null,
@@ -538,10 +418,10 @@ describe('conversation view machine output', () => {
             },
             {
                 type: 'message',
-                id: 99,
+                id: '99',
                 content: '**hello**',
                 creator: 2,
-                conversationId: 42,
+                conversationId: '42',
                 posted: '2026-03-08T10:05:00.000Z',
                 reactions: [],
             },
@@ -560,53 +440,30 @@ describe('conversation view machine output', () => {
     })
 })
 
-describe('conversation view with failed batch response', () => {
+describe('conversation view error propagation', () => {
     beforeEach(() => {
+        clearWorkspaceUserCache()
         vi.clearAllMocks()
     })
 
-    it('throws a clear error when a batched user lookup fails', async () => {
-        const conversation = createConversation(42, [1, 2], '2026-03-08T10:00:00.000Z')
-        const messages = [
-            {
-                id: 99,
-                content: '**hello**',
-                creator: 2,
-                conversationId: 42,
-                posted: new Date('2026-03-08T10:05:00.000Z'),
-                reactions: [],
-            },
-        ]
-        const client = createClient({
-            activeConversations: [conversation],
-            messagesByConversation: { 42: messages },
-            users: {
-                1: { id: 1, name: 'Me' },
-                2: { id: 2, name: 'Alice Example' },
-            },
-        })
-
-        client.batch
-            .mockResolvedValueOnce([
-                { code: 200, data: conversation },
-                { code: 200, data: messages },
-            ])
-            .mockResolvedValueOnce([
-                { code: 200, data: { id: 1, name: 'Me' } },
-                { code: 403, data: { errorString: 'User lookup failed' } },
-            ])
+    it('surfaces the API error when conversation fetch fails', async () => {
+        const client = createClient({})
+        client.conversations.getConversation.mockRejectedValueOnce(
+            new Error('Conversation not found'),
+        )
         apiMocks.getCommsClient.mockResolvedValue(client)
 
         const program = createProgram()
 
         await expect(
             program.parseAsync(['node', 'tdc', 'conversation', 'view', '42']),
-        ).rejects.toThrow('Failed to fetch user 2: User lookup failed')
+        ).rejects.toThrow('Conversation not found')
     })
 })
 
 describe('conversation mute', () => {
     beforeEach(() => {
+        clearWorkspaceUserCache()
         vi.clearAllMocks()
     })
 
@@ -620,7 +477,10 @@ describe('conversation mute', () => {
 
         await program.parseAsync(['node', 'tdc', 'conversation', 'mute', '42'])
 
-        expect(client.conversations.muteConversation).toHaveBeenCalledWith({ id: 42, minutes: 60 })
+        expect(client.conversations.muteConversation).toHaveBeenCalledWith({
+            id: '42',
+            minutes: 60,
+        })
         expect(consoleSpy).toHaveBeenCalledWith('Conversation 42 muted for 60 minutes.')
 
         consoleSpy.mockRestore()
@@ -637,7 +497,7 @@ describe('conversation mute', () => {
         await program.parseAsync(['node', 'tdc', 'conversation', 'mute', '42', '--minutes', '480'])
 
         expect(client.conversations.muteConversation).toHaveBeenCalledWith({
-            id: 42,
+            id: '42',
             minutes: 480,
         })
         expect(consoleSpy).toHaveBeenCalledWith('Conversation 42 muted for 480 minutes.')
@@ -689,6 +549,7 @@ describe('conversation mute', () => {
 
 describe('conversation unmute', () => {
     beforeEach(() => {
+        clearWorkspaceUserCache()
         vi.clearAllMocks()
     })
 
@@ -702,7 +563,7 @@ describe('conversation unmute', () => {
 
         await program.parseAsync(['node', 'tdc', 'conversation', 'unmute', '42'])
 
-        expect(client.conversations.unmuteConversation).toHaveBeenCalledWith(42)
+        expect(client.conversations.unmuteConversation).toHaveBeenCalledWith('42')
         expect(consoleSpy).toHaveBeenCalledWith('Conversation 42 unmuted.')
 
         consoleSpy.mockRestore()
@@ -745,6 +606,7 @@ describe('conversation unmute', () => {
 
 describe('conversation done', () => {
     beforeEach(() => {
+        clearWorkspaceUserCache()
         vi.clearAllMocks()
     })
 
@@ -758,7 +620,7 @@ describe('conversation done', () => {
 
         await program.parseAsync(['node', 'tdc', 'conversation', 'done', '42'])
 
-        expect(client.conversations.archiveConversation).toHaveBeenCalledWith(42)
+        expect(client.conversations.archiveConversation).toHaveBeenCalledWith('42')
         expect(consoleSpy).toHaveBeenCalledWith('Conversation 42 archived.')
 
         consoleSpy.mockRestore()

@@ -11,7 +11,7 @@ vi.mock('../../lib/api.js', async (importOriginal) => ({
 }))
 
 vi.mock('../../lib/refs.js', () => ({
-    resolveMessageId: vi.fn().mockReturnValue(200),
+    resolveMessageId: vi.fn().mockReturnValue('200'),
 }))
 
 vi.mock('../../lib/input.js', () => ({
@@ -27,48 +27,34 @@ vi.mock('chalk')
 
 import { registerMsgCommand } from './index.js'
 
-function createMessageFixture(id: number, creator = 1) {
+function createMessageFixture(id: string, creator = 1) {
     return {
         id,
         content: `Message ${id} body`,
         creator,
-        conversationId: 42,
+        conversationId: 'CV42',
         workspaceId: 10,
         posted: new Date('2026-03-08T00:00:00.000Z'),
-        url: `https://comms.todoist.com/a/10/msg/42/m/${id}`,
+        url: `https://comms.todoist.com/a/10/msg/CV42/m/${id}`,
     }
 }
 
 function createClient({ messageCreator = 1, sessionUserId = 1 } = {}) {
     return {
         conversationMessages: {
-            getMessage: vi.fn((id: number, options?: { batch?: boolean }) => {
-                if (options?.batch) return { kind: 'message', id }
-                return Promise.resolve(createMessageFixture(id, messageCreator))
-            }),
+            getMessage: vi.fn(async (id: string) => createMessageFixture(id, messageCreator)),
             deleteMessage: vi.fn(async () => undefined),
-            updateMessage: vi.fn(async (args: { id: number; content: string }) => ({
+            updateMessage: vi.fn(async (args: { id: string; content: string }) => ({
                 ...createMessageFixture(args.id, messageCreator),
                 content: args.content,
             })),
         },
         users: {
-            getSessionUser: vi.fn((options?: { batch?: boolean }) => {
-                if (options?.batch) return { kind: 'sessionUser' }
-                return Promise.resolve({ id: sessionUserId, name: 'Me' })
-            }),
+            getSessionUser: vi.fn(async () => ({ id: sessionUserId, fullName: 'Me' })),
         },
-        batch: vi.fn(async (...requests: Array<{ kind: string; id?: number }>) =>
-            requests.map((request) => {
-                if (request.kind === 'message' && request.id) {
-                    return { code: 200, data: createMessageFixture(request.id, messageCreator) }
-                }
-                if (request.kind === 'sessionUser') {
-                    return { code: 200, data: { id: sessionUserId, name: 'Me' } }
-                }
-                throw new Error(`Unexpected batch request: ${JSON.stringify(request)}`)
-            }),
-        ),
+        workspaceUsers: {
+            getUserById: vi.fn(async () => ({ id: messageCreator, fullName: 'Sender' })),
+        },
     }
 }
 
@@ -110,7 +96,7 @@ describe('msg delete', () => {
 
         await program.parseAsync(['node', 'tdc', 'msg', 'delete', '200'])
 
-        expect(client.conversationMessages.deleteMessage).toHaveBeenCalledWith(200)
+        expect(client.conversationMessages.deleteMessage).toHaveBeenCalledWith('200')
         expect(consoleSpy).toHaveBeenCalledWith('Message 200 deleted.')
         consoleSpy.mockRestore()
     })
@@ -125,7 +111,7 @@ describe('msg delete', () => {
 
         expect(consoleSpy).toHaveBeenCalledWith(expect.stringContaining('Would delete message'))
         expect(consoleSpy).toHaveBeenCalledWith('  Message: 200')
-        expect(consoleSpy).toHaveBeenCalledWith('  Conversation: 42')
+        expect(consoleSpy).toHaveBeenCalledWith('  Conversation: CV42')
         expect(client.conversationMessages.deleteMessage).not.toHaveBeenCalled()
         consoleSpy.mockRestore()
     })
@@ -150,7 +136,7 @@ describe('msg delete', () => {
         await program.parseAsync(['node', 'tdc', 'msg', 'delete', '200', '--json'])
 
         const jsonOutput = JSON.parse(consoleSpy.mock.calls[0][0])
-        expect(jsonOutput).toEqual({ id: 200, deleted: true })
+        expect(jsonOutput).toEqual({ id: '200', deleted: true })
         consoleSpy.mockRestore()
     })
 })

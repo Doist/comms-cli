@@ -36,6 +36,26 @@ function createProgram() {
     return program
 }
 
+function mockClient(overrides: {
+    inboxThreads?: unknown[]
+    unreadData?: unknown[]
+    getChannel?: ReturnType<typeof vi.fn>
+    getInbox?: ReturnType<typeof vi.fn>
+    getUnread?: ReturnType<typeof vi.fn>
+}) {
+    const getInbox = overrides.getInbox ?? vi.fn().mockResolvedValue(overrides.inboxThreads ?? [])
+    const getUnread =
+        overrides.getUnread ??
+        vi.fn().mockResolvedValue({ data: overrides.unreadData ?? [], version: 1 })
+    const getChannel = overrides.getChannel ?? vi.fn()
+    apiMocks.getCommsClient.mockResolvedValue({
+        inbox: { getInbox },
+        threads: { getUnread },
+        channels: { getChannel },
+    })
+    return { getInbox, getUnread, getChannel }
+}
+
 describe('inbox --workspace conflict', () => {
     beforeEach(() => {
         vi.clearAllMocks()
@@ -51,47 +71,29 @@ describe('inbox --workspace conflict', () => {
 })
 
 describe('inbox --archive-filter', () => {
-    const mockGetInbox = vi.fn()
-    const mockGetUnread = vi.fn()
-    const mockBatch = vi.fn()
-
     beforeEach(() => {
         vi.clearAllMocks()
         apiMocks.getCurrentWorkspaceId.mockResolvedValue(1)
-        mockGetInbox.mockReturnValue({ data: [] })
-        mockGetUnread.mockReturnValue({ data: [] })
-        mockBatch.mockResolvedValue([
-            { code: 200, data: [] },
-            { code: 200, data: [] },
-        ])
-        apiMocks.getCommsClient.mockResolvedValue({
-            inbox: { getInbox: mockGetInbox },
-            threads: { getUnread: mockGetUnread },
-            batch: mockBatch,
-        })
     })
 
     it('passes archiveFilter to SDK getInbox', async () => {
+        const { getInbox } = mockClient({})
         const program = createProgram()
         await program.parseAsync(['node', 'tdc', 'inbox', '--archive-filter', 'all', '--json'])
 
-        expect(mockGetInbox).toHaveBeenCalledWith(
-            expect.objectContaining({ archiveFilter: 'all' }),
-            { batch: true },
-        )
+        expect(getInbox).toHaveBeenCalledWith(expect.objectContaining({ archiveFilter: 'all' }))
     })
 
     it('defaults archiveFilter to active when not provided', async () => {
+        const { getInbox } = mockClient({})
         const program = createProgram()
         await program.parseAsync(['node', 'tdc', 'inbox', '--json'])
 
-        expect(mockGetInbox).toHaveBeenCalledWith(
-            expect.objectContaining({ archiveFilter: 'active' }),
-            { batch: true },
-        )
+        expect(getInbox).toHaveBeenCalledWith(expect.objectContaining({ archiveFilter: 'active' }))
     })
 
     it('maps --since to newerThan and --until to olderThan for getInbox', async () => {
+        const { getInbox } = mockClient({})
         const program = createProgram()
         await program.parseAsync([
             'node',
@@ -104,37 +106,23 @@ describe('inbox --archive-filter', () => {
             '--json',
         ])
 
-        expect(mockGetInbox).toHaveBeenCalledWith(
+        expect(getInbox).toHaveBeenCalledWith(
             expect.objectContaining({
                 newerThan: new Date('2026-01-01'),
                 olderThan: new Date('2026-02-01'),
             }),
-            { batch: true },
         )
-        const [args] = mockGetInbox.mock.calls[0] as [Record<string, unknown>]
+        const [args] = getInbox.mock.calls[0] as [Record<string, unknown>]
         expect(args).not.toHaveProperty('since')
         expect(args).not.toHaveProperty('until')
     })
 })
 
-const emptyInboxMockBatch = vi.fn()
-
 describeEmptyMachineOutput('inbox empty output', {
     setup: () => {
         vi.clearAllMocks()
         apiMocks.getCurrentWorkspaceId.mockResolvedValue(1)
-        emptyInboxMockBatch.mockImplementation((..._calls: unknown[]) =>
-            Promise.resolve([
-                { code: 200, data: [] },
-                { code: 200, data: [] },
-            ]),
-        )
-        apiMocks.getCommsClient.mockResolvedValue({
-            inbox: { getInbox: vi.fn().mockReturnValue({ data: [] }) },
-            threads: { getUnread: vi.fn().mockReturnValue({ data: [] }) },
-            channels: { getChannel: vi.fn() },
-            batch: emptyInboxMockBatch,
-        })
+        mockClient({})
     },
     run: async (extraArgs) => {
         const program = createProgram()
@@ -144,30 +132,21 @@ describeEmptyMachineOutput('inbox empty output', {
 })
 
 describe('inbox empty output (channel filter)', () => {
-    const mockBatch = vi.fn()
     let logSpy: ReturnType<typeof vi.spyOn>
 
     beforeEach(() => {
         vi.clearAllMocks()
         apiMocks.getCurrentWorkspaceId.mockResolvedValue(1)
         const thread = {
-            id: 1,
-            channelId: 10,
+            id: 'TH1',
+            channelId: 'CH10',
             title: 't',
             posted: '2026-05-01T00:00:00Z',
             url: 'http://example/t',
         }
-        mockBatch
-            .mockResolvedValueOnce([
-                { code: 200, data: [thread] },
-                { code: 200, data: [] },
-            ])
-            .mockResolvedValueOnce([{ code: 200, data: { id: 10, name: 'engineering' } }])
-        apiMocks.getCommsClient.mockResolvedValue({
-            inbox: { getInbox: vi.fn() },
-            threads: { getUnread: vi.fn() },
-            channels: { getChannel: vi.fn() },
-            batch: mockBatch,
+        mockClient({
+            inboxThreads: [thread],
+            getChannel: vi.fn().mockResolvedValue({ id: 'CH10', name: 'engineering' }),
         })
         logSpy = vi.spyOn(console, 'log').mockImplementation(() => {})
     })
@@ -178,79 +157,5 @@ describe('inbox empty output (channel filter)', () => {
 
         expect(logSpy).toHaveBeenCalledTimes(1)
         expect(logSpy).toHaveBeenCalledWith('[]')
-    })
-})
-
-describe('inbox batch errors', () => {
-    beforeEach(() => {
-        vi.clearAllMocks()
-        apiMocks.getCurrentWorkspaceId.mockResolvedValue(1)
-    })
-
-    it('surfaces the API error instead of crashing when a batch request fails', async () => {
-        const mockBatch = vi.fn().mockResolvedValue([
-            { code: 400, data: { errorString: 'limit must be less than or equal to 500' } },
-            { code: 200, data: [] },
-        ])
-        apiMocks.getCommsClient.mockResolvedValue({
-            inbox: {
-                getInbox: vi.fn((_args: unknown, options?: { batch?: boolean }) =>
-                    options?.batch ? { kind: 'inbox' } : Promise.resolve([]),
-                ),
-            },
-            threads: {
-                getUnread: vi.fn((_workspaceId: number, options?: { batch?: boolean }) =>
-                    options?.batch ? { kind: 'unread' } : Promise.resolve([]),
-                ),
-            },
-            batch: mockBatch,
-        })
-
-        const program = createProgram()
-
-        await expect(
-            program.parseAsync(['node', 'tdc', 'inbox', '--unread', '--limit', '1000']),
-        ).rejects.toThrow('Failed to fetch inbox threads: limit must be less than or equal to 500')
-    })
-
-    it('treats a null unread batch response as no unread threads', async () => {
-        const thread = {
-            id: 1,
-            channelId: 10,
-            title: 't',
-            posted: '2026-05-01T00:00:00Z',
-            url: 'http://example/t',
-        }
-        const mockBatch = vi
-            .fn()
-            .mockResolvedValueOnce([
-                { code: 200, data: [thread] },
-                { code: 200, data: null },
-            ])
-            .mockResolvedValueOnce([{ code: 200, data: { id: 10, name: 'engineering' } }])
-        apiMocks.getCommsClient.mockResolvedValue({
-            inbox: {
-                getInbox: vi.fn((_args: unknown, options?: { batch?: boolean }) =>
-                    options?.batch ? { kind: 'inbox' } : Promise.resolve([]),
-                ),
-            },
-            threads: {
-                getUnread: vi.fn((_workspaceId: number, options?: { batch?: boolean }) =>
-                    options?.batch ? { kind: 'unread' } : Promise.resolve([]),
-                ),
-            },
-            channels: { getChannel: vi.fn() },
-            batch: mockBatch,
-        })
-        const consoleSpy = vi.spyOn(console, 'log').mockImplementation(() => {})
-        const program = createProgram()
-
-        await program.parseAsync(['node', 'tdc', 'inbox', '--json'])
-
-        const output = JSON.parse(consoleSpy.mock.calls[0][0])
-        expect(output).toHaveLength(1)
-        expect(output[0]).toMatchObject({ id: 1, isUnread: false })
-
-        consoleSpy.mockRestore()
     })
 })

@@ -66,10 +66,10 @@ export async function findConversationWithUser(
 
         const suggestion =
             groupConversationCount > 0
-                ? ` Found ${groupConversationCount} group conversation${groupConversationCount === 1 ? '' : 's'} with ${targetUser.name}. Use --include-groups to list them.`
+                ? ` Found ${groupConversationCount} group conversation${groupConversationCount === 1 ? '' : 's'} with ${targetUser.fullName}. Use --include-groups to list them.`
                 : ''
 
-        console.log(`No 1:1 conversation found with ${targetUser.name}.${suggestion}`)
+        console.log(`No 1:1 conversation found with ${targetUser.fullName}.${suggestion}`)
         return
     }
 

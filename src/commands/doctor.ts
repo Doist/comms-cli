@@ -287,7 +287,7 @@ async function checkAuthentication(offline: boolean): Promise<DoctorCheck> {
         const api = createWrappedCommsClient(token)
         const user = await api.users.getSessionUser()
         details.email = user.email
-        details.name = user.name
+        details.name = user.fullName
 
         return {
             name: 'auth',

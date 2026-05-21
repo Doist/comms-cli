@@ -52,7 +52,7 @@ function buildStatusText({ user, metadata }: StatusData): readonly string[] {
     return [
         `${chalk.green('✓')} Authenticated`,
         `  Email: ${user.email}`,
-        `  Name:  `,
+        `  Name:  ${user.fullName}`,
         `  Mode:  ${modeLabel}`,
     ]
 }

@@ -28,53 +28,36 @@ vi.mock('chalk')
 import { readStdin } from '../../lib/input.js'
 import { registerCommentCommand } from './index.js'
 
-function createCommentFixture(id: number, creator = 1) {
+function createCommentFixture(id: string, creator = 1) {
     return {
         id,
         content: `Comment ${id}`,
         creator,
-        threadId: 500,
-        channelId: 100,
+        threadId: 'TH500',
+        channelId: 'CH100',
         workspaceId: 10,
         posted: new Date('2026-03-02T00:00:00.000Z'),
         reactions: [],
-        url: `https://comms.todoist.com/a/10/ch/100/t/500/c/${id}`,
+        url: `https://comms.todoist.com/a/10/ch/CH100/t/TH500/c/${id}`,
     }
 }
 
 function createClient({ commentCreator = 1, sessionUserId = 1 } = {}) {
     return {
         comments: {
-            getComment: vi.fn((id: number, options?: { batch?: boolean }) => {
-                if (options?.batch) return { kind: 'comment', id }
-                return Promise.resolve(createCommentFixture(id, commentCreator))
-            }),
-            updateComment: vi.fn(async (args: { id: number; content: string }) => ({
+            getComment: vi.fn(async (id: string) => createCommentFixture(id, commentCreator)),
+            updateComment: vi.fn(async (args: { id: string; content: string }) => ({
                 ...createCommentFixture(args.id, commentCreator),
                 content: args.content,
             })),
             deleteComment: vi.fn(async () => undefined),
         },
         users: {
-            getSessionUser: vi.fn((options?: { batch?: boolean }) => {
-                if (options?.batch) return { kind: 'sessionUser' }
-                return Promise.resolve({ id: sessionUserId, name: 'Me' })
-            }),
+            getSessionUser: vi.fn(async () => ({ id: sessionUserId, fullName: 'Me' })),
         },
         workspaceUsers: {
-            getUserById: vi.fn(async () => ({ id: 2, name: 'Bob' })),
+            getUserById: vi.fn(async () => ({ id: commentCreator, fullName: 'Bob' })),
         },
-        batch: vi.fn(async (...requests: Array<{ kind: string; id?: number }>) =>
-            requests.map((request) => {
-                if (request.kind === 'comment' && request.id) {
-                    return { code: 200, data: createCommentFixture(request.id, commentCreator) }
-                }
-                if (request.kind === 'sessionUser') {
-                    return { code: 200, data: { id: sessionUserId, name: 'Me' } }
-                }
-                throw new Error(`Unexpected batch request: ${JSON.stringify(request)}`)
-            }),
-        ),
     }
 }
 
@@ -116,7 +99,7 @@ describe('comment view', () => {
 
         await program.parseAsync(['node', 'tdc', 'comment', 'view', '300'])
 
-        expect(client.comments.getComment).toHaveBeenCalledWith(300)
+        expect(client.comments.getComment).toHaveBeenCalledWith('300')
         expect(consoleSpy).toHaveBeenCalledWith(expect.stringContaining('Comment 300'))
         consoleSpy.mockRestore()
     })
@@ -130,7 +113,7 @@ describe('comment view', () => {
         await program.parseAsync(['node', 'tdc', 'comment', 'view', '300', '--json'])
 
         const jsonOutput = JSON.parse(consoleSpy.mock.calls[0][0])
-        expect(jsonOutput.id).toBe(300)
+        expect(jsonOutput.id).toBe('300')
         expect(jsonOutput.content).toBe('Comment 300')
         consoleSpy.mockRestore()
     })
@@ -146,7 +129,7 @@ describe('comment view', () => {
         const line = consoleSpy.mock.calls[0][0]
         expect(line).not.toContain('\n')
         const parsed = JSON.parse(line)
-        expect(parsed.id).toBe(300)
+        expect(parsed.id).toBe('300')
         expect(parsed.content).toBe('Comment 300')
         consoleSpy.mockRestore()
     })
@@ -160,7 +143,7 @@ describe('comment view', () => {
         await program.parseAsync(['node', 'tdc', 'comment', 'view', '300', '--json', '--full'])
 
         const jsonOutput = JSON.parse(consoleSpy.mock.calls[0][0])
-        expect(jsonOutput.id).toBe(300)
+        expect(jsonOutput.id).toBe('300')
         expect(jsonOutput.creatorName).toBe('Bob')
         consoleSpy.mockRestore()
     })
@@ -180,7 +163,7 @@ describe('comment update', () => {
         await program.parseAsync(['node', 'tdc', 'comment', 'update', '300', 'Updated content'])
 
         expect(client.comments.updateComment).toHaveBeenCalledWith({
-            id: 300,
+            id: '300',
             content: 'Updated content',
         })
         expect(consoleSpy).toHaveBeenCalledWith(expect.stringContaining('Comment updated:'))
@@ -216,7 +199,7 @@ describe('comment update', () => {
         await program.parseAsync(['node', 'tdc', 'comment', 'update', '300', 'Updated', '--json'])
 
         const jsonOutput = JSON.parse(consoleSpy.mock.calls[0][0])
-        expect(jsonOutput.id).toBe(300)
+        expect(jsonOutput.id).toBe('300')
         expect(jsonOutput.content).toBe('Updated')
         consoleSpy.mockRestore()
     })
@@ -231,7 +214,7 @@ describe('comment update', () => {
         await program.parseAsync(['node', 'tdc', 'comment', 'update', '300'])
 
         expect(client.comments.updateComment).toHaveBeenCalledWith({
-            id: 300,
+            id: '300',
             content: 'Content from stdin',
         })
         consoleSpy.mockRestore()
@@ -262,7 +245,7 @@ describe('comment delete', () => {
 
         await program.parseAsync(['node', 'tdc', 'comment', 'delete', '300'])
 
-        expect(client.comments.deleteComment).toHaveBeenCalledWith(300)
+        expect(client.comments.deleteComment).toHaveBeenCalledWith('300')
         expect(consoleSpy).toHaveBeenCalledWith('Comment 300 deleted.')
         consoleSpy.mockRestore()
     })
@@ -277,7 +260,7 @@ describe('comment delete', () => {
 
         expect(consoleSpy).toHaveBeenCalledWith(expect.stringContaining('Would delete comment'))
         expect(consoleSpy).toHaveBeenCalledWith('  Comment: 300')
-        expect(consoleSpy).toHaveBeenCalledWith('  Thread: 500')
+        expect(consoleSpy).toHaveBeenCalledWith('  Thread: TH500')
         expect(client.comments.deleteComment).not.toHaveBeenCalled()
         consoleSpy.mockRestore()
     })
@@ -316,7 +299,7 @@ describe('comment delete', () => {
         await program.parseAsync(['node', 'tdc', 'comment', 'delete', '300', '--json'])
 
         const jsonOutput = JSON.parse(consoleSpy.mock.calls[0][0])
-        expect(jsonOutput).toEqual({ id: 300, deleted: true })
+        expect(jsonOutput).toEqual({ id: '300', deleted: true })
         consoleSpy.mockRestore()
     })
 })

@@ -10,11 +10,25 @@ export function isIdRef(ref: string): boolean {
     return normalizeRef(ref).startsWith('id:')
 }
 
-export function extractId(ref: string): number {
+/**
+ * Returns the raw id portion of `123`, `id:123`, or `id:abc-xyz`. The Comms
+ * backend uses numeric ids for users and workspaces and base58 UUIDv7 strings
+ * for everything else, so this stays string-typed and consumers narrow as
+ * needed (`Number(...)` for numeric refs after validation).
+ */
+export function extractId(ref: string): string {
     const normalized = normalizeRef(ref)
     const idStr = isIdRef(normalized) ? normalized.slice(3).trim() : normalized
-    if (!/^\d+$/.test(idStr)) {
+    if (!idStr) {
         throw new CliError('INVALID_ID', `Invalid ID: ${ref}`)
+    }
+    return idStr
+}
+
+export function extractNumericId(ref: string): number {
+    const idStr = extractId(ref)
+    if (!/^\d+$/.test(idStr)) {
+        throw new CliError('INVALID_ID', `Invalid numeric ID: ${ref}`)
     }
     return Number(idStr)
 }
@@ -22,16 +36,16 @@ export function extractId(ref: string): number {
 export function looksLikeRawId(ref: string): boolean {
     const normalized = normalizeRef(ref)
     if (!normalized || normalized.includes(' ')) return false
-    return /^\d+$/.test(normalized) || (/[a-zA-Z]/.test(normalized) && /\d/.test(normalized))
+    return /^[A-Za-z0-9_-]+$/.test(normalized) && /\d/.test(normalized)
 }
 
 export interface ParsedCommsUrl {
     workspaceId?: number
-    channelId?: number
-    threadId?: number
-    commentId?: number
-    conversationId?: number
-    messageId?: number
+    channelId?: string
+    threadId?: string
+    commentId?: string
+    conversationId?: string
+    messageId?: string
 }
 
 export function parseCommsUrl(url: string): ParsedCommsUrl | null {
@@ -51,29 +65,29 @@ export function parseCommsUrl(url: string): ParsedCommsUrl | null {
             result.workspaceId = parseInt(workspaceMatch[1], 10)
         }
 
-        const channelMatch = path.match(/\/ch\/(\d+)/)
+        const channelMatch = path.match(/\/ch\/([A-Za-z0-9_-]+)/)
         if (channelMatch) {
-            result.channelId = parseInt(channelMatch[1], 10)
+            result.channelId = channelMatch[1]
         }
 
-        const threadMatch = path.match(/\/t\/(\d+)/)
+        const threadMatch = path.match(/\/t\/([A-Za-z0-9_-]+)/)
         if (threadMatch) {
-            result.threadId = parseInt(threadMatch[1], 10)
+            result.threadId = threadMatch[1]
         }
 
-        const commentMatch = path.match(/\/c\/(\d+)/)
+        const commentMatch = path.match(/\/c\/([A-Za-z0-9_-]+)/)
         if (commentMatch) {
-            result.commentId = parseInt(commentMatch[1], 10)
+            result.commentId = commentMatch[1]
         }
 
-        const conversationMatch = path.match(/\/msg\/(\d+)/)
+        const conversationMatch = path.match(/\/msg\/([A-Za-z0-9_-]+)/)
         if (conversationMatch) {
-            result.conversationId = parseInt(conversationMatch[1], 10)
+            result.conversationId = conversationMatch[1]
         }
 
-        const messageMatch = path.match(/\/m\/(\d+)/)
+        const messageMatch = path.match(/\/m\/([A-Za-z0-9_-]+)/)
         if (messageMatch) {
-            result.messageId = parseInt(messageMatch[1], 10)
+            result.messageId = messageMatch[1]
         }
 
         return Object.keys(result).length > 0 ? result : null
@@ -82,12 +96,12 @@ export function parseCommsUrl(url: string): ParsedCommsUrl | null {
     }
 }
 
-export function parseRef(
-    ref: string,
-):
-    | { type: 'id'; id: number }
+export type ParsedRef =
+    | { type: 'id'; id: string }
     | { type: 'url'; parsed: ParsedCommsUrl }
-    | { type: 'name'; name: string } {
+    | { type: 'name'; name: string }
+
+export function parseRef(ref: string): ParsedRef {
     const normalized = normalizeRef(ref)
 
     if (isIdRef(normalized)) {
@@ -101,8 +115,8 @@ export function parseRef(
         }
     }
 
-    if (/^\d+$/.test(normalized)) {
-        return { type: 'id', id: Number(normalized) }
+    if (looksLikeRawId(normalized)) {
+        return { type: 'id', id: normalized }
     }
 
     return { type: 'name', name: normalized }
@@ -111,7 +125,7 @@ export function parseRef(
 /**
  * Match an entity by name: exact (case-insensitive) → unique substring → ambiguous/not-found.
  */
-function matchByName<T extends { id: number; name: string }>(
+function matchByName<T extends { id: number | string; name: string }>(
     items: T[],
     query: string,
     opts: {
@@ -145,7 +159,13 @@ export async function resolveWorkspaceRef(ref: string): Promise<Workspace> {
     const parsed = parseRef(ref)
 
     if (parsed.type === 'id') {
-        const workspace = workspaces.find((w) => w.id === parsed.id)
+        const numericId = Number(parsed.id)
+        if (!Number.isFinite(numericId)) {
+            throw new CliError('WORKSPACE_NOT_FOUND', `Workspace with ID ${parsed.id} not found`, [
+                'Run: tdc workspaces to list available workspaces',
+            ])
+        }
+        const workspace = workspaces.find((w) => w.id === numericId)
         if (!workspace) {
             throw new CliError('WORKSPACE_NOT_FOUND', `Workspace with ID ${parsed.id} not found`, [
                 'Run: tdc workspaces to list available workspaces',
@@ -180,7 +200,7 @@ export async function resolveWorkspaceRef(ref: string): Promise<Workspace> {
     ])
 }
 
-export function resolveThreadId(ref: string): number {
+export function resolveThreadId(ref: string): string {
     const parsed = parseRef(ref)
 
     if (parsed.type === 'id') {
@@ -193,7 +213,7 @@ export function resolveThreadId(ref: string): number {
 
     throw new CliError(
         'INVALID_REF',
-        `Invalid thread reference: ${ref}. Use 123, id:123, or a Comms URL.`,
+        `Invalid thread reference: ${ref}. Use an id, id:<id>, or a Comms URL.`,
     )
 }
 
@@ -244,7 +264,7 @@ export async function resolveChannelRef(ref: string, workspaceId: number): Promi
     ])
 }
 
-export function resolveChannelId(ref: string): number {
+export function resolveChannelId(ref: string): string {
     const parsed = parseRef(ref)
 
     if (parsed.type === 'id') {
@@ -257,11 +277,11 @@ export function resolveChannelId(ref: string): number {
 
     throw new CliError(
         'INVALID_REF',
-        `Invalid channel reference: ${ref}. Use 123, id:123, or a Comms URL.`,
+        `Invalid channel reference: ${ref}. Use an id, id:<id>, or a Comms URL.`,
     )
 }
 
-export function resolveCommentId(ref: string): number {
+export function resolveCommentId(ref: string): string {
     const parsed = parseRef(ref)
 
     if (parsed.type === 'id') {
@@ -274,11 +294,11 @@ export function resolveCommentId(ref: string): number {
 
     throw new CliError(
         'INVALID_REF',
-        `Invalid comment reference: ${ref}. Use 123, id:123, or a Comms URL.`,
+        `Invalid comment reference: ${ref}. Use an id, id:<id>, or a Comms URL.`,
     )
 }
 
-export function resolveConversationId(ref: string): number {
+export function resolveConversationId(ref: string): string {
     const parsed = parseRef(ref)
 
     if (parsed.type === 'id') {
@@ -291,11 +311,11 @@ export function resolveConversationId(ref: string): number {
 
     throw new CliError(
         'INVALID_REF',
-        `Invalid conversation reference: ${ref}. Use 123, id:123, or a Comms URL.`,
+        `Invalid conversation reference: ${ref}. Use an id, id:<id>, or a Comms URL.`,
     )
 }
 
-export function resolveMessageId(ref: string): number {
+export function resolveMessageId(ref: string): string {
     const parsed = parseRef(ref)
 
     if (parsed.type === 'id') {
@@ -308,7 +328,7 @@ export function resolveMessageId(ref: string): number {
 
     throw new CliError(
         'INVALID_REF',
-        `Invalid message reference: ${ref}. Use 123, id:123, or a Comms URL.`,
+        `Invalid message reference: ${ref}. Use an id, id:<id>, or a Comms URL.`,
     )
 }
 
@@ -329,34 +349,50 @@ export function classifyCommsUrl(url: string): CommsUrlRoute | null {
     return null
 }
 
+/**
+ * Split a list of notify refs into numeric user IDs and base58 group IDs by
+ * checking each ref against the workspace's known group IDs. Anything not in
+ * the group set is treated as a user ID and parsed as a number.
+ */
 export function partitionNotifyIds(
-    ids: number[],
-    groupIds: Set<number>,
-): { userIds: number[]; groupIds: number[] } {
+    ids: readonly string[],
+    groupIds: ReadonlySet<string>,
+): { userIds: number[]; groupIds: string[] } {
     const users: number[] = []
-    const groups: number[] = []
+    const groups: string[] = []
     for (const id of ids) {
         if (groupIds.has(id)) {
             groups.push(id)
-        } else {
-            users.push(id)
+            continue
         }
+        const num = Number(id)
+        if (!Number.isFinite(num) || !/^\d+$/.test(id)) {
+            throw new CliError(
+                'INVALID_REF',
+                `Invalid notify ID "${id}": expected a numeric user ID or a known group ID.`,
+            )
+        }
+        users.push(num)
     }
     return { userIds: users, groupIds: groups }
 }
 
-export function parseUserIdRefs(refs: string): number[] {
+/**
+ * Parse a comma-separated list of notify refs into raw IDs (untyped — callers
+ * use {@link partitionNotifyIds} to split into users vs. groups).
+ */
+export function parseNotifyIdRefs(refs: string): string[] {
     return refs.split(',').map((userRef) => {
         const trimmed = userRef.trim()
         if (!trimmed) {
-            throw new CliError('INVALID_REF', 'Invalid user reference list: found empty value')
+            throw new CliError('INVALID_REF', 'Invalid notify reference list: found empty value')
         }
         try {
             return extractId(trimmed)
         } catch {
             throw new CliError(
                 'INVALID_REF',
-                `Invalid user reference: ${trimmed}. Use 123 or id:123`,
+                `Invalid notify reference: ${trimmed}. Use a user or group id.`,
             )
         }
     })
@@ -367,7 +403,7 @@ export async function resolveGroupRef(ref: string, workspaceId: number): Promise
 
     if (parsed.type === 'id') {
         try {
-            const group = await getGroup(parsed.id)
+            const group = await getGroup(parsed.id, workspaceId)
             if (group.workspaceId !== workspaceId) {
                 throw new CliError(
                     'GROUP_NOT_FOUND',
@@ -408,13 +444,18 @@ export async function resolveUserRefs(refs: string, workspaceId: number): Promis
     for (const ref of parts) {
         const parsed = parseRef(ref)
         if (parsed.type === 'id') {
-            ids.push(parsed.id)
+            const num = Number(parsed.id)
+            if (!Number.isFinite(num) || !/^\d+$/.test(parsed.id)) {
+                throw new CliError('INVALID_REF', `Invalid user ID: ${ref}`)
+            }
+            ids.push(num)
             continue
         }
 
         const query = ref.toLowerCase()
         const matches = users.filter(
-            (u) => u.name.toLowerCase().includes(query) || u.email?.toLowerCase().includes(query),
+            (u) =>
+                u.fullName.toLowerCase().includes(query) || u.email?.toLowerCase().includes(query),
         )
 
         if (matches.length === 0) {
@@ -424,7 +465,9 @@ export async function resolveUserRefs(refs: string, workspaceId: number): Promis
         }
 
         if (matches.length > 1) {
-            const list = matches.map((u) => `  ${u.id}  ${u.name} <${u.email ?? ''}>`).join('\n')
+            const list = matches
+                .map((u) => `  ${u.id}  ${u.fullName} <${u.email ?? ''}>`)
+                .join('\n')
             throw new CliError(
                 'AMBIGUOUS_USER',
                 `Multiple users match "${ref}":\n${list}\n\nUse numeric ID to specify.`,

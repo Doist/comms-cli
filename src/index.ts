@@ -32,7 +32,6 @@ const loadSkillCommand = async () =>
 const loadViewCommand = async () => (await import('./commands/view.js')).registerViewCommand
 const loadCompletionCommand = async () =>
     (await import('./commands/completion/index.js')).registerCompletionCommand
-const loadAwayCommand = async () => (await import('./commands/away/index.js')).registerAwayCommand
 const loadUpdateCommand = async () =>
     (await import('./commands/update/index.js')).registerUpdateCommand
 const loadChangelogCommand = async () =>
@@ -58,7 +57,6 @@ const commands: Record<string, [string, () => Promise<(p: Command) => void>]> = 
     comment: ['Thread comment operations (view, update, delete)', loadCommentCommand],
     search: ['Search content across a workspace', loadSearchCommand],
     mentions: ['Show content mentioning the current user', loadMentionsCommand],
-    away: ['Manage away status', loadAwayCommand],
     react: ['Add an emoji reaction (target-type: thread, comment, message)', loadReactCommand],
     unreact: ['Remove an emoji reaction (target-type: thread, comment, message)', loadReactCommand],
     auth: ['Manage authentication', loadAuthCommand],

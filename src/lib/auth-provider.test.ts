@@ -187,7 +187,7 @@ describe('createCommsAuthProvider', () => {
 
     it('validateToken fetches getSessionUser with the new token and returns a narrow CommsAccount', async () => {
         mockCreateClient.mockReturnValue({
-            users: { getSessionUser: vi.fn().mockResolvedValue({ id: 42, name: 'Ada' }) },
+            users: { getSessionUser: vi.fn().mockResolvedValue({ id: 42, fullName: 'Ada' }) },
         } as unknown as ReturnType<typeof createWrappedCommsClient>)
 
         const account = await createCommsAuthProvider().validateToken({

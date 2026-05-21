@@ -15,7 +15,7 @@ import {
 const mockGetCommsClient = vi.mocked(getCommsClient)
 
 function makeMockChannels(
-    channels: Array<{ id: number; public: boolean }>,
+    channels: Array<{ id: string; public: boolean }>,
 ): ReturnType<typeof getCommsClient> {
     return Promise.resolve({
         channels: {
@@ -84,18 +84,18 @@ describe('getPublicChannelIds', () => {
     it('returns only public channel IDs', async () => {
         mockGetCommsClient.mockImplementation(() =>
             makeMockChannels([
-                { id: 1, public: true },
-                { id: 2, public: false },
-                { id: 3, public: true },
+                { id: 'CH1', public: true },
+                { id: 'CH2', public: false },
+                { id: 'CH3', public: true },
             ]),
         )
 
         const ids = await getPublicChannelIds(100)
-        expect(ids).toEqual(new Set([1, 3]))
+        expect(ids).toEqual(new Set(['CH1', 'CH3']))
     })
 
     it('caches results per workspace', async () => {
-        const getChannels = vi.fn().mockResolvedValue([{ id: 1, public: true }])
+        const getChannels = vi.fn().mockResolvedValue([{ id: 'CH1', public: true }])
         mockGetCommsClient.mockResolvedValue({
             channels: { getChannels },
         } as unknown as Awaited<ReturnType<typeof getCommsClient>>)
@@ -107,7 +107,7 @@ describe('getPublicChannelIds', () => {
     })
 
     it('fetches separately for different workspaces', async () => {
-        const getChannels = vi.fn().mockResolvedValue([{ id: 1, public: true }])
+        const getChannels = vi.fn().mockResolvedValue([{ id: 'CH1', public: true }])
         mockGetCommsClient.mockResolvedValue({
             channels: { getChannels },
         } as unknown as Awaited<ReturnType<typeof getCommsClient>>)
@@ -143,28 +143,28 @@ describe('assertChannelIsPublic', () => {
     it('throws for private channels by default', async () => {
         mockGetCommsClient.mockImplementation(() =>
             makeMockChannels([
-                { id: 5, public: true },
-                { id: 6, public: false },
+                { id: 'CH5', public: true },
+                { id: 'CH6', public: false },
             ]),
         )
 
-        await expect(assertChannelIsPublic(6, 100)).rejects.toThrow('private channel')
+        await expect(assertChannelIsPublic('CH6', 100)).rejects.toThrow('private channel')
     })
 
     it('allows public channels by default', async () => {
-        mockGetCommsClient.mockImplementation(() => makeMockChannels([{ id: 5, public: true }]))
+        mockGetCommsClient.mockImplementation(() => makeMockChannels([{ id: 'CH5', public: true }]))
 
-        await expect(assertChannelIsPublic(5, 100)).resolves.toBeUndefined()
+        await expect(assertChannelIsPublic('CH5', 100)).resolves.toBeUndefined()
     })
 
     it('allows private channels when --include-private-channels is set', async () => {
         process.argv = ['node', 'tdc', '--include-private-channels']
         resetGlobalArgs()
-        await expect(assertChannelIsPublic(999, 100)).resolves.toBeUndefined()
+        await expect(assertChannelIsPublic('CH999', 100)).resolves.toBeUndefined()
     })
 
     it('allows private channels when env var is set', async () => {
         process.env.COMMS_INCLUDE_PRIVATE_CHANNELS = '1'
-        await expect(assertChannelIsPublic(999, 100)).resolves.toBeUndefined()
+        await expect(assertChannelIsPublic('CH999', 100)).resolves.toBeUndefined()
     })
 })

@@ -24,7 +24,7 @@ export async function renameGroup(
         return
     }
 
-    const updated = await updateGroup({ id: group.id, name: newName })
+    const updated = await updateGroup({ id: group.id, workspaceId, name: newName })
 
     if (options.json) {
         if (options.full) {

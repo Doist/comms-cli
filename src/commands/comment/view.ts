@@ -10,11 +10,11 @@ export async function viewComment(ref: string, options: ViewOptions): Promise<vo
     const client = await getCommsClient()
     const comment = await client.comments.getComment(commentId)
 
-    const userResponse = await client.workspaceUsers.getUserById(
-        { workspaceId: comment.workspaceId, userId: comment.creator },
-        { batch: false },
-    )
-    const creatorName = userResponse.name
+    const userResponse = await client.workspaceUsers.getUserById({
+        workspaceId: comment.workspaceId,
+        userId: comment.creator,
+    })
+    const creatorName = userResponse.fullName
 
     if (options.json) {
         const output = { ...comment, creatorName }

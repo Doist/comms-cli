@@ -1,4 +1,4 @@
-import { assertBatchData, getCommsClient } from '../../lib/api.js'
+import { getCommsClient } from '../../lib/api.js'
 import { CliError } from '../../lib/errors.js'
 import type { MutationOptions } from '../../lib/options.js'
 import { formatJson, printDryRun } from '../../lib/output.js'
@@ -11,13 +11,10 @@ export async function deleteThread(ref: string, options: DeleteOptions): Promise
     const threadId = resolveThreadId(ref)
 
     const client = await getCommsClient()
-    const [threadResponse, userResponse] = await client.batch(
-        client.threads.getThread(threadId, { batch: true }),
-        client.users.getSessionUser({ batch: true }),
-    )
-
-    const thread = assertBatchData(threadResponse, 'thread')
-    const user = assertBatchData(userResponse, 'user')
+    const [thread, user] = await Promise.all([
+        client.threads.getThread(threadId),
+        client.users.getSessionUser(),
+    ])
 
     await assertChannelIsPublic(thread.channelId, thread.workspaceId)
 

@@ -3,12 +3,14 @@ import { Command } from 'commander'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 const apiMocks = vi.hoisted(() => ({
+    getCommsClient: vi.fn(),
     getCurrentWorkspaceId: vi.fn().mockResolvedValue(1),
     getSessionUser: vi.fn(),
     getWorkspaceUsers: vi.fn(),
 }))
 
 vi.mock('../lib/api.js', () => ({
+    getCommsClient: apiMocks.getCommsClient,
     getCurrentWorkspaceId: apiMocks.getCurrentWorkspaceId,
     getSessionUser: apiMocks.getSessionUser,
     getWorkspaceUsers: apiMocks.getWorkspaceUsers,
@@ -59,12 +61,10 @@ describeEmptyMachineOutput('tdc users empty output', {
 describe('user --json', () => {
     const sampleUser = {
         id: 42,
-        name: 'Jane Smith',
+        fullName: 'Jane Smith',
         email: 'jane@example.com',
         timezone: 'America/New_York',
-        userType: 'regular',
-        awayMode: null,
-        defaultWorkspace: 1,
+        userType: 'USER',
         lang: 'en',
         shortName: 'Jane',
     }
@@ -72,6 +72,11 @@ describe('user --json', () => {
     beforeEach(() => {
         vi.clearAllMocks()
         apiMocks.getSessionUser.mockResolvedValue(sampleUser)
+        apiMocks.getCommsClient.mockResolvedValue({
+            workspaces: {
+                getDefaultWorkspace: vi.fn().mockResolvedValue({ id: 1, name: 'Doist' }),
+            },
+        })
     })
 
     it('outputs essential user fields as JSON', async () => {
@@ -83,7 +88,7 @@ describe('user --json', () => {
         expect(consoleSpy).toHaveBeenCalledTimes(1)
         const jsonOutput = JSON.parse(consoleSpy.mock.calls[0][0])
         expect(jsonOutput.id).toBe(42)
-        expect(jsonOutput.name).toBe('Jane Smith')
+        expect(jsonOutput.fullName).toBe('Jane Smith')
         expect(jsonOutput.email).toBe('jane@example.com')
         expect(jsonOutput.timezone).toBe('America/New_York')
         expect(jsonOutput).not.toHaveProperty('lang')
@@ -102,7 +107,7 @@ describe('user --json', () => {
         const jsonOutput = JSON.parse(consoleSpy.mock.calls[0][0])
         expect(jsonOutput).toHaveProperty('lang', 'en')
         expect(jsonOutput).toHaveProperty('shortName', 'Jane')
-        expect(jsonOutput).toHaveProperty('defaultWorkspace', 1)
+        expect(jsonOutput).toHaveProperty('defaultWorkspaceId', 1)
 
         consoleSpy.mockRestore()
     })

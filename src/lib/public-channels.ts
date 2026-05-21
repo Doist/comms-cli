@@ -2,15 +2,15 @@ import { getCommsClient } from './api.js'
 import { CliError } from './errors.js'
 import { includePrivateChannels } from './global-args.js'
 
-const publicChannelCache = new Map<number, Set<number>>()
+const publicChannelCache = new Map<number, Set<string>>()
 
-export async function getPublicChannelIds(workspaceId: number): Promise<Set<number>> {
+export async function getPublicChannelIds(workspaceId: number): Promise<Set<string>> {
     const cached = publicChannelCache.get(workspaceId)
     if (cached) return cached
 
     const client = await getCommsClient()
     const channels = await client.channels.getChannels({ workspaceId })
-    const publicIds = new Set<number>()
+    const publicIds = new Set<string>()
     for (const ch of channels) {
         if (ch.public) publicIds.add(ch.id)
     }
@@ -22,7 +22,7 @@ export function clearPublicChannelCache(): void {
     publicChannelCache.clear()
 }
 
-export async function assertChannelIsPublic(channelId: number, workspaceId: number): Promise<void> {
+export async function assertChannelIsPublic(channelId: string, workspaceId: number): Promise<void> {
     if (includePrivateChannels()) return
     const publicIds = await getPublicChannelIds(workspaceId)
     if (!publicIds.has(channelId)) {

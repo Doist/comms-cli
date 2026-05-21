@@ -1,5 +1,5 @@
 import chalk from 'chalk'
-import { assertBatchData, buildOptionalBatchNameMap, getCommsClient } from '../../lib/api.js'
+import { buildUserNameMap, getCommsClient } from '../../lib/api.js'
 import { formatRelativeDate } from '../../lib/dates.js'
 import { renderMarkdown } from '../../lib/markdown.js'
 import { colors, filterEntityFields } from '../../lib/output.js'
@@ -14,34 +14,13 @@ export async function viewConversation(
     const client = await getCommsClient()
     const limit = options.limit ? parseInt(options.limit, 10) : 50
 
-    const [convResponse, messagesResponse] = await client.batch(
-        client.conversations.getConversation(conversationId, { batch: true }),
-        client.conversationMessages.getMessages(
-            {
-                conversationId,
-                limit,
-            },
-            { batch: true },
-        ),
-    )
+    const [conversation, messages] = await Promise.all([
+        client.conversations.getConversation(conversationId),
+        client.conversationMessages.getMessages({ conversationId, limit }),
+    ])
 
-    const conversation = assertBatchData(convResponse, `conversation ${conversationId}`)
-    const messages = assertBatchData(
-        messagesResponse,
-        `messages for conversation ${conversationId}`,
-    )
+    const userMap = await buildUserNameMap(conversation.workspaceId, client)
 
-    const userIds = [
-        ...new Set<number>([...conversation.userIds, ...messages.map((m) => m.creator)]),
-    ]
-    const userCalls = userIds.map((id) =>
-        client.workspaceUsers.getUserById(
-            { workspaceId: conversation.workspaceId, userId: id },
-            { batch: true },
-        ),
-    )
-    const userResponses = await client.batch(...userCalls)
-    const userMap = buildOptionalBatchNameMap(userIds, userResponses, 'user')
     const conversationOutput = {
         ...conversation,
         participantNames: conversation.userIds.map((id) => userMap.get(id)),

@@ -9,7 +9,7 @@ type TargetType = 'thread' | 'comment' | 'message'
 
 type ReactOptions = MutationOptions
 
-function resolveTargetId(targetType: TargetType, targetRef: string): number {
+function resolveTargetId(targetType: TargetType, targetRef: string): string {
     if (targetType === 'thread') {
         return resolveThreadId(targetRef)
     }
@@ -72,7 +72,7 @@ async function addReaction(
 
     const client = await getCommsClient()
 
-    const params: { threadId?: number; commentId?: number; messageId?: number; reaction: string } =
+    const params: { threadId?: string; commentId?: string; messageId?: string; reaction: string } =
         {
             reaction: normalizedEmoji,
         }
@@ -126,7 +126,7 @@ async function removeReaction(
 
     const client = await getCommsClient()
 
-    const params: { threadId?: number; commentId?: number; messageId?: number; reaction: string } =
+    const params: { threadId?: string; commentId?: string; messageId?: string; reaction: string } =
         {
             reaction: normalizedEmoji,
         }

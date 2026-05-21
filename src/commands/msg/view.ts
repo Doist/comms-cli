@@ -10,11 +10,11 @@ export async function viewMessage(ref: string, options: ViewOptions): Promise<vo
     const client = await getCommsClient()
     const message = await client.conversationMessages.getMessage(messageId)
 
-    const userResponse = await client.workspaceUsers.getUserById(
-        { workspaceId: message.workspaceId, userId: message.creator },
-        { batch: false },
-    )
-    const creatorName = userResponse.name
+    const userResponse = await client.workspaceUsers.getUserById({
+        workspaceId: message.workspaceId,
+        userId: message.creator,
+    })
+    const creatorName = userResponse.fullName
 
     if (options.json) {
         const output = { ...message, creatorName }

@@ -1,6 +1,6 @@
 import type { Conversation } from '@doist/comms-sdk'
 import chalk from 'chalk'
-import { buildOptionalBatchNameMap, getCommsClient } from '../../lib/api.js'
+import { buildUserNameMap, getCommsClient } from '../../lib/api.js'
 import { formatRelativeDate } from '../../lib/dates.js'
 import { CliError } from '../../lib/errors.js'
 import { isAccessible } from '../../lib/global-args.js'
@@ -23,15 +23,6 @@ export type ReplyOptions = MutationOptions
 export type MuteOptions = MutationOptions & { minutes?: string }
 
 export type DoneOptions = MutationOptions
-
-export const CONVERSATION_PAGE_LIMIT = 100
-
-export type ConversationPageArgs = {
-    workspaceId: number
-    archived?: boolean
-    limit: number
-    beforeId?: number
-}
 
 export type ConversationLookupResult = {
     directConversation?: Conversation
@@ -58,48 +49,15 @@ export function sortByLastActiveDescending(a: Conversation, b: Conversation): nu
     return new Date(b.lastActive).getTime() - new Date(a.lastActive).getTime()
 }
 
-export async function getConversationPages(
-    initialArgs: ConversationPageArgs,
-): Promise<Conversation[]> {
-    const client = await getCommsClient()
-    const conversations: Conversation[] = []
-    let beforeId = initialArgs.beforeId
-
-    while (true) {
-        const pageArgs: ConversationPageArgs = {
-            ...initialArgs,
-            beforeId,
-        }
-        const page = await client.conversations.getConversations(pageArgs)
-
-        if (page.length === 0) {
-            break
-        }
-
-        conversations.push(...page)
-
-        if (page.length < initialArgs.limit) {
-            break
-        }
-
-        const nextBeforeId = page[page.length - 1]?.id
-        if (!nextBeforeId || nextBeforeId === beforeId) {
-            break
-        }
-        beforeId = nextBeforeId
-    }
-
-    return conversations
-}
-
 export async function getAllConversations(workspaceId: number): Promise<Conversation[]> {
-    const [activeConversations, archivedConversations] = await Promise.all([
-        getConversationPages({ workspaceId, limit: CONVERSATION_PAGE_LIMIT }),
-        getConversationPages({ workspaceId, archived: true, limit: CONVERSATION_PAGE_LIMIT }),
+    const client = await getCommsClient()
+    const [active, archived] = await Promise.all([
+        client.conversations.getConversations({ workspaceId }),
+        client.conversations.getConversations({ workspaceId, archived: true }),
     ])
 
-    const byId = new Map<number, Conversation>()
-    for (const conversation of [...activeConversations, ...archivedConversations]) {
+    const byId = new Map<string, Conversation>()
+    for (const conversation of [...active, ...archived]) {
         byId.set(conversation.id, conversation)
     }
 
@@ -111,46 +69,25 @@ export async function findDirectConversation(
     sessionUserId: number,
     targetUserId: number,
 ): Promise<ConversationLookupResult> {
-    const client = await getCommsClient()
+    const conversations = await getAllConversations(workspaceId)
     let groupConversationCount = 0
 
-    for (const archived of [false, true]) {
-        let beforeId: number | undefined
+    for (const conversation of conversations) {
+        if (!conversation.userIds.includes(targetUserId)) {
+            continue
+        }
 
-        while (true) {
-            const pageArgs: ConversationPageArgs = {
-                workspaceId,
-                archived: archived || undefined,
-                limit: CONVERSATION_PAGE_LIMIT,
-                beforeId,
-            }
-            const page = await client.conversations.getConversations(pageArgs)
+        const isSelfConversation = sessionUserId === targetUserId
+        const isDirect = isSelfConversation
+            ? conversation.userIds.length === 1
+            : conversation.userIds.length === 2 && conversation.userIds.includes(sessionUserId)
 
-            if (page.length === 0) {
-                break
-            }
+        if (isDirect) {
+            return { directConversation: conversation, groupConversationCount }
+        }
 
-            for (const conversation of page) {
-                if (!conversation.userIds.includes(targetUserId)) {
-                    continue
-                }
-
-                const isSelfConversation = sessionUserId === targetUserId
-                const isDirect = isSelfConversation
-                    ? conversation.userIds.length === 1
-                    : conversation.userIds.length === 2 &&
-                      conversation.userIds.includes(sessionUserId)
-
-                if (isDirect) {
-                    return { directConversation: conversation, groupConversationCount }
-                }
-
-                if (conversation.userIds.length > (isSelfConversation ? 1 : 2)) {
-                    groupConversationCount += 1
-                }
-            }
-
-            beforeId = page[page.length - 1]?.id
+        if (conversation.userIds.length > (isSelfConversation ? 1 : 2)) {
+            groupConversationCount += 1
         }
     }
 
@@ -172,19 +109,7 @@ export async function listConversationsWithUser(
     }
 
     const client = await getCommsClient()
-    const userIds = new Set<number>()
-    for (const conversation of conversations) {
-        for (const userId of conversation.userIds) {
-            userIds.add(userId)
-        }
-    }
-
-    const userIdList = [...userIds]
-    const userCalls = userIdList.map((userId) =>
-        client.workspaceUsers.getUserById({ workspaceId, userId }, { batch: true }),
-    )
-    const userResponses = await client.batch(...userCalls)
-    const userMap = buildOptionalBatchNameMap(userIdList, userResponses, 'user')
+    const userMap = await buildUserNameMap(workspaceId, client)
 
     const output = conversations.map((conversation) => ({
         ...conversation,
@@ -202,15 +127,15 @@ export async function listConversationsWithUser(
     }
 
     for (const conversation of conversations) {
-        const participants = conversation.userIds
-            .map((id) => userMap.get(id) || `user:${id}`)
-            .join(', ')
         const title = buildConversationTitle(conversation, userMap)
         const archivedBadge = conversation.archived
             ? chalk.yellow(isAccessible() ? ' (archived)' : ' [archived]')
             : ''
 
         console.log(`${chalk.bold(title)}${archivedBadge}`)
+        const participants = conversation.userIds
+            .map((id) => userMap.get(id) || `user:${id}`)
+            .join(', ')
         console.log(
             `  ${colors.timestamp(`id:${conversation.id}`)}  ${colors.author(participants)}`,
         )

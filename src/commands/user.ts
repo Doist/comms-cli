@@ -1,6 +1,11 @@
 import chalk from 'chalk'
 import { Command } from 'commander'
-import { getCurrentWorkspaceId, getSessionUser, getWorkspaceUsers } from '../lib/api.js'
+import {
+    getCommsClient,
+    getCurrentWorkspaceId,
+    getSessionUser,
+    getWorkspaceUsers,
+} from '../lib/api.js'
 import { CliError } from '../lib/errors.js'
 import type { ViewOptions } from '../lib/options.js'
 import { colors, formatJson, formatNdjson, printEmpty } from '../lib/output.js'
@@ -10,19 +15,24 @@ type UsersOptions = ViewOptions & { workspace?: string; search?: string }
 
 async function showCurrentUser(options: ViewOptions): Promise<void> {
     const user = await getSessionUser()
+    const client = await getCommsClient()
+    const defaultWorkspace = await client.workspaces.getDefaultWorkspace().catch(() => null)
 
     if (options.json) {
-        console.log(formatJson(user, 'user', options.full))
+        const payload = defaultWorkspace
+            ? { ...user, defaultWorkspaceId: defaultWorkspace.id }
+            : user
+        console.log(formatJson(payload, 'user', options.full))
         return
     }
 
-    console.log(chalk.bold(user.name))
+    console.log(chalk.bold(user.fullName))
     console.log('')
     console.log(`ID:        ${user.id}`)
     console.log(`Email:     ${user.email}`)
     console.log(`Timezone:  ${user.timezone}`)
-    if (user.defaultWorkspace) {
-        console.log(`Default:   workspace id:${user.defaultWorkspace}`)
+    if (defaultWorkspace) {
+        console.log(`Default:   ${defaultWorkspace.name} (id:${defaultWorkspace.id})`)
     }
 }
 
@@ -49,7 +59,9 @@ async function listUsers(workspaceRef: string | undefined, options: UsersOptions
     if (options.search) {
         const search = options.search.toLowerCase()
         users = users.filter(
-            (u) => u.name.toLowerCase().includes(search) || u.email?.toLowerCase().includes(search),
+            (u) =>
+                u.fullName.toLowerCase().includes(search) ||
+                u.email?.toLowerCase().includes(search),
         )
     }
 
@@ -70,11 +82,10 @@ async function listUsers(workspaceRef: string | undefined, options: UsersOptions
 
     for (const u of users) {
         const id = colors.timestamp(`id:${u.id}`)
-        const name = u.name
+        const name = u.fullName
         const email = u.email ? colors.timestamp(`<${u.email}>`) : ''
         const type = colors.channel(`[${u.userType}]`)
-        const bot = u.bot ? chalk.yellow(' [bot]') : ''
-        console.log(`${id}  ${name} ${email} ${type}${bot}`)
+        console.log(`${id}  ${name} ${email} ${type}`)
     }
 }
 

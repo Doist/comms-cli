@@ -4,7 +4,7 @@ import { openEditor, readStdin } from '../../lib/input.js'
 import type { MutationOptions } from '../../lib/options.js'
 import { formatJson, printDryRun } from '../../lib/output.js'
 import { assertChannelIsPublic } from '../../lib/public-channels.js'
-import { parseUserIdRefs, resolveThreadId } from '../../lib/refs.js'
+import { parseNotifyIdRefs, resolveThreadId } from '../../lib/refs.js'
 import { type ResolvedNotify, formatNotifyLabel, resolveNotifyIds } from './helpers.js'
 
 type ReplyOptions = MutationOptions & {
@@ -50,7 +50,7 @@ export async function replyToThread(
     if (isSpecialRecipient) {
         recipients = notifyValue
     } else {
-        const allIds = parseUserIdRefs(notifyValue)
+        const allIds = parseNotifyIdRefs(notifyValue)
         resolved = await resolveNotifyIds(allIds, thread.workspaceId)
         recipients = resolved.recipients
     }
