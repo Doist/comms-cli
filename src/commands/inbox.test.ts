@@ -1,5 +1,8 @@
-import { describeEmptyMachineOutput } from '@doist/cli-core/testing'
-import { Command } from 'commander'
+import {
+    captureConsole,
+    createTestProgram,
+    describeEmptyMachineOutput,
+} from '@doist/cli-core/testing'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 const apiMocks = vi.hoisted(() => ({
@@ -29,12 +32,7 @@ vi.mock('chalk')
 
 import { registerInboxCommand } from './inbox.js'
 
-function createProgram() {
-    const program = new Command()
-    program.exitOverride()
-    registerInboxCommand(program)
-    return program
-}
+const createProgram = () => createTestProgram(registerInboxCommand)
 
 function mockClient(overrides: {
     inboxThreads?: unknown[]
@@ -148,7 +146,7 @@ describe('inbox empty output (channel filter)', () => {
             inboxThreads: [thread],
             getChannel: vi.fn().mockResolvedValue({ id: 'CH10', name: 'engineering' }),
         })
-        logSpy = vi.spyOn(console, 'log').mockImplementation(() => {})
+        logSpy = captureConsole('log')
     })
 
     it('outputs [] for --json when --channel filter matches nothing', async () => {

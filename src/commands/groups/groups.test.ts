@@ -1,5 +1,8 @@
-import { describeEmptyMachineOutput } from '@doist/cli-core/testing'
-import { Command } from 'commander'
+import {
+    captureConsole,
+    createTestProgram,
+    describeEmptyMachineOutput,
+} from '@doist/cli-core/testing'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 const apiMocks = vi.hoisted(() => ({
@@ -29,12 +32,7 @@ vi.mock('chalk')
 
 import { registerGroupsCommand } from './index.js'
 
-function createProgram() {
-    const program = new Command()
-    program.exitOverride()
-    registerGroupsCommand(program)
-    return program
-}
+const createProgram = () => createTestProgram(registerGroupsCommand)
 
 const sampleGroups = [
     {
@@ -97,7 +95,7 @@ describeEmptyMachineOutput('tdc groups list empty output', {
 describe('tdc groups list (default)', () => {
     it('lists all groups', async () => {
         const program = createProgram()
-        const consoleSpy = vi.spyOn(console, 'log').mockImplementation(() => {})
+        const consoleSpy = captureConsole('log')
 
         await program.parseAsync(['node', 'tdc', 'groups'])
 
@@ -107,7 +105,7 @@ describe('tdc groups list (default)', () => {
 
     it('outputs JSON', async () => {
         const program = createProgram()
-        const consoleSpy = vi.spyOn(console, 'log').mockImplementation(() => {})
+        const consoleSpy = captureConsole('log')
 
         await program.parseAsync(['node', 'tdc', 'groups', '--json'])
 
@@ -118,7 +116,7 @@ describe('tdc groups list (default)', () => {
 
     it('still works with explicit list subcommand', async () => {
         const program = createProgram()
-        const consoleSpy = vi.spyOn(console, 'log').mockImplementation(() => {})
+        const consoleSpy = captureConsole('log')
 
         await program.parseAsync(['node', 'tdc', 'groups', 'list'])
 
@@ -127,7 +125,7 @@ describe('tdc groups list (default)', () => {
 
     it('filters groups with --search', async () => {
         const program = createProgram()
-        const consoleSpy = vi.spyOn(console, 'log').mockImplementation(() => {})
+        const consoleSpy = captureConsole('log')
 
         await program.parseAsync(['node', 'tdc', 'groups', '--search', 'front'])
 
@@ -138,7 +136,7 @@ describe('tdc groups list (default)', () => {
     it('shows empty message when no groups match', async () => {
         apiMocks.getWorkspaceGroups.mockResolvedValue([])
         const program = createProgram()
-        const consoleSpy = vi.spyOn(console, 'log').mockImplementation(() => {})
+        const consoleSpy = captureConsole('log')
 
         await program.parseAsync(['node', 'tdc', 'groups'])
 
@@ -148,7 +146,7 @@ describe('tdc groups list (default)', () => {
 
     it('outputs NDJSON', async () => {
         const program = createProgram()
-        const consoleSpy = vi.spyOn(console, 'log').mockImplementation(() => {})
+        const consoleSpy = captureConsole('log')
 
         await program.parseAsync(['node', 'tdc', 'groups', '--ndjson'])
 
@@ -161,7 +159,7 @@ describe('tdc groups list (default)', () => {
 
     it('includes all fields with --json --full', async () => {
         const program = createProgram()
-        const consoleSpy = vi.spyOn(console, 'log').mockImplementation(() => {})
+        const consoleSpy = captureConsole('log')
 
         await program.parseAsync(['node', 'tdc', 'groups', '--json', '--full'])
 
@@ -173,7 +171,7 @@ describe('tdc groups list (default)', () => {
     it('accepts [workspace-ref] positional argument', async () => {
         refsMocks.resolveWorkspaceRef.mockResolvedValue({ id: 1, name: 'Test' })
         const program = createProgram()
-        const consoleSpy = vi.spyOn(console, 'log').mockImplementation(() => {})
+        const consoleSpy = captureConsole('log')
 
         await program.parseAsync(['node', 'tdc', 'groups', 'list', '1'])
 
@@ -201,7 +199,7 @@ describe('tdc groups view', () => {
 
     it('resolves group ref and fetches each member individually', async () => {
         const program = createProgram()
-        const consoleSpy = vi.spyOn(console, 'log').mockImplementation(() => {})
+        const consoleSpy = captureConsole('log')
 
         await program.parseAsync(['node', 'tdc', 'groups', 'view', 'Frontend'])
 
@@ -220,7 +218,7 @@ describe('tdc groups view', () => {
 
     it('outputs JSON with enriched members (default shape)', async () => {
         const program = createProgram()
-        const consoleSpy = vi.spyOn(console, 'log').mockImplementation(() => {})
+        const consoleSpy = captureConsole('log')
 
         await program.parseAsync(['node', 'tdc', 'groups', 'view', 'id:GR100', '--json'])
 
@@ -239,7 +237,7 @@ describe('tdc groups view', () => {
             throw new Error('User not found')
         })
         const program = createProgram()
-        const consoleSpy = vi.spyOn(console, 'log').mockImplementation(() => {})
+        const consoleSpy = captureConsole('log')
 
         await program.parseAsync(['node', 'tdc', 'groups', 'view', 'Frontend', '--json'])
 
@@ -250,7 +248,7 @@ describe('tdc groups view', () => {
 
     it('outputs JSON with all fields when --full', async () => {
         const program = createProgram()
-        const consoleSpy = vi.spyOn(console, 'log').mockImplementation(() => {})
+        const consoleSpy = captureConsole('log')
 
         await program.parseAsync(['node', 'tdc', 'groups', 'view', 'id:GR100', '--json', '--full'])
 
@@ -269,7 +267,7 @@ describe('tdc groups create', () => {
 
     it('creates a group without users', async () => {
         const program = createProgram()
-        const consoleSpy = vi.spyOn(console, 'log').mockImplementation(() => {})
+        const consoleSpy = captureConsole('log')
 
         await program.parseAsync(['node', 'tdc', 'groups', 'create', 'Design'])
 
@@ -284,7 +282,7 @@ describe('tdc groups create', () => {
     it('resolves --users and passes ids to createGroup', async () => {
         refsMocks.resolveUserRefs.mockResolvedValue([10, 20])
         const program = createProgram()
-        vi.spyOn(console, 'log').mockImplementation(() => {})
+        captureConsole('log')
 
         await program.parseAsync([
             'node',
@@ -320,7 +318,7 @@ describe('tdc groups rename', () => {
 
     it('renames an existing group', async () => {
         const program = createProgram()
-        const consoleSpy = vi.spyOn(console, 'log').mockImplementation(() => {})
+        const consoleSpy = captureConsole('log')
 
         await program.parseAsync(['node', 'tdc', 'groups', 'rename', 'Frontend', 'FE Team'])
 
@@ -340,7 +338,7 @@ describe('tdc groups delete', () => {
 
     it('refuses to delete without --yes', async () => {
         const program = createProgram()
-        const consoleSpy = vi.spyOn(console, 'log').mockImplementation(() => {})
+        const consoleSpy = captureConsole('log')
 
         await program.parseAsync(['node', 'tdc', 'groups', 'delete', 'Frontend'])
 
@@ -350,7 +348,7 @@ describe('tdc groups delete', () => {
 
     it('deletes when --yes is passed', async () => {
         const program = createProgram()
-        vi.spyOn(console, 'log').mockImplementation(() => {})
+        captureConsole('log')
 
         await program.parseAsync(['node', 'tdc', 'groups', 'delete', 'Frontend', '--yes'])
 
@@ -373,7 +371,7 @@ describe('tdc groups add-user', () => {
     it('joins variadic refs and resolves them', async () => {
         refsMocks.resolveUserRefs.mockResolvedValue([3, 4])
         const program = createProgram()
-        vi.spyOn(console, 'log').mockImplementation(() => {})
+        captureConsole('log')
 
         await program.parseAsync([
             'node',
@@ -392,7 +390,7 @@ describe('tdc groups add-user', () => {
     it('mixes comma- and space-separated refs', async () => {
         refsMocks.resolveUserRefs.mockResolvedValue([3, 4, 5])
         const program = createProgram()
-        vi.spyOn(console, 'log').mockImplementation(() => {})
+        captureConsole('log')
 
         await program.parseAsync([
             'node',
@@ -410,7 +408,7 @@ describe('tdc groups add-user', () => {
     it('skips users already in the group', async () => {
         refsMocks.resolveUserRefs.mockResolvedValue([1, 3])
         const program = createProgram()
-        vi.spyOn(console, 'log').mockImplementation(() => {})
+        captureConsole('log')
 
         await program.parseAsync(['node', 'tdc', 'groups', 'add-user', 'Frontend', 'id:1,id:3'])
 
@@ -420,7 +418,7 @@ describe('tdc groups add-user', () => {
     it('makes no API call when all users are already members', async () => {
         refsMocks.resolveUserRefs.mockResolvedValue([1, 2])
         const program = createProgram()
-        vi.spyOn(console, 'log').mockImplementation(() => {})
+        captureConsole('log')
 
         await program.parseAsync(['node', 'tdc', 'groups', 'add-user', 'Frontend', 'id:1,id:2'])
 
@@ -437,7 +435,7 @@ describe('tdc groups add-user', () => {
     it('deduplicates resolved user IDs', async () => {
         refsMocks.resolveUserRefs.mockResolvedValue([3, 3, 4])
         const program = createProgram()
-        vi.spyOn(console, 'log').mockImplementation(() => {})
+        captureConsole('log')
 
         await program.parseAsync([
             'node',
@@ -462,7 +460,7 @@ describe('tdc groups remove-user', () => {
     it('only removes users that are members', async () => {
         refsMocks.resolveUserRefs.mockResolvedValue([2, 3, 99])
         const program = createProgram()
-        vi.spyOn(console, 'log').mockImplementation(() => {})
+        captureConsole('log')
 
         await program.parseAsync([
             'node',
@@ -479,7 +477,7 @@ describe('tdc groups remove-user', () => {
     it('makes no API call when none of the users are members', async () => {
         refsMocks.resolveUserRefs.mockResolvedValue([99, 100])
         const program = createProgram()
-        vi.spyOn(console, 'log').mockImplementation(() => {})
+        captureConsole('log')
 
         await program.parseAsync([
             'node',
@@ -503,7 +501,7 @@ describe('tdc groups remove-user', () => {
     it('deduplicates resolved user IDs', async () => {
         refsMocks.resolveUserRefs.mockResolvedValue([2, 2, 3])
         const program = createProgram()
-        vi.spyOn(console, 'log').mockImplementation(() => {})
+        captureConsole('log')
 
         await program.parseAsync([
             'node',

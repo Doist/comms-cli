@@ -1,5 +1,8 @@
-import { describeEmptyMachineOutput } from '@doist/cli-core/testing'
-import { Command } from 'commander'
+import {
+    captureConsole,
+    createTestProgram,
+    describeEmptyMachineOutput,
+} from '@doist/cli-core/testing'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { clearWorkspaceUserCache } from '../../lib/api.js'
 import { CliError } from '../../lib/errors.js'
@@ -123,12 +126,7 @@ function createClient({
     }
 }
 
-function createProgram() {
-    const program = new Command()
-    program.exitOverride()
-    registerConversationCommand(program)
-    return program
-}
+const createProgram = () => createTestProgram(registerConversationCommand)
 
 // Cache lives in api.ts module scope, so reset between tests.
 beforeEach(() => {
@@ -143,13 +141,11 @@ describe('conversation implicit view', () => {
 
     it('tdc conversation <ref> routes to view (not unknown command)', async () => {
         const program = createProgram()
-        const consoleSpy = vi.spyOn(console, 'log').mockImplementation(() => {})
+        captureConsole('log')
 
         await expect(program.parseAsync(['node', 'tdc', 'conversation', '100'])).rejects.toThrow(
             'MOCK_API_REACHED',
         )
-
-        consoleSpy.mockRestore()
     })
 })
 
@@ -209,7 +205,7 @@ describe('conversation with', () => {
         apiMocks.getCommsClient.mockResolvedValue(client)
 
         const program = createProgram()
-        const consoleSpy = vi.spyOn(console, 'log').mockImplementation(() => {})
+        const consoleSpy = captureConsole('log')
 
         await program.parseAsync(['node', 'tdc', 'conversation', 'with', 'Alice'])
 
@@ -217,8 +213,6 @@ describe('conversation with', () => {
         expect(refsMocks.resolveConversationId).not.toHaveBeenCalled()
         expect(consoleSpy).toHaveBeenCalledWith('Conversation with Me, Alice Example')
         expect(client.conversations.getConversations).toHaveBeenCalledWith({ workspaceId: 1 })
-
-        consoleSpy.mockRestore()
     })
 
     it('searches archived conversations when no active 1:1 is found', async () => {
@@ -236,7 +230,7 @@ describe('conversation with', () => {
         apiMocks.getCommsClient.mockResolvedValue(client)
 
         const program = createProgram()
-        const consoleSpy = vi.spyOn(console, 'log').mockImplementation(() => {})
+        captureConsole('log')
 
         await program.parseAsync(['node', 'tdc', 'conversation', 'with', 'Alice'])
 
@@ -245,8 +239,6 @@ describe('conversation with', () => {
             workspaceId: 1,
             archived: true,
         })
-
-        consoleSpy.mockRestore()
     })
 
     it('lists matching group conversations when --include-groups is set', async () => {
@@ -264,7 +256,7 @@ describe('conversation with', () => {
         apiMocks.getCommsClient.mockResolvedValue(client)
 
         const program = createProgram()
-        const consoleSpy = vi.spyOn(console, 'log').mockImplementation(() => {})
+        const consoleSpy = captureConsole('log')
 
         await program.parseAsync([
             'node',
@@ -282,8 +274,6 @@ describe('conversation with', () => {
                 (conversation: { id: string }) => conversation.id,
             ),
         ).toEqual(['43', '42'])
-
-        consoleSpy.mockRestore()
     })
 
     it('finds the self-conversation when looking up yourself', async () => {
@@ -297,13 +287,11 @@ describe('conversation with', () => {
         apiMocks.getCommsClient.mockResolvedValue(client)
 
         const program = createProgram()
-        const consoleSpy = vi.spyOn(console, 'log').mockImplementation(() => {})
+        const consoleSpy = captureConsole('log')
 
         await program.parseAsync(['node', 'tdc', 'conversation', 'with', 'Me'])
 
         expect(consoleSpy).toHaveBeenCalledWith('Conversation with Me')
-
-        consoleSpy.mockRestore()
     })
 
     it('emits empty JSON array when no 1:1 conversation is found with --json', async () => {
@@ -318,14 +306,12 @@ describe('conversation with', () => {
         apiMocks.getCommsClient.mockResolvedValue(client)
 
         const program = createProgram()
-        const consoleSpy = vi.spyOn(console, 'log').mockImplementation(() => {})
+        const consoleSpy = captureConsole('log')
 
         await program.parseAsync(['node', 'tdc', 'conversation', 'with', 'Alice', '--json'])
 
         expect(consoleSpy).toHaveBeenCalledTimes(1)
         expect(JSON.parse(consoleSpy.mock.calls[0][0])).toEqual([])
-
-        consoleSpy.mockRestore()
     })
 
     it('prints a clean error and exits non-zero for ambiguous user refs', async () => {
@@ -376,7 +362,7 @@ describe('conversation view machine output', () => {
         apiMocks.getCommsClient.mockResolvedValue(client)
 
         const program = createProgram()
-        const consoleSpy = vi.spyOn(console, 'log').mockImplementation(() => {})
+        const consoleSpy = captureConsole('log')
 
         await program.parseAsync(['node', 'tdc', 'conversation', 'view', '42', '--json'])
 
@@ -435,8 +421,6 @@ describe('conversation view machine output', () => {
         expect(fullJsonOutput.conversation.participantNames).toEqual(['Me', 'Alice Example'])
         expect(fullJsonOutput.messages[0].creatorName).toBe('Alice Example')
         expect(fullJsonOutput.messages[0].extra).toBe('message-extra')
-
-        consoleSpy.mockRestore()
     })
 })
 
@@ -469,7 +453,7 @@ describe('conversation view error propagation', () => {
         apiMocks.getCommsClient.mockResolvedValue(client)
 
         const program = createProgram()
-        const consoleSpy = vi.spyOn(console, 'log').mockImplementation(() => {})
+        const consoleSpy = captureConsole('log')
 
         // view.ts swallows individual user-lookup failures and falls back to
         // `user:${id}` — the conversation itself still renders.
@@ -478,8 +462,6 @@ describe('conversation view error propagation', () => {
         const output = consoleSpy.mock.calls.map((c) => c[0]).join('\n')
         expect(output).toContain('user:1')
         expect(output).toContain('user:2')
-
-        consoleSpy.mockRestore()
     })
 })
 
@@ -494,7 +476,7 @@ describe('conversation mute', () => {
         apiMocks.getCommsClient.mockResolvedValue(client)
 
         const program = createProgram()
-        const consoleSpy = vi.spyOn(console, 'log').mockImplementation(() => {})
+        const consoleSpy = captureConsole('log')
 
         await program.parseAsync(['node', 'tdc', 'conversation', 'mute', '42'])
 
@@ -503,8 +485,6 @@ describe('conversation mute', () => {
             minutes: 60,
         })
         expect(consoleSpy).toHaveBeenCalledWith('Conversation 42 muted for 60 minutes.')
-
-        consoleSpy.mockRestore()
     })
 
     it('mutes a conversation with custom minutes', async () => {
@@ -513,7 +493,7 @@ describe('conversation mute', () => {
         apiMocks.getCommsClient.mockResolvedValue(client)
 
         const program = createProgram()
-        const consoleSpy = vi.spyOn(console, 'log').mockImplementation(() => {})
+        const consoleSpy = captureConsole('log')
 
         await program.parseAsync(['node', 'tdc', 'conversation', 'mute', '42', '--minutes', '480'])
 
@@ -522,8 +502,6 @@ describe('conversation mute', () => {
             minutes: 480,
         })
         expect(consoleSpy).toHaveBeenCalledWith('Conversation 42 muted for 480 minutes.')
-
-        consoleSpy.mockRestore()
     })
 
     it('shows dry run output', async () => {
@@ -532,7 +510,7 @@ describe('conversation mute', () => {
         apiMocks.getCommsClient.mockResolvedValue(client)
 
         const program = createProgram()
-        const consoleSpy = vi.spyOn(console, 'log').mockImplementation(() => {})
+        const consoleSpy = captureConsole('log')
 
         await program.parseAsync(['node', 'tdc', 'conversation', 'mute', '42', '--dry-run'])
 
@@ -540,8 +518,6 @@ describe('conversation mute', () => {
         expect(consoleSpy).toHaveBeenCalledWith('  Conversation: conversation 42')
         expect(consoleSpy).toHaveBeenCalledWith('  Duration: 60 minutes')
         expect(client.conversations.muteConversation).not.toHaveBeenCalled()
-
-        consoleSpy.mockRestore()
     })
 
     it('runs validation in dry-run mode', async () => {
@@ -579,14 +555,12 @@ describe('conversation unmute', () => {
         apiMocks.getCommsClient.mockResolvedValue(client)
 
         const program = createProgram()
-        const consoleSpy = vi.spyOn(console, 'log').mockImplementation(() => {})
+        const consoleSpy = captureConsole('log')
 
         await program.parseAsync(['node', 'tdc', 'conversation', 'unmute', '42'])
 
         expect(client.conversations.unmuteConversation).toHaveBeenCalledWith('42')
         expect(consoleSpy).toHaveBeenCalledWith('Conversation 42 unmuted.')
-
-        consoleSpy.mockRestore()
     })
 
     it('shows dry run output', async () => {
@@ -595,7 +569,7 @@ describe('conversation unmute', () => {
         apiMocks.getCommsClient.mockResolvedValue(client)
 
         const program = createProgram()
-        const consoleSpy = vi.spyOn(console, 'log').mockImplementation(() => {})
+        const consoleSpy = captureConsole('log')
 
         await program.parseAsync(['node', 'tdc', 'conversation', 'unmute', '42', '--dry-run'])
 
@@ -604,8 +578,6 @@ describe('conversation unmute', () => {
         )
         expect(consoleSpy).toHaveBeenCalledWith('  Conversation: conversation 42')
         expect(client.conversations.unmuteConversation).not.toHaveBeenCalled()
-
-        consoleSpy.mockRestore()
     })
 
     it('runs validation in dry-run mode', async () => {
@@ -635,14 +607,12 @@ describe('conversation done', () => {
         apiMocks.getCommsClient.mockResolvedValue(client)
 
         const program = createProgram()
-        const consoleSpy = vi.spyOn(console, 'log').mockImplementation(() => {})
+        const consoleSpy = captureConsole('log')
 
         await program.parseAsync(['node', 'tdc', 'conversation', 'done', '42'])
 
         expect(client.conversations.archiveConversation).toHaveBeenCalledWith('42')
         expect(consoleSpy).toHaveBeenCalledWith('Conversation 42 archived.')
-
-        consoleSpy.mockRestore()
     })
 
     it('shows dry run output', async () => {
@@ -651,7 +621,7 @@ describe('conversation done', () => {
         apiMocks.getCommsClient.mockResolvedValue(client)
 
         const program = createProgram()
-        const consoleSpy = vi.spyOn(console, 'log').mockImplementation(() => {})
+        const consoleSpy = captureConsole('log')
 
         await program.parseAsync(['node', 'tdc', 'conversation', 'done', '42', '--dry-run'])
 
@@ -660,8 +630,6 @@ describe('conversation done', () => {
         )
         expect(consoleSpy).toHaveBeenCalledWith('  Conversation: conversation 42')
         expect(client.conversations.archiveConversation).not.toHaveBeenCalled()
-
-        consoleSpy.mockRestore()
     })
 
     it('runs validation in dry-run mode', async () => {

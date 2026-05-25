@@ -1,5 +1,8 @@
-import { describeEmptyMachineOutput } from '@doist/cli-core/testing'
-import { Command } from 'commander'
+import {
+    captureConsole,
+    createTestProgram,
+    describeEmptyMachineOutput,
+} from '@doist/cli-core/testing'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 const apiMocks = vi.hoisted(() => ({
@@ -42,12 +45,7 @@ vi.mock('chalk')
 
 import { registerChannelCommand } from './index.js'
 
-function createProgram() {
-    const program = new Command()
-    program.exitOverride()
-    registerChannelCommand(program)
-    return program
-}
+const createProgram = () => createTestProgram(registerChannelCommand)
 
 async function runChannelCommand(args: string[]): Promise<void> {
     const program = createProgram()
@@ -114,7 +112,7 @@ describe('channels list', () => {
             ],
         })
         apiMocks.getCommsClient.mockResolvedValue(client)
-        const consoleSpy = vi.spyOn(console, 'log').mockImplementation(() => {})
+        const consoleSpy = captureConsole('log')
         const program = createProgram()
 
         await program.parseAsync(['node', 'tdc', 'channels'])
@@ -127,8 +125,6 @@ describe('channels list', () => {
         expect(consoleSpy).toHaveBeenCalledTimes(1)
         expect(consoleSpy.mock.calls[0][0]).toContain('General')
         expect(consoleSpy.mock.calls[0][0]).not.toContain('Leadership')
-
-        consoleSpy.mockRestore()
     })
 
     it('also works via the singular channel command name', async () => {
@@ -136,7 +132,7 @@ describe('channels list', () => {
             joinedChannels: [createChannel(10, 'General')],
         })
         apiMocks.getCommsClient.mockResolvedValue(client)
-        const consoleSpy = vi.spyOn(console, 'log').mockImplementation(() => {})
+        const consoleSpy = captureConsole('log')
         const program = createProgram()
 
         await program.parseAsync(['node', 'tdc', 'channel'])
@@ -146,8 +142,6 @@ describe('channels list', () => {
             archived: false,
         })
         expect(consoleSpy.mock.calls[0][0]).toContain('General')
-
-        consoleSpy.mockRestore()
     })
 
     it('supports explicit channel list subcommand', async () => {
@@ -155,7 +149,7 @@ describe('channels list', () => {
             joinedChannels: [createChannel(10, 'General')],
         })
         apiMocks.getCommsClient.mockResolvedValue(client)
-        const consoleSpy = vi.spyOn(console, 'log').mockImplementation(() => {})
+        captureConsole('log')
         const program = createProgram()
 
         await program.parseAsync(['node', 'tdc', 'channel', 'list'])
@@ -164,8 +158,6 @@ describe('channels list', () => {
             workspaceId: 1,
             archived: false,
         })
-
-        consoleSpy.mockRestore()
     })
 
     it('includes joined private channels when --include-private-channels is enabled', async () => {
@@ -177,7 +169,7 @@ describe('channels list', () => {
             ],
         })
         apiMocks.getCommsClient.mockResolvedValue(client)
-        const consoleSpy = vi.spyOn(console, 'log').mockImplementation(() => {})
+        const consoleSpy = captureConsole('log')
         const program = createProgram()
 
         await program.parseAsync(['node', 'tdc', 'channels'])
@@ -189,8 +181,6 @@ describe('channels list', () => {
         })
         expect(consoleSpy.mock.calls[1][0]).toContain('Leadership')
         expect(consoleSpy.mock.calls[1][0]).toContain('[private]')
-
-        consoleSpy.mockRestore()
     })
 
     it('lists active public channels and marks whether they are joined', async () => {
@@ -206,7 +196,7 @@ describe('channels list', () => {
             ],
         })
         apiMocks.getCommsClient.mockResolvedValue(client)
-        const consoleSpy = vi.spyOn(console, 'log').mockImplementation(() => {})
+        const consoleSpy = captureConsole('log')
         const program = createProgram()
 
         await program.parseAsync(['node', 'tdc', 'channels', '--scope', 'public'])
@@ -219,8 +209,6 @@ describe('channels list', () => {
         expect(consoleSpy.mock.calls[1][0]).toContain('Marketing')
         expect(consoleSpy.mock.calls[1][0]).toContain('[not joined]')
         expect(consoleSpy.mock.calls[0][0]).not.toContain('Archive')
-
-        consoleSpy.mockRestore()
     })
 
     it('lists only discoverable channels in JSON mode', async () => {
@@ -229,7 +217,7 @@ describe('channels list', () => {
             publicChannels: [createChannel(10, 'General'), createChannel(30, 'Marketing')],
         })
         apiMocks.getCommsClient.mockResolvedValue(client)
-        const consoleSpy = vi.spyOn(console, 'log').mockImplementation(() => {})
+        const consoleSpy = captureConsole('log')
         const program = createProgram()
 
         await program.parseAsync(['node', 'tdc', 'channels', '--scope', 'discoverable', '--json'])
@@ -238,8 +226,6 @@ describe('channels list', () => {
         expect(jsonOutput).toEqual([
             { id: 30, name: 'Marketing', workspaceId: 1, archived: false, joined: false },
         ])
-
-        consoleSpy.mockRestore()
     })
 
     it('lists archived joined channels with --state archived', async () => {
@@ -247,7 +233,7 @@ describe('channels list', () => {
             joinedChannels: [createChannel(90, 'Old General', { archived: true })],
         })
         apiMocks.getCommsClient.mockResolvedValue(client)
-        const consoleSpy = vi.spyOn(console, 'log').mockImplementation(() => {})
+        const consoleSpy = captureConsole('log')
         const program = createProgram()
 
         await program.parseAsync(['node', 'tdc', 'channels', '--state', 'archived'])
@@ -256,8 +242,6 @@ describe('channels list', () => {
         expect(consoleSpy).toHaveBeenCalledTimes(1)
         expect(consoleSpy.mock.calls[0][0]).toContain('Old General')
         expect(consoleSpy.mock.calls[0][0]).toContain('(archived)')
-
-        consoleSpy.mockRestore()
     })
 
     it('lists all visible public channels with --scope public --state all', async () => {
@@ -269,7 +253,7 @@ describe('channels list', () => {
             ],
         })
         apiMocks.getCommsClient.mockResolvedValue(client)
-        const consoleSpy = vi.spyOn(console, 'log').mockImplementation(() => {})
+        const consoleSpy = captureConsole('log')
         const program = createProgram()
 
         await program.parseAsync([
@@ -288,8 +272,6 @@ describe('channels list', () => {
             { id: 10, name: 'General', workspaceId: 1, archived: false, joined: true },
             { id: 40, name: 'Archive', workspaceId: 1, archived: true, joined: false },
         ])
-
-        consoleSpy.mockRestore()
     })
 
     it('includes archived state in joined JSON output without --full', async () => {
@@ -300,7 +282,7 @@ describe('channels list', () => {
             ],
         })
         apiMocks.getCommsClient.mockResolvedValue(client)
-        const consoleSpy = vi.spyOn(console, 'log').mockImplementation(() => {})
+        const consoleSpy = captureConsole('log')
         const program = createProgram()
 
         await program.parseAsync(['node', 'tdc', 'channels', '--state', 'all', '--json'])
@@ -310,8 +292,6 @@ describe('channels list', () => {
             { id: 10, name: 'General', workspaceId: 1, archived: false },
             { id: 40, name: 'Archive', workspaceId: 1, archived: true },
         ])
-
-        consoleSpy.mockRestore()
     })
 
     it('includes archived state in joined NDJSON output without --full', async () => {
@@ -322,7 +302,7 @@ describe('channels list', () => {
             ],
         })
         apiMocks.getCommsClient.mockResolvedValue(client)
-        const consoleSpy = vi.spyOn(console, 'log').mockImplementation(() => {})
+        const consoleSpy = captureConsole('log')
         const program = createProgram()
 
         await program.parseAsync(['node', 'tdc', 'channels', '--state', 'all', '--ndjson'])
@@ -334,8 +314,6 @@ describe('channels list', () => {
             { id: 10, name: 'General', workspaceId: 1, archived: false },
             { id: 40, name: 'Archive', workspaceId: 1, archived: true },
         ])
-
-        consoleSpy.mockRestore()
     })
 
     it('includes joined metadata in full JSON for public scope', async () => {
@@ -344,7 +322,7 @@ describe('channels list', () => {
             publicChannels: [createChannel(10, 'General', { description: 'Everyone' })],
         })
         apiMocks.getCommsClient.mockResolvedValue(client)
-        const consoleSpy = vi.spyOn(console, 'log').mockImplementation(() => {})
+        const consoleSpy = captureConsole('log')
         const program = createProgram()
 
         await program.parseAsync([
@@ -364,8 +342,6 @@ describe('channels list', () => {
             description: 'Everyone',
             joined: true,
         })
-
-        consoleSpy.mockRestore()
     })
 
     describeEmptyMachineOutput('empty machine output contract', {
@@ -389,14 +365,12 @@ describe('channels list', () => {
             ],
         })
         apiMocks.getCommsClient.mockResolvedValue(client)
-        const consoleSpy = vi.spyOn(console, 'log').mockImplementation(() => {})
+        const consoleSpy = captureConsole('log')
         const program = createProgram()
 
         await program.parseAsync(['node', 'tdc', 'channels', '--scope', 'discoverable'])
 
         expect(consoleSpy).toHaveBeenCalledWith('No active discoverable channels found.')
-
-        consoleSpy.mockRestore()
     })
 
     it('rejects invalid scope values', async () => {
@@ -438,7 +412,7 @@ describe('channels create', () => {
         })
         const client = createClient({ createdChannel })
         apiMocks.getCommsClient.mockResolvedValue(client)
-        const consoleSpy = vi.spyOn(console, 'log').mockImplementation(() => {})
+        const consoleSpy = captureConsole('log')
 
         await runChannelCommand([
             'create',
@@ -462,8 +436,6 @@ describe('channels create', () => {
             public: false,
         })
         expect(consoleSpy.mock.calls[0][0]).toContain('Leadership')
-
-        consoleSpy.mockRestore()
     })
 
     it('outputs created channel JSON', async () => {
@@ -473,7 +445,7 @@ describe('channels create', () => {
         })
         const client = createClient({ createdChannel })
         apiMocks.getCommsClient.mockResolvedValue(client)
-        const consoleSpy = vi.spyOn(console, 'log').mockImplementation(() => {})
+        const consoleSpy = captureConsole('log')
 
         await runChannelCommand(['create', 'Product', '--json'])
 
@@ -485,21 +457,17 @@ describe('channels create', () => {
             archived: false,
             url: 'https://comms.todoist.com/a/1/ch/CH300',
         })
-
-        consoleSpy.mockRestore()
     })
 
     it('does not create in dry-run mode', async () => {
         const client = createClient()
         apiMocks.getCommsClient.mockResolvedValue(client)
-        const consoleSpy = vi.spyOn(console, 'log').mockImplementation(() => {})
+        const consoleSpy = captureConsole('log')
 
         await runChannelCommand(['create', 'Engineering', '--dry-run'])
 
         expect(client.channels.createChannel).not.toHaveBeenCalled()
         expect(consoleSpy.mock.calls[0][0]).toContain('[dry-run] Would create channel')
-
-        consoleSpy.mockRestore()
     })
 
     it('rejects invalid create options', async () => {
@@ -547,7 +515,7 @@ describe('channels update', () => {
         const updatedChannel = { ...engineering, name: 'Platform Engineering' }
         const client = createClient({ updatedChannel })
         apiMocks.getCommsClient.mockResolvedValue(client)
-        const consoleSpy = vi.spyOn(console, 'log').mockImplementation(() => {})
+        const consoleSpy = captureConsole('log')
 
         await runChannelCommand(['update', 'id:CH10', '--name', 'Platform Engineering', '--json'])
 
@@ -564,8 +532,6 @@ describe('channels update', () => {
             public: true,
             archived: false,
         })
-
-        consoleSpy.mockRestore()
     })
 
     it('updates direct refs by fetching the current name only when needed', async () => {
@@ -574,7 +540,7 @@ describe('channels update', () => {
         const client = createClient({ updatedChannel })
         client.channels.getChannel = vi.fn().mockResolvedValue(engineering)
         apiMocks.getCommsClient.mockResolvedValue(client)
-        const consoleSpy = vi.spyOn(console, 'log').mockImplementation(() => {})
+        const consoleSpy = captureConsole('log')
 
         await runChannelCommand(['update', 'id:CH10', '--description', 'Team discussion', '--json'])
 
@@ -589,8 +555,6 @@ describe('channels update', () => {
             id: 'CH10',
             description: 'Team discussion',
         })
-
-        consoleSpy.mockRestore()
     })
 
     it('updates metadata in a selected workspace while keeping the current name', async () => {
@@ -600,7 +564,7 @@ describe('channels update', () => {
         const updatedChannel = { ...selectedWorkspaceChannel, description: null, public: false }
         const client = createClient({ updatedChannel })
         apiMocks.getCommsClient.mockResolvedValue(client)
-        const consoleSpy = vi.spyOn(console, 'log').mockImplementation(() => {})
+        const consoleSpy = captureConsole('log')
 
         await runChannelCommand([
             'update',
@@ -620,15 +584,13 @@ describe('channels update', () => {
             public: false,
         })
         expect(consoleSpy.mock.calls[0][0]).toContain('Engineering')
-
-        consoleSpy.mockRestore()
     })
 
     it('does not update or fetch direct refs in dry-run mode', async () => {
         refsMocks.getDirectChannelId.mockReturnValue('CH10')
         const client = createClient()
         apiMocks.getCommsClient.mockResolvedValue(client)
-        const consoleSpy = vi.spyOn(console, 'log').mockImplementation(() => {})
+        const consoleSpy = captureConsole('log')
 
         await runChannelCommand([
             'update',
@@ -641,8 +603,6 @@ describe('channels update', () => {
         expect(client.channels.getChannel).not.toHaveBeenCalled()
         expect(client.channels.updateChannel).not.toHaveBeenCalled()
         expect(consoleSpy.mock.calls[0][0]).toContain('[dry-run] Would update channel')
-
-        consoleSpy.mockRestore()
     })
 
     it('rejects invalid update options', async () => {
