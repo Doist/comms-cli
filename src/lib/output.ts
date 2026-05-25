@@ -60,7 +60,15 @@ const WORKSPACE_ESSENTIAL_FIELDS = ['id', 'name', 'creator', 'plan'] as const
 
 const USER_ESSENTIAL_FIELDS = ['id', 'fullName', 'email', 'timezone', 'userType'] as const
 
-const CHANNEL_ESSENTIAL_FIELDS = ['id', 'name', 'workspaceId'] as const
+const CHANNEL_ESSENTIAL_FIELDS = [
+    'id',
+    'name',
+    'description',
+    'workspaceId',
+    'public',
+    'archived',
+    'url',
+] as const
 
 const GROUP_ESSENTIAL_FIELDS = ['id', 'name', 'workspaceId', 'userIds'] as const
 

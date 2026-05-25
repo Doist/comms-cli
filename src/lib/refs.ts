@@ -33,6 +33,26 @@ export function extractNumericId(ref: string): number {
     return Number(idStr)
 }
 
+export function parseNumericIdRefs(refs: string, label = 'reference'): number[] | null {
+    const ids: number[] = []
+
+    for (const rawRef of refs.split(',')) {
+        const ref = rawRef.trim()
+        if (!ref) {
+            throw new CliError('INVALID_REF', `Invalid ${label} reference list: found empty value`)
+        }
+
+        const id = extractId(ref)
+        if (!/^\d+$/.test(id)) {
+            return null
+        }
+
+        ids.push(Number(id))
+    }
+
+    return ids
+}
+
 export function looksLikeRawId(ref: string): boolean {
     const normalized = normalizeRef(ref)
     if (!normalized || normalized.includes(' ')) return false
@@ -265,20 +285,33 @@ export async function resolveChannelRef(ref: string, workspaceId: number): Promi
 }
 
 export function resolveChannelId(ref: string): string {
+    const channelId = getDirectChannelId(ref)
+    if (channelId) return channelId
+
+    throw new CliError(
+        'INVALID_REF',
+        `Invalid channel reference: ${ref}. Use an id, id:<id>, or a Comms URL.`,
+    )
+}
+
+export function getDirectChannelId(ref: string): string | null {
     const parsed = parseRef(ref)
 
     if (parsed.type === 'id') {
         return parsed.id
     }
 
-    if (parsed.type === 'url' && parsed.parsed.channelId) {
-        return parsed.parsed.channelId
+    if (parsed.type === 'url') {
+        if (parsed.parsed.channelId) {
+            return parsed.parsed.channelId
+        }
+        throw new CliError(
+            'INVALID_REF',
+            `Invalid channel reference: ${ref}. Use an id, id:<id>, or a Comms URL.`,
+        )
     }
 
-    throw new CliError(
-        'INVALID_REF',
-        `Invalid channel reference: ${ref}. Use an id, id:<id>, or a Comms URL.`,
-    )
+    return null
 }
 
 export function resolveCommentId(ref: string): string {
@@ -435,6 +468,9 @@ export async function resolveGroupRef(ref: string, workspaceId: number): Promise
 }
 
 export async function resolveUserRefs(refs: string, workspaceId: number): Promise<number[]> {
+    const numericIds = parseNumericIdRefs(refs, 'user')
+    if (numericIds) return numericIds
+
     const { getWorkspaceUsers } = await import('./api.js')
     const users = await getWorkspaceUsers(workspaceId)
 

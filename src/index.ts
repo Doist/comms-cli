@@ -49,7 +49,7 @@ const commands: Record<string, [string, () => Promise<(p: Command) => void>]> = 
     workspace: ['Manage workspace', loadWorkspaceCommand],
     user: ['Show current user info', loadUserCommand],
     users: ['List users in a workspace', loadUserCommand],
-    channel: ['Channel operations (list, threads)', loadChannelCommand],
+    channel: ['Channel operations (list, create, update, threads)', loadChannelCommand],
     inbox: ['Show inbox threads', loadInboxCommand],
     thread: ['Thread operations', loadThreadCommand],
     conversation: ['Conversation (DM/group) operations', loadConversationCommand],

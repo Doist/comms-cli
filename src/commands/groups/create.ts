@@ -1,8 +1,8 @@
 import { createGroup, getCurrentWorkspaceId } from '../../lib/api.js'
-import { CliError } from '../../lib/errors.js'
 import type { MutationOptions } from '../../lib/options.js'
 import { formatJson, printDryRun } from '../../lib/output.js'
 import { resolveUserRefs, resolveWorkspaceRef } from '../../lib/refs.js'
+import { validateNonEmptyName } from '../../lib/validation.js'
 
 type CreateGroupOptions = MutationOptions & {
     workspace?: string
@@ -10,9 +10,7 @@ type CreateGroupOptions = MutationOptions & {
 }
 
 export async function createGroupCommand(name: string, options: CreateGroupOptions): Promise<void> {
-    if (!name || name.trim() === '') {
-        throw new CliError('INVALID_NAME', 'Group name cannot be empty.')
-    }
+    validateNonEmptyName(name, 'Group')
 
     const workspaceId = options.workspace
         ? (await resolveWorkspaceRef(options.workspace)).id
