@@ -1,17 +1,15 @@
 import { getCurrentWorkspaceId, updateGroup } from '../../lib/api.js'
-import { CliError } from '../../lib/errors.js'
 import type { MutationOptions } from '../../lib/options.js'
 import { formatJson, printDryRun } from '../../lib/output.js'
 import { resolveGroupRef } from '../../lib/refs.js'
+import { validateNonEmptyName } from '../../lib/validation.js'
 
 export async function renameGroup(
     ref: string,
     newName: string,
     options: MutationOptions,
 ): Promise<void> {
-    if (!newName || newName.trim() === '') {
-        throw new CliError('INVALID_NAME', 'Group name cannot be empty.')
-    }
+    validateNonEmptyName(newName, 'Group')
 
     const workspaceId = await getCurrentWorkspaceId()
     const group = await resolveGroupRef(ref, workspaceId)

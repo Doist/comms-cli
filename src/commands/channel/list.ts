@@ -1,10 +1,10 @@
 import type { Channel } from '@doist/comms-sdk'
-import { getCurrentWorkspaceId, getCommsClient } from '../../lib/api.js'
+import { getCommsClient } from '../../lib/api.js'
 import { CliError } from '../../lib/errors.js'
 import { includePrivateChannels } from '../../lib/global-args.js'
 import type { ViewOptions } from '../../lib/options.js'
 import { colors, formatJson, formatNdjson, printEmpty } from '../../lib/output.js'
-import { resolveWorkspaceRef } from '../../lib/refs.js'
+import { resolveChannelWorkspaceId } from './helpers.js'
 
 const CHANNEL_SCOPES = ['joined', 'public', 'discoverable'] as const
 const CHANNEL_STATES = ['active', 'all', 'archived'] as const
@@ -122,14 +122,7 @@ async function getWorkspaceId(
         )
     }
 
-    const ref = workspaceRef || options.workspace
-
-    if (ref) {
-        const workspace = await resolveWorkspaceRef(ref)
-        return workspace.id
-    }
-
-    return getCurrentWorkspaceId()
+    return resolveChannelWorkspaceId(workspaceRef || options.workspace)
 }
 
 function formatChannelLine(channel: ListedChannel, scope: ChannelScope): string {

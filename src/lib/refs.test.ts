@@ -19,10 +19,12 @@ vi.mock('./api.js', () => ({
 import {
     classifyCommsUrl,
     extractId,
+    getDirectChannelId,
     isIdRef,
     looksLikeRawId,
-    parseRef,
     parseCommsUrl,
+    parseNumericIdRefs,
+    parseRef,
     partitionNotifyIds,
     resolveChannelId,
     resolveChannelRef,
@@ -66,6 +68,20 @@ describe('extractId', () => {
     it('throws on empty input', () => {
         expect(() => extractId('')).toThrow('Invalid ID')
         expect(() => extractId('id:')).toThrow('Invalid ID')
+    })
+})
+
+describe('parseNumericIdRefs', () => {
+    it('parses comma-separated numeric refs', () => {
+        expect(parseNumericIdRefs('id:10, 20', 'user')).toEqual([10, 20])
+    })
+
+    it('returns null when any ref needs fuzzy resolution', () => {
+        expect(parseNumericIdRefs('id:10,alice@doist.com', 'user')).toBeNull()
+    })
+
+    it('rejects empty values', () => {
+        expect(() => parseNumericIdRefs('id:10,,20', 'user')).toThrow('Invalid user reference list')
     })
 })
 
@@ -161,6 +177,24 @@ describe('parseRef', () => {
     it('trims surrounding whitespace', () => {
         expect(parseRef(' 456 ')).toEqual({ type: 'id', id: '456' })
         expect(parseRef('  My Workspace  ')).toEqual({ type: 'name', name: 'My Workspace' })
+    })
+})
+
+describe('getDirectChannelId', () => {
+    it('returns ids and channel URL ids', () => {
+        expect(getDirectChannelId('id:CH1')).toBe('CH1')
+        expect(getDirectChannelId('CH1')).toBe('CH1')
+        expect(getDirectChannelId('https://comms.todoist.com/a/12345/ch/CH1/t/TH1')).toBe('CH1')
+    })
+
+    it('returns null for fuzzy names', () => {
+        expect(getDirectChannelId('Engineering')).toBeNull()
+    })
+
+    it('rejects URLs that do not identify a channel', () => {
+        expect(() => getDirectChannelId('https://comms.todoist.com/a/12345/msg/CV1')).toThrow(
+            'Invalid channel reference',
+        )
     })
 })
 
@@ -516,6 +550,7 @@ describe('resolveUserRefs', () => {
     it('resolves a single id: ref', async () => {
         const ids = await resolveUserRefs('id:42', 1)
         expect(ids).toEqual([42])
+        expect(apiMocks.getWorkspaceUsers).not.toHaveBeenCalled()
     })
 
     it('resolves comma-separated mixed refs', async () => {

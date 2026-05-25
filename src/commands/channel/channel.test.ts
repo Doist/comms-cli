@@ -10,6 +10,9 @@ const apiMocks = vi.hoisted(() => ({
 const refsMocks = vi.hoisted(() => ({
     resolveWorkspaceRef: vi.fn(),
     resolveChannelRef: vi.fn(),
+    parseRef: vi.fn(),
+    getDirectChannelId: vi.fn(),
+    resolveUserRefs: vi.fn(),
 }))
 
 const globalArgsMocks = vi.hoisted(() => ({
@@ -25,6 +28,9 @@ vi.mock('../../lib/api.js', () => ({
 vi.mock('../../lib/refs.js', () => ({
     resolveWorkspaceRef: refsMocks.resolveWorkspaceRef,
     resolveChannelRef: refsMocks.resolveChannelRef,
+    parseRef: refsMocks.parseRef,
+    getDirectChannelId: refsMocks.getDirectChannelId,
+    resolveUserRefs: refsMocks.resolveUserRefs,
 }))
 
 vi.mock('../../lib/global-args.js', () => ({
@@ -41,6 +47,11 @@ function createProgram() {
     program.exitOverride()
     registerChannelCommand(program)
     return program
+}
+
+async function runChannelCommand(args: string[]): Promise<void> {
+    const program = createProgram()
+    await program.parseAsync(['node', 'tdc', 'channel', ...args])
 }
 
 function createChannel(id: number, name: string, overrides: Partial<Record<string, unknown>> = {}) {
@@ -60,13 +71,20 @@ function createChannel(id: number, name: string, overrides: Partial<Record<strin
 function createClient({
     joinedChannels = [],
     publicChannels = [],
+    createdChannel,
+    updatedChannel,
 }: {
     joinedChannels?: ReturnType<typeof createChannel>[]
     publicChannels?: ReturnType<typeof createChannel>[]
+    createdChannel?: ReturnType<typeof createChannel>
+    updatedChannel?: ReturnType<typeof createChannel>
 } = {}) {
     return {
         channels: {
             getChannels: vi.fn().mockResolvedValue(joinedChannels),
+            getChannel: vi.fn(),
+            createChannel: vi.fn().mockResolvedValue(createdChannel),
+            updateChannel: vi.fn().mockResolvedValue(updatedChannel),
         },
         workspaces: {
             getPublicChannels: vi.fn().mockResolvedValue(publicChannels),
@@ -399,5 +417,252 @@ describe('channels list', () => {
         await expect(
             program.parseAsync(['node', 'tdc', 'channels', '--state', 'invalid']),
         ).rejects.toHaveProperty('code', 'INVALID_STATE')
+    })
+})
+
+describe('channels create', () => {
+    beforeEach(() => {
+        vi.clearAllMocks()
+        refsMocks.parseRef.mockImplementation((ref: string) =>
+            ref === 'Q3' ? { type: 'id', id: ref } : { type: 'name', name: ref },
+        )
+    })
+
+    it('passes supported fields to createChannel', async () => {
+        refsMocks.resolveWorkspaceRef.mockResolvedValue({ id: 9, name: 'Doist' })
+        refsMocks.resolveUserRefs.mockResolvedValue([10, 20])
+        const createdChannel = createChannel(200, 'Leadership', {
+            id: 'CH200',
+            public: false,
+            workspaceId: 9,
+        })
+        const client = createClient({ createdChannel })
+        apiMocks.getCommsClient.mockResolvedValue(client)
+        const consoleSpy = vi.spyOn(console, 'log').mockImplementation(() => {})
+
+        await runChannelCommand([
+            'create',
+            'Leadership',
+            '--workspace',
+            'Doist',
+            '--description',
+            'Private leadership discussions',
+            '--private',
+            '--users',
+            'id:10,id:20',
+        ])
+
+        expect(refsMocks.resolveWorkspaceRef).toHaveBeenCalledWith('Doist')
+        expect(refsMocks.resolveUserRefs).toHaveBeenCalledWith('id:10,id:20', 9)
+        expect(client.channels.createChannel).toHaveBeenCalledWith({
+            workspaceId: 9,
+            name: 'Leadership',
+            description: 'Private leadership discussions',
+            userIds: [10, 20],
+            public: false,
+        })
+        expect(consoleSpy.mock.calls[0][0]).toContain('Leadership')
+
+        consoleSpy.mockRestore()
+    })
+
+    it('outputs created channel JSON', async () => {
+        const createdChannel = createChannel(300, 'Product', {
+            id: 'CH300',
+            url: 'https://comms.todoist.com/a/1/ch/CH300',
+        })
+        const client = createClient({ createdChannel })
+        apiMocks.getCommsClient.mockResolvedValue(client)
+        const consoleSpy = vi.spyOn(console, 'log').mockImplementation(() => {})
+
+        await runChannelCommand(['create', 'Product', '--json'])
+
+        expect(JSON.parse(consoleSpy.mock.calls[0][0])).toEqual({
+            id: 'CH300',
+            name: 'Product',
+            workspaceId: 1,
+            public: true,
+            archived: false,
+            url: 'https://comms.todoist.com/a/1/ch/CH300',
+        })
+
+        consoleSpy.mockRestore()
+    })
+
+    it('does not create in dry-run mode', async () => {
+        const client = createClient()
+        apiMocks.getCommsClient.mockResolvedValue(client)
+        const consoleSpy = vi.spyOn(console, 'log').mockImplementation(() => {})
+
+        await runChannelCommand(['create', 'Engineering', '--dry-run'])
+
+        expect(client.channels.createChannel).not.toHaveBeenCalled()
+        expect(consoleSpy.mock.calls[0][0]).toContain('[dry-run] Would create channel')
+
+        consoleSpy.mockRestore()
+    })
+
+    it('rejects invalid create options', async () => {
+        await expect(runChannelCommand(['create', '   '])).rejects.toHaveProperty(
+            'code',
+            'INVALID_NAME',
+        )
+        await expect(runChannelCommand(['create', 'Q3'])).rejects.toHaveProperty(
+            'code',
+            'INVALID_NAME',
+        )
+
+        vi.clearAllMocks()
+        await expect(
+            runChannelCommand([
+                'create',
+                'Engineering',
+                '--public',
+                '--private',
+                '--users',
+                'id:1',
+            ]),
+        ).rejects.toHaveProperty('code', 'CONFLICTING_OPTIONS')
+        expect(apiMocks.getCurrentWorkspaceId).not.toHaveBeenCalled()
+        expect(refsMocks.resolveUserRefs).not.toHaveBeenCalled()
+    })
+})
+
+describe('channels update', () => {
+    const engineering = createChannel(10, 'Engineering', {
+        id: 'CH10',
+        description: 'Engineering discussion',
+        url: 'https://comms.todoist.com/a/1/ch/CH10',
+    })
+
+    beforeEach(() => {
+        vi.clearAllMocks()
+        refsMocks.parseRef.mockImplementation((ref: string) => ({ type: 'name', name: ref }))
+        refsMocks.getDirectChannelId.mockReturnValue(null)
+        refsMocks.resolveChannelRef.mockResolvedValue(engineering)
+    })
+
+    it('renames direct refs via --name without resolving workspace or channel', async () => {
+        refsMocks.getDirectChannelId.mockReturnValue('CH10')
+        const updatedChannel = { ...engineering, name: 'Platform Engineering' }
+        const client = createClient({ updatedChannel })
+        apiMocks.getCommsClient.mockResolvedValue(client)
+        const consoleSpy = vi.spyOn(console, 'log').mockImplementation(() => {})
+
+        await runChannelCommand(['update', 'id:CH10', '--name', 'Platform Engineering', '--json'])
+
+        expect(apiMocks.getCurrentWorkspaceId).not.toHaveBeenCalled()
+        expect(refsMocks.resolveChannelRef).not.toHaveBeenCalled()
+        expect(client.channels.updateChannel).toHaveBeenCalledWith({
+            id: 'CH10',
+            name: 'Platform Engineering',
+        })
+        expect(JSON.parse(consoleSpy.mock.calls[0][0])).toMatchObject({
+            id: 'CH10',
+            name: 'Platform Engineering',
+            workspaceId: 1,
+            public: true,
+            archived: false,
+        })
+
+        consoleSpy.mockRestore()
+    })
+
+    it('updates direct refs by fetching the current name only when needed', async () => {
+        refsMocks.getDirectChannelId.mockReturnValue('CH10')
+        const updatedChannel = { ...engineering, description: 'Team discussion' }
+        const client = createClient({ updatedChannel })
+        client.channels.getChannel = vi.fn().mockResolvedValue(engineering)
+        apiMocks.getCommsClient.mockResolvedValue(client)
+        const consoleSpy = vi.spyOn(console, 'log').mockImplementation(() => {})
+
+        await runChannelCommand(['update', 'id:CH10', '--description', 'Team discussion', '--json'])
+
+        expect(refsMocks.resolveChannelRef).not.toHaveBeenCalled()
+        expect(client.channels.getChannel).toHaveBeenCalledWith('CH10')
+        expect(client.channels.updateChannel).toHaveBeenCalledWith({
+            id: 'CH10',
+            name: 'Engineering',
+            description: 'Team discussion',
+        })
+        expect(JSON.parse(consoleSpy.mock.calls[0][0])).toMatchObject({
+            id: 'CH10',
+            description: 'Team discussion',
+        })
+
+        consoleSpy.mockRestore()
+    })
+
+    it('updates metadata in a selected workspace while keeping the current name', async () => {
+        refsMocks.resolveWorkspaceRef.mockResolvedValue({ id: 9, name: 'Doist' })
+        const selectedWorkspaceChannel = { ...engineering, workspaceId: 9 }
+        refsMocks.resolveChannelRef.mockResolvedValue(selectedWorkspaceChannel)
+        const updatedChannel = { ...selectedWorkspaceChannel, description: null, public: false }
+        const client = createClient({ updatedChannel })
+        apiMocks.getCommsClient.mockResolvedValue(client)
+        const consoleSpy = vi.spyOn(console, 'log').mockImplementation(() => {})
+
+        await runChannelCommand([
+            'update',
+            'Engineering',
+            '--workspace',
+            'Doist',
+            '--clear-description',
+            '--private',
+        ])
+
+        expect(refsMocks.resolveWorkspaceRef).toHaveBeenCalledWith('Doist')
+        expect(refsMocks.resolveChannelRef).toHaveBeenCalledWith('Engineering', 9)
+        expect(client.channels.updateChannel).toHaveBeenCalledWith({
+            id: 'CH10',
+            name: 'Engineering',
+            description: null,
+            public: false,
+        })
+        expect(consoleSpy.mock.calls[0][0]).toContain('Engineering')
+
+        consoleSpy.mockRestore()
+    })
+
+    it('does not update or fetch direct refs in dry-run mode', async () => {
+        refsMocks.getDirectChannelId.mockReturnValue('CH10')
+        const client = createClient()
+        apiMocks.getCommsClient.mockResolvedValue(client)
+        const consoleSpy = vi.spyOn(console, 'log').mockImplementation(() => {})
+
+        await runChannelCommand([
+            'update',
+            'id:CH10',
+            '--description',
+            'New description',
+            '--dry-run',
+        ])
+
+        expect(client.channels.getChannel).not.toHaveBeenCalled()
+        expect(client.channels.updateChannel).not.toHaveBeenCalled()
+        expect(consoleSpy.mock.calls[0][0]).toContain('[dry-run] Would update channel')
+
+        consoleSpy.mockRestore()
+    })
+
+    it('rejects invalid update options', async () => {
+        await expect(runChannelCommand(['update', 'Engineering'])).rejects.toHaveProperty(
+            'code',
+            'INVALID_VALUE',
+        )
+
+        await expect(
+            runChannelCommand(['update', 'Engineering', 'New Name', '--name', 'Other Name']),
+        ).rejects.toHaveProperty('code', 'CONFLICTING_OPTIONS')
+
+        await expect(
+            runChannelCommand([
+                'update',
+                'Engineering',
+                '--description',
+                'Text',
+                '--clear-description',
+            ]),
+        ).rejects.toHaveProperty('code', 'CONFLICTING_OPTIONS')
     })
 })

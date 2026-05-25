@@ -214,6 +214,15 @@ tdc channels                      # List active joined workspace channels (alias
 tdc channels --state all          # Include archived joined channels too
 tdc channels --scope discoverable # Active public channels you can see but have not joined
 tdc channels --scope public --state all --json # All visible public channels, with joined status
+tdc channel create "Engineering"  # Create a channel in the current workspace
+tdc channel create "Leadership Team" --private --users id:10,id:20 # Create private channel with initial members
+tdc channel create "Product" --workspace "Doist" --description "Product discussions" --json # Create and return channel as JSON
+tdc channel update <channel-ref> "New name" # Rename a channel
+tdc channel update <ref> --name "New name" # Rename with an explicit flag
+tdc channel update <ref> --description "Team discussions" # Update channel description
+tdc channel update <ref> --clear-description # Clear channel description
+tdc channel update <ref> --public # Make a channel public (--private makes it private)
+tdc channel update <ref> --description "Team discussions" --json --full # Update and return all channel fields
 tdc channel threads <channel-ref>  # List threads in a channel (fuzzy name, id:, numeric ID, or URL)
 tdc channel threads "general" --unread       # Only unread threads
 tdc channel threads <ref> --archive-filter all  # Include archived threads (active|archived|all)

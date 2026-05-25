@@ -1,13 +1,15 @@
 import { Command, Option } from 'commander'
 import { withCaseInsensitiveChoices } from '../../lib/completion.js'
+import { createChannel } from './create.js'
 import { listChannels } from './list.js'
 import { showChannelThreads } from './threads.js'
+import { updateChannel } from './update.js'
 
 export function registerChannelCommand(program: Command): void {
     const channel = program
         .command('channel')
         .alias('channels')
-        .description('Channel operations (list, threads)')
+        .description('Channel operations (list, create, update, threads)')
 
     channel
         .command('list [workspace-ref]', { isDefault: true })
@@ -48,6 +50,49 @@ Notes:
   Comms does not expose unjoined private channels, so public/discoverable scopes never include them.`,
         )
         .action(listChannels)
+
+    channel
+        .command('create <name>')
+        .description('Create a channel')
+        .option('--workspace <ref>', 'Workspace ID or name')
+        .option('--description <text>', 'Channel description')
+        .option('--users <refs>', 'Comma-separated user references to add (id:N, email, or name)')
+        .option('--public', 'Create a public channel')
+        .option('--private', 'Create a private channel')
+        .option('--dry-run', 'Show what would be created without creating')
+        .option('--json', 'Output created channel as JSON')
+        .option('--full', 'Include all fields in JSON output')
+        .addHelpText(
+            'after',
+            `
+Examples:
+  tdc channel create "Engineering"
+  tdc channel create "Leadership Team" --private --users id:10,id:20
+  tdc channel create "Product" --workspace "Doist" --description "Product discussions" --json`,
+        )
+        .action(createChannel)
+
+    channel
+        .command('update <channel-ref> [name]')
+        .description('Update channel metadata')
+        .option('--workspace <ref>', 'Workspace ID or name')
+        .option('--name <name>', 'New channel name')
+        .option('--description <text>', 'New channel description')
+        .option('--clear-description', 'Clear the channel description')
+        .option('--public', 'Make the channel public')
+        .option('--private', 'Make the channel private')
+        .option('--dry-run', 'Show what would be updated without updating')
+        .option('--json', 'Output updated channel as JSON')
+        .option('--full', 'Include all fields in JSON output')
+        .addHelpText(
+            'after',
+            `
+Examples:
+  tdc channel update "Engineering" "Platform Engineering"
+  tdc channel update id:abc123 --description "Team discussions"
+  tdc channel update "Leadership" --private --json`,
+        )
+        .action(updateChannel)
 
     channel
         .command('threads <channel-ref> [workspace-ref]')
