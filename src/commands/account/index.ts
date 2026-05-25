@@ -14,7 +14,7 @@ import {
 } from '../../lib/auth-provider.js'
 import { TOKEN_ENV_VAR } from '../../lib/auth.js'
 import { CliError } from '../../lib/errors.js'
-import { logTokenStorageResult } from '../auth/helpers.js'
+import { logStoredTokenRemoval } from '../auth/helpers.js'
 
 /**
  * Hide identity-less manual-token snapshots (from `tdc auth token`) from `list`:
@@ -64,16 +64,7 @@ export function registerAccountCommand(program: Command): void {
     attachAccountRemoveCommand(account, {
         store,
         description: 'Remove a stored account (clears keyring + config entry)',
-        onRemoved: (ctx) => {
-            const result = store.getLastClearResult()
-            if (result) {
-                logTokenStorageResult(
-                    result,
-                    'Stored token removed from the system credential manager',
-                    ctx.view.json || ctx.view.ndjson,
-                )
-            }
-        },
+        onRemoved: (ctx) => logStoredTokenRemoval(store, ctx.view),
     })
 
     // env-token sessions resolve as `null` from `store.activeAccount()` (see

@@ -1,7 +1,7 @@
 import { attachLogoutCommand } from '@doist/cli-core/auth'
 import type { Command } from 'commander'
 import type { CommsAccount, CommsTokenStore } from '../../lib/auth-provider.js'
-import { logTokenStorageResult } from './helpers.js'
+import { logStoredTokenRemoval } from './helpers.js'
 
 /**
  * Attach `tdc auth logout` via cli-core's generic `attachLogoutCommand`. The
@@ -13,14 +13,6 @@ import { logTokenStorageResult } from './helpers.js'
 export function attachCommsLogoutCommand(auth: Command, store: CommsTokenStore): Command {
     return attachLogoutCommand<CommsAccount>(auth, {
         store,
-        onCleared: ({ view }) => {
-            const result = store.getLastClearResult()
-            if (!result) return
-            logTokenStorageResult(
-                result,
-                'Stored token removed from the system credential manager',
-                view.json || view.ndjson,
-            )
-        },
+        onCleared: ({ view }) => logStoredTokenRemoval(store, view),
     })
 }

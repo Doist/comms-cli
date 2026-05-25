@@ -126,6 +126,38 @@ describe('account command', () => {
                 default: '1',
             })
         })
+
+        // Identity-less manual-token snapshots (from `tdc auth token`) are
+        // filtered by the `hideManualTokens` store wrapper — they can't be
+        // `use`d/`remove`d, so they'd only render as blank rows.
+        const MANUAL_TOKEN: CommsAccount = {
+            id: '',
+            label: '',
+            authMode: 'unknown',
+            authScope: '',
+        }
+
+        it('hides manual-token snapshots from the human roster', async () => {
+            seedStore([ACCOUNT_ALAN, 'default'], MANUAL_TOKEN)
+
+            await createProgram().parseAsync(['node', 'tdc', 'account', 'list'])
+
+            // 2 records seeded, 1 shown — the manual-token row is filtered out.
+            const output = stdout()
+            expect(output).toContain('Stored accounts (1)')
+            expect(output).toContain('Alan Grant')
+        })
+
+        it('omits manual-token snapshots from the --json envelope', async () => {
+            seedStore([ACCOUNT_ALAN, 'default'], MANUAL_TOKEN)
+
+            await createProgram().parseAsync(['node', 'tdc', 'account', 'list', '--json'])
+
+            expect(JSON.parse(consoleSpy.mock.calls[0][0] as string)).toEqual({
+                accounts: [{ account: ACCOUNT_ALAN, isDefault: true }],
+                default: '1',
+            })
+        })
     })
 
     describe('current', () => {

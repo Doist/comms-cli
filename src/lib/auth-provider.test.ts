@@ -8,6 +8,7 @@ const keyringMocks = vi.hoisted(() => ({
     inner: {
         active: vi.fn(),
         activeBundle: vi.fn(),
+        activeAccount: vi.fn(),
         set: vi.fn(),
         clear: vi.fn(),
         list: vi.fn(),
@@ -135,6 +136,7 @@ describe('createCommsTokenStore', () => {
         keyringMocks.createKeyringTokenStore.mockClear()
         keyringMocks.inner.active.mockReset()
         keyringMocks.inner.activeBundle.mockReset().mockResolvedValue(null)
+        keyringMocks.inner.activeAccount.mockReset().mockResolvedValue(null)
         keyringMocks.inner.set.mockReset().mockResolvedValue(undefined)
         keyringMocks.inner.clear.mockReset().mockResolvedValue(undefined)
         keyringMocks.inner.list.mockReset().mockResolvedValue([])
@@ -219,6 +221,32 @@ describe('createCommsTokenStore', () => {
         expect(keyringMocks.inner.activeBundle).toHaveBeenCalledWith('42')
     })
 
+    // cli-core's `account current` resolves token-free via activeAccount(); an
+    // env-token session isn't a v2 store account, so it must report `null` (the
+    // attacher then routes to its env-notice hook). Mirrors active()/activeBundle().
+    it('activeAccount() short-circuits to null when COMMS_API_TOKEN is set', async () => {
+        vi.stubEnv(TOKEN_ENV_VAR, 'env_token_value')
+        const createCommsTokenStore = await loadCreateCommsTokenStore()
+
+        const result = await createCommsTokenStore().activeAccount()
+
+        expect(result).toBeNull()
+        expect(keyringMocks.inner.activeAccount).not.toHaveBeenCalled()
+    })
+
+    it('activeAccount() delegates to the cli-core store when no env token is set', async () => {
+        keyringMocks.inner.activeAccount.mockResolvedValue({
+            account: STORED_ACCOUNT,
+            isDefault: true,
+        })
+        const createCommsTokenStore = await loadCreateCommsTokenStore()
+
+        const result = await createCommsTokenStore().activeAccount('42')
+
+        expect(result).toEqual({ account: STORED_ACCOUNT, isDefault: true })
+        expect(keyringMocks.inner.activeAccount).toHaveBeenCalledWith('42')
+    })
+
     it('set/clear/list/setDefault delegate to the cli-core store', async () => {
         const createCommsTokenStore = await loadCreateCommsTokenStore()
         const store = createCommsTokenStore()
@@ -242,5 +270,14 @@ describe('matchCommsAccount', () => {
         expect(matchCommsAccount(STORED_ACCOUNT, 'ADA')).toBe(true)
         expect(matchCommsAccount(STORED_ACCOUNT, '999')).toBe(false)
         expect(matchCommsAccount(STORED_ACCOUNT, 'someone-else')).toBe(false)
+    })
+
+    it('never matches an identity-less manual-token account, even for empty-ish refs', () => {
+        const manual = { id: '', label: '', authMode: 'unknown' as const, authScope: '' }
+        // An empty `name` ref or bare `id:` would otherwise match the empty
+        // id/label — guard so `account use|remove ""` can't target it.
+        expect(matchCommsAccount(manual, '')).toBe(false)
+        expect(matchCommsAccount(manual, 'id:')).toBe(false)
+        expect(matchCommsAccount(manual, 'id:42')).toBe(false)
     })
 })

@@ -159,6 +159,11 @@ export function createCommsAuthProvider(): AuthProvider<CommsAccount> {
  * the numeric forms. Broader than cli-core's default strict-equality matcher.
  */
 export function matchCommsAccount(account: CommsAccount, ref: AccountRef): boolean {
+    // Identity-less manual-token snapshots (empty id + label) are never a valid
+    // ref target — they're hidden from `account list` and can't be `use`d /
+    // `remove`d. Guard here so an empty-ish ref (`""`, `id:`) can't resolve to
+    // one through the keyring store's ref matching.
+    if (isManualTokenAccount(account)) return false
     const parsed = parseRef(ref)
     if (parsed.type === 'id') return account.id === parsed.id
     if (parsed.type === 'name') return account.label.toLowerCase() === parsed.name.toLowerCase()
