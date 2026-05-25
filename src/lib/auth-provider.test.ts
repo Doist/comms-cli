@@ -4,8 +4,11 @@ vi.mock('./api.js', () => ({ createWrappedCommsClient: vi.fn() }))
 
 const keyringMocks = vi.hoisted(() => ({
     createKeyringTokenStore: vi.fn(),
+    createDcrProvider: vi.fn(),
     inner: {
         active: vi.fn(),
+        activeBundle: vi.fn(),
+        activeAccount: vi.fn(),
         set: vi.fn(),
         clear: vi.fn(),
         list: vi.fn(),
@@ -18,9 +21,15 @@ const keyringMocks = vi.hoisted(() => ({
 vi.mock('@doist/cli-core/auth', async (importOriginal) => {
     const actual = await importOriginal<typeof import('@doist/cli-core/auth')>()
     keyringMocks.createKeyringTokenStore.mockImplementation(() => keyringMocks.inner)
+    // Delegate to the real factory so the returned provider works, while
+    // capturing the options createCommsAuthProvider passes (asserted below).
+    keyringMocks.createDcrProvider.mockImplementation((options) =>
+        actual.createDcrProvider(options),
+    )
     return {
         ...actual,
         createKeyringTokenStore: keyringMocks.createKeyringTokenStore,
+        createDcrProvider: keyringMocks.createDcrProvider,
     }
 })
 
@@ -39,16 +48,12 @@ vi.mock('./config.js', async (importOriginal) => {
 
 import { createWrappedCommsClient } from './api.js'
 import {
-    AUTHORIZATION_URL,
     createCommsAuthProvider,
     matchCommsAccount,
     READ_ONLY_SCOPES,
     READ_WRITE_SCOPES,
-    REGISTRATION_URL,
-    TOKEN_URL,
 } from './auth-provider.js'
 
-const REDIRECT_URI = 'http://127.0.0.1:8766/callback'
 const mockCreateClient = vi.mocked(createWrappedCommsClient)
 const TOKEN_ENV_VAR = 'COMMS_API_TOKEN'
 
@@ -59,8 +64,6 @@ const STORED_ACCOUNT = {
     authScope: 'user:read',
 }
 
-const json = (body: unknown, status = 200) => new Response(JSON.stringify(body), { status })
-
 async function loadCreateCommsTokenStore(): Promise<
     typeof import('./auth-provider.js').createCommsTokenStore
 > {
@@ -70,129 +73,31 @@ async function loadCreateCommsTokenStore(): Promise<
 }
 
 describe('createCommsAuthProvider', () => {
-    let fetchSpy: ReturnType<typeof vi.spyOn>
-    beforeEach(() => {
-        fetchSpy = vi.spyOn(globalThis, 'fetch')
-    })
+    // clearAllMocks (not restoreAllMocks) so the createDcrProvider delegating
+    // implementation set in the module mock survives between tests.
     afterEach(() => {
-        vi.restoreAllMocks()
+        vi.clearAllMocks()
     })
 
-    it('prepare POSTs the DCR payload and surfaces clientId/clientSecret on the handshake', async () => {
-        fetchSpy.mockResolvedValue(json({ client_id: 'twd_abc', client_secret: 'shh' }))
-
-        const result = await createCommsAuthProvider().prepare!({
-            redirectUri: REDIRECT_URI,
-            flags: {},
-        })
-
-        const [url, init] = fetchSpy.mock.calls[0]
-        expect(url).toBe(REGISTRATION_URL)
-        expect(JSON.parse((init as RequestInit).body as string)).toMatchObject({
-            client_name: 'Comms CLI',
-            redirect_uris: [REDIRECT_URI],
-            token_endpoint_auth_method: 'client_secret_basic',
-        })
-        expect(result.handshake).toEqual({ clientId: 'twd_abc', clientSecret: 'shh' })
+    it('registers with client_secret_post so underscore client_ids survive token-endpoint auth', () => {
+        createCommsAuthProvider()
+        const options = keyringMocks.createDcrProvider.mock.calls.at(-1)?.[0]
+        expect(options.clientMetadata.tokenEndpointAuthMethod).toBe('client_secret_post')
     })
 
-    it('prepare rewraps fetch rejections + bad responses as AUTH_FAILED', async () => {
-        const provider = createCommsAuthProvider()
-        const ctx = { redirectUri: REDIRECT_URI, flags: {} }
-
-        fetchSpy.mockRejectedValueOnce(new TypeError('fetch failed'))
-        await expect(provider.prepare!(ctx)).rejects.toMatchObject({ code: 'AUTH_FAILED' })
-
-        fetchSpy.mockResolvedValueOnce(new Response('boom', { status: 500 }))
-        await expect(provider.prepare!(ctx)).rejects.toMatchObject({ code: 'AUTH_FAILED' })
-
-        fetchSpy.mockResolvedValueOnce(json({ client_id: 'only' }))
-        await expect(provider.prepare!(ctx)).rejects.toMatchObject({ code: 'AUTH_FAILED' })
-    })
-
-    it('authorize builds the Comms URL with PKCE params and threads verifier + authMode forward', async () => {
-        const result = await createCommsAuthProvider().authorize({
-            redirectUri: REDIRECT_URI,
-            state: 'state-xyz',
-            scopes: READ_WRITE_SCOPES,
-            readOnly: false,
-            flags: {},
-            handshake: { clientId: 'twd_abc', clientSecret: 'shh' },
-        })
-
-        const url = new URL(result.authorizeUrl)
-        expect(result.authorizeUrl.startsWith(AUTHORIZATION_URL)).toBe(true)
-        expect(url.searchParams.get('client_id')).toBe('twd_abc')
-        expect(url.searchParams.get('code_challenge_method')).toBe('S256')
-        expect(url.searchParams.get('code_challenge')).toBeTruthy()
-        expect(url.searchParams.get('scope')).toBe(READ_WRITE_SCOPES.join(' '))
-
-        const hs = result.handshake as Record<string, unknown>
-        expect((hs.codeVerifier as string).length).toBeGreaterThan(40)
-        expect(hs.authMode).toBe('read-write')
-    })
-
-    it('authorize marks authMode read-only when readOnly is true', async () => {
-        const result = await createCommsAuthProvider().authorize({
-            redirectUri: REDIRECT_URI,
-            state: 's',
-            scopes: READ_ONLY_SCOPES,
-            readOnly: true,
-            flags: {},
-            handshake: { clientId: 'c', clientSecret: 's' },
-        })
-        expect((result.handshake as Record<string, unknown>).authMode).toBe('read-only')
-    })
-
-    it('exchangeCode POSTs to the token endpoint with HTTP Basic auth and the PKCE verifier', async () => {
-        fetchSpy.mockResolvedValue(json({ access_token: 'tk_123' }))
-
-        const result = await createCommsAuthProvider().exchangeCode({
-            code: 'auth-code',
-            state: 's',
-            redirectUri: REDIRECT_URI,
-            handshake: { clientId: 'twd_abc', clientSecret: 'shh', codeVerifier: 'verif-1' },
-        })
-
-        expect(result).toEqual({ accessToken: 'tk_123' })
-        const [url, init] = fetchSpy.mock.calls[0]
-        expect(url).toBe(TOKEN_URL)
-        const headers = (init as RequestInit).headers as Record<string, string>
-        expect(headers.Authorization).toBe(`Basic ${Buffer.from('twd_abc:shh').toString('base64')}`)
-        const body = new URLSearchParams((init as RequestInit).body as string)
-        expect(body.get('code')).toBe('auth-code')
-        expect(body.get('code_verifier')).toBe('verif-1')
-    })
-
-    it('exchangeCode rewraps fetch rejections, bad responses, and missing-verifier as AUTH_FAILED', async () => {
-        const provider = createCommsAuthProvider()
-        const goodHs = { clientId: 'a', clientSecret: 'b', codeVerifier: 'v' }
-        const base = { code: 'c', state: 's', redirectUri: REDIRECT_URI }
-
-        fetchSpy.mockRejectedValueOnce(new TypeError('fetch failed'))
-        await expect(provider.exchangeCode({ ...base, handshake: goodHs })).rejects.toMatchObject({
-            code: 'AUTH_FAILED',
-        })
-
-        fetchSpy.mockResolvedValueOnce(new Response('nope', { status: 400 }))
-        await expect(provider.exchangeCode({ ...base, handshake: goodHs })).rejects.toMatchObject({
-            code: 'AUTH_FAILED',
-        })
-
-        // Guard: missing verifier means authorize() was never run — never hits fetch.
-        await expect(
-            provider.exchangeCode({ ...base, handshake: { clientId: 'a', clientSecret: 'b' } }),
-        ).rejects.toMatchObject({ code: 'AUTH_FAILED' })
-    })
-
-    it('validateToken fetches getSessionUser with the new token and returns a narrow CommsAccount', async () => {
+    // Registration / authorize / token-exchange mechanics now live in cli-core's
+    // createDcrProvider (covered by its own suite). The only comms-specific
+    // behaviour is `validate`: probe getSessionUser, then derive authMode +
+    // authScope from the folded `readOnly` (the scope set is a pure function of
+    // it — see resolveScopes in login.ts).
+    it('validate builds a CommsAccount, deriving read-write mode + scopes from the handshake', async () => {
         mockCreateClient.mockReturnValue({
             users: { getSessionUser: vi.fn().mockResolvedValue({ id: 42, fullName: 'Ada' }) },
         } as unknown as ReturnType<typeof createWrappedCommsClient>)
 
-        const account = await createCommsAuthProvider().validateToken({
+        const account = await createCommsAuthProvider().validateToken!({
             token: 'tk_new',
-            handshake: { authMode: 'read-write', authScope: 'user:read' },
+            handshake: { readOnly: false },
         })
 
         expect(mockCreateClient).toHaveBeenCalledWith('tk_new')
@@ -200,8 +105,29 @@ describe('createCommsAuthProvider', () => {
             id: '42',
             label: 'Ada',
             authMode: 'read-write',
-            authScope: 'user:read',
+            authScope: READ_WRITE_SCOPES.join(' '),
         })
+    })
+
+    it('validate derives read-only mode + scopes when the handshake carries readOnly', async () => {
+        mockCreateClient.mockReturnValue({
+            users: { getSessionUser: vi.fn().mockResolvedValue({ id: 7, fullName: 'Lin' }) },
+        } as unknown as ReturnType<typeof createWrappedCommsClient>)
+
+        const account = await createCommsAuthProvider().validateToken!({
+            token: 'tk_ro',
+            handshake: { readOnly: true },
+        })
+
+        expect(account.authMode).toBe('read-only')
+        expect(account.authScope).toBe(READ_ONLY_SCOPES.join(' '))
+    })
+
+    it('validate fails closed (AUTH_FAILED) when the handshake has no boolean readOnly flag', async () => {
+        // Guards the local write check: a missing flag must not silently become read-write.
+        await expect(
+            createCommsAuthProvider().validateToken!({ token: 'tk', handshake: {} }),
+        ).rejects.toMatchObject({ code: 'AUTH_FAILED' })
     })
 })
 
@@ -209,6 +135,8 @@ describe('createCommsTokenStore', () => {
     beforeEach(() => {
         keyringMocks.createKeyringTokenStore.mockClear()
         keyringMocks.inner.active.mockReset()
+        keyringMocks.inner.activeBundle.mockReset().mockResolvedValue(null)
+        keyringMocks.inner.activeAccount.mockReset().mockResolvedValue(null)
         keyringMocks.inner.set.mockReset().mockResolvedValue(undefined)
         keyringMocks.inner.clear.mockReset().mockResolvedValue(undefined)
         keyringMocks.inner.list.mockReset().mockResolvedValue([])
@@ -264,6 +192,61 @@ describe('createCommsTokenStore', () => {
         expect(snapshot).toEqual({ token: 'tk_v2', account: STORED_ACCOUNT })
     })
 
+    // cli-core's auth commands read the live credential via activeBundle(), so it
+    // must apply the same env-token override as active() — otherwise `tdc auth
+    // status` mis-reports env-token users.
+    it('activeBundle() short-circuits to COMMS_API_TOKEN, wrapped as a bundle', async () => {
+        vi.stubEnv(TOKEN_ENV_VAR, 'env_token_value')
+        const createCommsTokenStore = await loadCreateCommsTokenStore()
+
+        const snapshot = await createCommsTokenStore().activeBundle()
+
+        expect(snapshot).toEqual({
+            account: { id: '', label: '', authMode: 'unknown', authScope: '' },
+            bundle: { accessToken: 'env_token_value' },
+        })
+        expect(keyringMocks.inner.activeBundle).not.toHaveBeenCalled()
+    })
+
+    it('activeBundle() delegates to the cli-core store when no env token is set', async () => {
+        keyringMocks.inner.activeBundle.mockResolvedValue({
+            account: STORED_ACCOUNT,
+            bundle: { accessToken: 'tk_v2' },
+        })
+        const createCommsTokenStore = await loadCreateCommsTokenStore()
+
+        const snapshot = await createCommsTokenStore().activeBundle('42')
+
+        expect(snapshot).toEqual({ account: STORED_ACCOUNT, bundle: { accessToken: 'tk_v2' } })
+        expect(keyringMocks.inner.activeBundle).toHaveBeenCalledWith('42')
+    })
+
+    // cli-core's `account current` resolves token-free via activeAccount(); an
+    // env-token session isn't a v2 store account, so it must report `null` (the
+    // attacher then routes to its env-notice hook). Mirrors active()/activeBundle().
+    it('activeAccount() short-circuits to null when COMMS_API_TOKEN is set', async () => {
+        vi.stubEnv(TOKEN_ENV_VAR, 'env_token_value')
+        const createCommsTokenStore = await loadCreateCommsTokenStore()
+
+        const result = await createCommsTokenStore().activeAccount()
+
+        expect(result).toBeNull()
+        expect(keyringMocks.inner.activeAccount).not.toHaveBeenCalled()
+    })
+
+    it('activeAccount() delegates to the cli-core store when no env token is set', async () => {
+        keyringMocks.inner.activeAccount.mockResolvedValue({
+            account: STORED_ACCOUNT,
+            isDefault: true,
+        })
+        const createCommsTokenStore = await loadCreateCommsTokenStore()
+
+        const result = await createCommsTokenStore().activeAccount('42')
+
+        expect(result).toEqual({ account: STORED_ACCOUNT, isDefault: true })
+        expect(keyringMocks.inner.activeAccount).toHaveBeenCalledWith('42')
+    })
+
     it('set/clear/list/setDefault delegate to the cli-core store', async () => {
         const createCommsTokenStore = await loadCreateCommsTokenStore()
         const store = createCommsTokenStore()
@@ -287,5 +270,14 @@ describe('matchCommsAccount', () => {
         expect(matchCommsAccount(STORED_ACCOUNT, 'ADA')).toBe(true)
         expect(matchCommsAccount(STORED_ACCOUNT, '999')).toBe(false)
         expect(matchCommsAccount(STORED_ACCOUNT, 'someone-else')).toBe(false)
+    })
+
+    it('never matches an identity-less manual-token account, even for empty-ish refs', () => {
+        const manual = { id: '', label: '', authMode: 'unknown' as const, authScope: '' }
+        // An empty `name` ref or bare `id:` would otherwise match the empty
+        // id/label — guard so `account use|remove ""` can't target it.
+        expect(matchCommsAccount(manual, '')).toBe(false)
+        expect(matchCommsAccount(manual, 'id:')).toBe(false)
+        expect(matchCommsAccount(manual, 'id:42')).toBe(false)
     })
 })
