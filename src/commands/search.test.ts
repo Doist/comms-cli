@@ -1,4 +1,4 @@
-import { Command } from 'commander'
+import { captureConsole, createTestProgram } from '@doist/cli-core/testing'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 const refsMocks = vi.hoisted(() => ({
@@ -33,12 +33,7 @@ vi.mock('chalk')
 
 import { registerSearchCommand } from './search.js'
 
-function createProgram() {
-    const program = new Command()
-    program.exitOverride()
-    registerSearchCommand(program)
-    return program
-}
+const createProgram = () => createTestProgram(registerSearchCommand)
 
 describe('search --workspace conflict', () => {
     beforeEach(() => {
@@ -72,7 +67,7 @@ describe('search --workspace conflict', () => {
         })
 
         const program = createProgram()
-        const logSpy = vi.spyOn(console, 'log').mockImplementation(() => {})
+        captureConsole('log')
         await program.parseAsync([
             'node',
             'tdc',
@@ -90,8 +85,6 @@ describe('search --workspace conflict', () => {
                 conversationIds: [30, 40],
             }),
         )
-
-        logSpy.mockRestore()
     })
 
     it('fetches every page when --all is set', async () => {
@@ -109,7 +102,7 @@ describe('search --workspace conflict', () => {
             })
 
         const program = createProgram()
-        const logSpy = vi.spyOn(console, 'log').mockImplementation(() => {})
+        captureConsole('log')
 
         await program.parseAsync(['node', 'tdc', 'search', 'query', '--all'])
 
@@ -127,7 +120,5 @@ describe('search --workspace conflict', () => {
                 cursor: 'cursor-1',
             }),
         )
-
-        logSpy.mockRestore()
     })
 })

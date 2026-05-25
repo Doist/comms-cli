@@ -1,3 +1,4 @@
+import { captureConsole, createTestProgram } from '@doist/cli-core/testing'
 import { Command } from 'commander'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
@@ -89,12 +90,7 @@ const mockGetAuthMetadata = vi.mocked(getAuthMetadata)
 const mockCreateWrappedCommsClient = vi.mocked(createWrappedCommsClient)
 const mockAttachLoginCommand = vi.mocked(attachLoginCommand)
 
-function createProgram() {
-    const program = new Command()
-    program.exitOverride()
-    registerAuthCommand(program)
-    return program
-}
+const createProgram = () => createTestProgram(registerAuthCommand)
 
 const TEST_USER: User = {
     id: 1,
@@ -114,13 +110,8 @@ describe('auth command', () => {
         vi.clearAllMocks()
 
         // Mock console.log to capture output
-        consoleSpy = vi.spyOn(console, 'log').mockImplementation(() => {})
-        errorSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
-    })
-
-    afterEach(() => {
-        consoleSpy.mockRestore()
-        errorSpy.mockRestore()
+        consoleSpy = captureConsole('log')
+        errorSpy = captureConsole('error')
     })
 
     const STORED_ACCOUNT: CommsAccount = {

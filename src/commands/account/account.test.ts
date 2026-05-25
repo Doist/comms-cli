@@ -1,4 +1,4 @@
-import { Command } from 'commander'
+import { captureConsole, createTestProgram } from '@doist/cli-core/testing'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 const storeMocks = vi.hoisted(() => ({
@@ -28,12 +28,7 @@ import { TOKEN_ENV_VAR } from '../../lib/auth.js'
 import { CliError } from '../../lib/errors.js'
 import { registerAccountCommand } from './index.js'
 
-function createProgram() {
-    const program = new Command()
-    program.exitOverride()
-    registerAccountCommand(program)
-    return program
-}
+const createProgram = () => createTestProgram(registerAccountCommand)
 
 /**
  * Seed an in-memory store that mirrors the real keyring store closely enough
@@ -68,13 +63,11 @@ describe('account command', () => {
 
     beforeEach(() => {
         vi.clearAllMocks()
-        consoleSpy = vi.spyOn(console, 'log').mockImplementation(() => {})
-        errorSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
+        consoleSpy = captureConsole('log')
+        errorSpy = captureConsole('error')
     })
 
     afterEach(() => {
-        consoleSpy.mockRestore()
-        errorSpy.mockRestore()
         vi.unstubAllEnvs()
     })
 

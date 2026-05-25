@@ -1,4 +1,4 @@
-import { Command } from 'commander'
+import { captureConsole, createTestProgram } from '@doist/cli-core/testing'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 vi.mock('node:fs/promises')
@@ -32,18 +32,13 @@ const SAMPLE_CHANGELOG = `# Changelog
 * prior release with a level-2 heading
 `
 
-function createProgram() {
-    const program = new Command()
-    program.exitOverride()
-    registerChangelogCommand(program)
-    return program
-}
+const createProgram = () => createTestProgram(registerChangelogCommand)
 
 describe('changelog wrapper', () => {
     let logSpy: ReturnType<typeof vi.spyOn>
 
     beforeEach(() => {
-        logSpy = vi.spyOn(console, 'log').mockImplementation(() => {})
+        logSpy = captureConsole('log')
     })
 
     afterEach(() => {

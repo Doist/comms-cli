@@ -1,3 +1,4 @@
+import { createTestProgram } from '@doist/cli-core/testing'
 import { Command } from 'commander'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
@@ -30,12 +31,7 @@ vi.mock('./msg/index.js', () => ({
 
 import { registerViewCommand } from './view.js'
 
-function createProgram() {
-    const program = new Command()
-    program.exitOverride()
-    registerViewCommand(program)
-    return program
-}
+const createProgram = () => createTestProgram(registerViewCommand)
 
 describe('tdc view <url> routing', () => {
     beforeEach(() => {

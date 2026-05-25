@@ -1,4 +1,4 @@
-import { Command } from 'commander'
+import { captureConsole, createTestProgram } from '@doist/cli-core/testing'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 const apiMocks = vi.hoisted(() => ({
@@ -58,12 +58,7 @@ function createClient({ messageCreator = 1, sessionUserId = 1 } = {}) {
     }
 }
 
-function createProgram() {
-    const program = new Command()
-    program.exitOverride()
-    registerMsgCommand(program)
-    return program
-}
+const createProgram = () => createTestProgram(registerMsgCommand)
 
 describe('msg implicit view', () => {
     beforeEach(() => {
@@ -73,13 +68,11 @@ describe('msg implicit view', () => {
 
     it('tdc msg <ref> routes to view (not unknown command)', async () => {
         const program = createProgram()
-        const consoleSpy = vi.spyOn(console, 'log').mockImplementation(() => {})
+        captureConsole('log')
 
         await expect(program.parseAsync(['node', 'tdc', 'msg', '200'])).rejects.toThrow(
             'MOCK_API_REACHED',
         )
-
-        consoleSpy.mockRestore()
     })
 })
 
@@ -92,20 +85,19 @@ describe('msg delete', () => {
         const client = createClient()
         apiMocks.getCommsClient.mockResolvedValue(client)
         const program = createProgram()
-        const consoleSpy = vi.spyOn(console, 'log').mockImplementation(() => {})
+        const consoleSpy = captureConsole('log')
 
         await program.parseAsync(['node', 'tdc', 'msg', 'delete', '200'])
 
         expect(client.conversationMessages.deleteMessage).toHaveBeenCalledWith('200')
         expect(consoleSpy).toHaveBeenCalledWith('Message 200 deleted.')
-        consoleSpy.mockRestore()
     })
 
     it('shows dry run output', async () => {
         const client = createClient()
         apiMocks.getCommsClient.mockResolvedValue(client)
         const program = createProgram()
-        const consoleSpy = vi.spyOn(console, 'log').mockImplementation(() => {})
+        const consoleSpy = captureConsole('log')
 
         await program.parseAsync(['node', 'tdc', 'msg', 'delete', '200', '--dry-run'])
 
@@ -113,7 +105,6 @@ describe('msg delete', () => {
         expect(consoleSpy).toHaveBeenCalledWith('  Message: 200')
         expect(consoleSpy).toHaveBeenCalledWith('  Conversation: CV42')
         expect(client.conversationMessages.deleteMessage).not.toHaveBeenCalled()
-        consoleSpy.mockRestore()
     })
 
     it('rejects non-creator with NOT_CREATOR in dry-run', async () => {
@@ -131,12 +122,11 @@ describe('msg delete', () => {
         const client = createClient()
         apiMocks.getCommsClient.mockResolvedValue(client)
         const program = createProgram()
-        const consoleSpy = vi.spyOn(console, 'log').mockImplementation(() => {})
+        const consoleSpy = captureConsole('log')
 
         await program.parseAsync(['node', 'tdc', 'msg', 'delete', '200', '--json'])
 
         const jsonOutput = JSON.parse(consoleSpy.mock.calls[0][0])
         expect(jsonOutput).toEqual({ id: '200', deleted: true })
-        consoleSpy.mockRestore()
     })
 })

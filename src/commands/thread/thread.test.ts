@@ -1,4 +1,4 @@
-import { Command } from 'commander'
+import { captureConsole, createTestProgram } from '@doist/cli-core/testing'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 const apiMocks = vi.hoisted(() => ({
@@ -150,12 +150,7 @@ function createClient({
     }
 }
 
-function createProgram() {
-    const program = new Command()
-    program.exitOverride()
-    registerThreadCommand(program)
-    return program
-}
+const createProgram = () => createTestProgram(registerThreadCommand)
 
 describe('thread implicit view', () => {
     beforeEach(() => {
@@ -166,15 +161,13 @@ describe('thread implicit view', () => {
 
     it('tdc thread <ref> routes to view (not unknown command)', async () => {
         const program = createProgram()
-        const consoleSpy = vi.spyOn(console, 'log').mockImplementation(() => {})
+        captureConsole('log')
 
         // If Commander routes to view, it will call getCommsClient which throws MOCK_API_REACHED.
         // If it doesn't route, Commander throws "unknown command '100'".
         await expect(program.parseAsync(['node', 'tdc', 'thread', '100'])).rejects.toThrow(
             'MOCK_API_REACHED',
         )
-
-        consoleSpy.mockRestore()
     })
 
     it('accepts id: prefixes in --notify for thread reply', async () => {
@@ -183,7 +176,7 @@ describe('thread implicit view', () => {
         groupsMock.getWorkspaceGroups.mockResolvedValue([])
 
         const program = createProgram()
-        const consoleSpy = vi.spyOn(console, 'log').mockImplementation(() => {})
+        const consoleSpy = captureConsole('log')
 
         await program.parseAsync([
             'node',
@@ -200,7 +193,6 @@ describe('thread implicit view', () => {
         expect(consoleSpy).toHaveBeenCalledWith(
             expect.stringContaining('Would post comment to thread'),
         )
-        consoleSpy.mockRestore()
     })
 
     it('--close dry-run indicates thread will be closed', async () => {
@@ -209,7 +201,7 @@ describe('thread implicit view', () => {
         groupsMock.getWorkspaceGroups.mockResolvedValue([])
 
         const program = createProgram()
-        const consoleSpy = vi.spyOn(console, 'log').mockImplementation(() => {})
+        const consoleSpy = captureConsole('log')
 
         await program.parseAsync([
             'node',
@@ -225,7 +217,6 @@ describe('thread implicit view', () => {
         expect(consoleSpy).toHaveBeenCalledWith(
             expect.stringContaining('Would post comment to thread and close it'),
         )
-        consoleSpy.mockRestore()
     })
 
     it('--reopen dry-run indicates thread will be reopened', async () => {
@@ -234,7 +225,7 @@ describe('thread implicit view', () => {
         groupsMock.getWorkspaceGroups.mockResolvedValue([])
 
         const program = createProgram()
-        const consoleSpy = vi.spyOn(console, 'log').mockImplementation(() => {})
+        const consoleSpy = captureConsole('log')
 
         await program.parseAsync([
             'node',
@@ -250,7 +241,6 @@ describe('thread implicit view', () => {
         expect(consoleSpy).toHaveBeenCalledWith(
             expect.stringContaining('Would post comment to thread and reopen it'),
         )
-        consoleSpy.mockRestore()
     })
 
     it('--close calls closeThread instead of createComment', async () => {
@@ -258,7 +248,7 @@ describe('thread implicit view', () => {
         apiMocks.getCommsClient.mockResolvedValue(client)
 
         const program = createProgram()
-        const consoleSpy = vi.spyOn(console, 'log').mockImplementation(() => {})
+        captureConsole('log')
 
         vi.mocked(readStdin).mockResolvedValueOnce('closing comment')
         await program.parseAsync(['node', 'tdc', 'thread', 'reply', '500', '--close'])
@@ -267,7 +257,6 @@ describe('thread implicit view', () => {
             expect.objectContaining({ id: '500', content: 'closing comment' }),
         )
         expect(client.comments.createComment).not.toHaveBeenCalled()
-        consoleSpy.mockRestore()
     })
 
     it('--reopen calls reopenThread instead of createComment', async () => {
@@ -275,7 +264,7 @@ describe('thread implicit view', () => {
         apiMocks.getCommsClient.mockResolvedValue(client)
 
         const program = createProgram()
-        const consoleSpy = vi.spyOn(console, 'log').mockImplementation(() => {})
+        captureConsole('log')
 
         vi.mocked(readStdin).mockResolvedValueOnce('reopening comment')
         await program.parseAsync(['node', 'tdc', 'thread', 'reply', '500', '--reopen'])
@@ -284,7 +273,6 @@ describe('thread implicit view', () => {
             expect.objectContaining({ id: '500', content: 'reopening comment' }),
         )
         expect(client.comments.createComment).not.toHaveBeenCalled()
-        consoleSpy.mockRestore()
     })
 
     it('--close and --reopen together produces an error', async () => {
@@ -323,7 +311,7 @@ describe('thread view --unread', () => {
         apiMocks.getCommsClient.mockResolvedValue(client)
 
         const program = createProgram()
-        const consoleSpy = vi.spyOn(console, 'log').mockImplementation(() => {})
+        const consoleSpy = captureConsole('log')
 
         await program.parseAsync(['node', 'tdc', 'thread', 'view', '500', '--unread'])
 
@@ -331,8 +319,6 @@ describe('thread view --unread', () => {
         expect(output).toContain('Test Thread')
         expect(output).toContain('Thread body')
         expect(output).toContain('No unread comments.')
-
-        consoleSpy.mockRestore()
     })
 
     it('filters to only unread comments in human-readable output', async () => {
@@ -346,7 +332,7 @@ describe('thread view --unread', () => {
         apiMocks.getCommsClient.mockResolvedValue(client)
 
         const program = createProgram()
-        const consoleSpy = vi.spyOn(console, 'log').mockImplementation(() => {})
+        const consoleSpy = captureConsole('log')
 
         await program.parseAsync(['node', 'tdc', 'thread', 'view', '500', '--unread'])
 
@@ -360,8 +346,6 @@ describe('thread view --unread', () => {
         expect(output).not.toContain('Comment 1')
         // Should show unread separator
         expect(output).toContain('UNREAD (2 new)')
-
-        consoleSpy.mockRestore()
     })
 
     it('filters comments in --json output when --unread is set', async () => {
@@ -375,7 +359,7 @@ describe('thread view --unread', () => {
         apiMocks.getCommsClient.mockResolvedValue(client)
 
         const program = createProgram()
-        const consoleSpy = vi.spyOn(console, 'log').mockImplementation(() => {})
+        const consoleSpy = captureConsole('log')
 
         await program.parseAsync(['node', 'tdc', 'thread', 'view', '500', '--unread', '--json'])
 
@@ -384,8 +368,6 @@ describe('thread view --unread', () => {
         // Only comment 3 is unread (objIndex 3 > lastReadObjIndex 2)
         expect(jsonOutput.comments).toHaveLength(1)
         expect(jsonOutput.comments[0].id).toBe('3')
-
-        consoleSpy.mockRestore()
     })
 
     it('returns empty comments in --json output when no unread data exists', async () => {
@@ -397,15 +379,13 @@ describe('thread view --unread', () => {
         apiMocks.getCommsClient.mockResolvedValue(client)
 
         const program = createProgram()
-        const consoleSpy = vi.spyOn(console, 'log').mockImplementation(() => {})
+        const consoleSpy = captureConsole('log')
 
         await program.parseAsync(['node', 'tdc', 'thread', 'view', '500', '--unread', '--json'])
 
         const jsonOutput = JSON.parse(consoleSpy.mock.calls[0][0])
         expect(jsonOutput.thread.id).toBe('500')
         expect(jsonOutput.comments).toHaveLength(0)
-
-        consoleSpy.mockRestore()
     })
 
     it('filters comments in --ndjson output when --unread is set', async () => {
@@ -419,7 +399,7 @@ describe('thread view --unread', () => {
         apiMocks.getCommsClient.mockResolvedValue(client)
 
         const program = createProgram()
-        const consoleSpy = vi.spyOn(console, 'log').mockImplementation(() => {})
+        const consoleSpy = captureConsole('log')
 
         await program.parseAsync(['node', 'tdc', 'thread', 'view', '500', '--unread', '--ndjson'])
 
@@ -431,8 +411,6 @@ describe('thread view --unread', () => {
         expect(commentLines).toHaveLength(2)
         expect(commentLines[0].id).toBe('2')
         expect(commentLines[1].id).toBe('3')
-
-        consoleSpy.mockRestore()
     })
 
     it('returns all comments in --json without --unread', async () => {
@@ -446,7 +424,7 @@ describe('thread view --unread', () => {
         apiMocks.getCommsClient.mockResolvedValue(client)
 
         const program = createProgram()
-        const consoleSpy = vi.spyOn(console, 'log').mockImplementation(() => {})
+        const consoleSpy = captureConsole('log')
 
         await program.parseAsync(['node', 'tdc', 'thread', 'view', '500', '--json'])
 
@@ -455,8 +433,6 @@ describe('thread view --unread', () => {
         expect(jsonOutput.comments).toHaveLength(2)
         // getUnread should not be called
         expect(client.threads.getUnread).not.toHaveBeenCalled()
-
-        consoleSpy.mockRestore()
     })
 })
 
@@ -477,7 +453,7 @@ describe('thread view --since', () => {
         apiMocks.getCommsClient.mockResolvedValue(client)
 
         const program = createProgram()
-        const consoleSpy = vi.spyOn(console, 'log').mockImplementation(() => {})
+        captureConsole('log')
 
         await program.parseAsync([
             'node',
@@ -498,8 +474,6 @@ describe('thread view --since', () => {
         )
         const [args] = client.comments.getComments.mock.calls[0] as [Record<string, unknown>]
         expect(args).not.toHaveProperty('from')
-
-        consoleSpy.mockRestore()
     })
 })
 
@@ -520,13 +494,11 @@ describe('thread view error propagation', () => {
         apiMocks.getCommsClient.mockResolvedValue(client)
 
         const program = createProgram()
-        const consoleSpy = vi.spyOn(console, 'log').mockImplementation(() => {})
+        captureConsole('log')
 
         await expect(
             program.parseAsync(['node', 'tdc', 'thread', 'view', '500', '--comment', '99999']),
         ).rejects.toThrow('Comment not found')
-
-        consoleSpy.mockRestore()
     })
 
     it('surfaces the API error when fetching a missing thread', async () => {
@@ -535,13 +507,11 @@ describe('thread view error propagation', () => {
         apiMocks.getCommsClient.mockResolvedValue(client)
 
         const program = createProgram()
-        const consoleSpy = vi.spyOn(console, 'log').mockImplementation(() => {})
+        captureConsole('log')
 
         await expect(program.parseAsync(['node', 'tdc', 'thread', 'view', '500'])).rejects.toThrow(
             'Thread not found',
         )
-
-        consoleSpy.mockRestore()
     })
 
     it('renders the thread when a user is missing from the workspace map', async () => {
@@ -554,15 +524,13 @@ describe('thread view error propagation', () => {
         apiMocks.getCommsClient.mockResolvedValue(client)
 
         const program = createProgram()
-        const consoleSpy = vi.spyOn(console, 'log').mockImplementation(() => {})
+        const consoleSpy = captureConsole('log')
 
         await program.parseAsync(['node', 'tdc', 'thread', 'view', '500'])
 
         const output = consoleSpy.mock.calls.map((c) => c[0]).join('\n')
         expect(output).toContain('Alice')
         expect(output).toContain('user:2')
-
-        consoleSpy.mockRestore()
     })
 })
 
@@ -578,7 +546,7 @@ describe('thread create', () => {
         apiMocks.getCommsClient.mockResolvedValue(client)
 
         const program = createProgram()
-        const consoleSpy = vi.spyOn(console, 'log').mockImplementation(() => {})
+        const consoleSpy = captureConsole('log')
 
         await program.parseAsync([
             'node',
@@ -598,8 +566,6 @@ describe('thread create', () => {
             }),
         )
         expect(consoleSpy).toHaveBeenCalledWith(expect.stringContaining('Thread created:'))
-
-        consoleSpy.mockRestore()
     })
 
     it('shows dry run output', async () => {
@@ -607,7 +573,7 @@ describe('thread create', () => {
         apiMocks.getCommsClient.mockResolvedValue(client)
 
         const program = createProgram()
-        const consoleSpy = vi.spyOn(console, 'log').mockImplementation(() => {})
+        const consoleSpy = captureConsole('log')
 
         await program.parseAsync([
             'node',
@@ -623,8 +589,6 @@ describe('thread create', () => {
         expect(consoleSpy).toHaveBeenCalledWith(expect.stringContaining('Would create thread'))
         expect(consoleSpy).toHaveBeenCalledWith('  Title: Test Title')
         expect(consoleSpy).toHaveBeenCalledWith('  Content: Dry run content')
-
-        consoleSpy.mockRestore()
     })
 
     it('outputs JSON with --json', async () => {
@@ -632,7 +596,7 @@ describe('thread create', () => {
         apiMocks.getCommsClient.mockResolvedValue(client)
 
         const program = createProgram()
-        const consoleSpy = vi.spyOn(console, 'log').mockImplementation(() => {})
+        const consoleSpy = captureConsole('log')
 
         await program.parseAsync([
             'node',
@@ -648,8 +612,6 @@ describe('thread create', () => {
         const jsonOutput = JSON.parse(consoleSpy.mock.calls[0][0])
         expect(jsonOutput.id).toBe('999')
         expect(jsonOutput.channelId).toBe('CH100')
-
-        consoleSpy.mockRestore()
     })
 
     it('reads content from stdin', async () => {
@@ -658,7 +620,7 @@ describe('thread create', () => {
         apiMocks.getCommsClient.mockResolvedValue(client)
 
         const program = createProgram()
-        const consoleSpy = vi.spyOn(console, 'log').mockImplementation(() => {})
+        captureConsole('log')
 
         await program.parseAsync(['node', 'tdc', 'thread', 'create', '100', 'My Title'])
 
@@ -669,8 +631,6 @@ describe('thread create', () => {
                 content: 'Content from stdin',
             }),
         )
-
-        consoleSpy.mockRestore()
     })
 
     it('passes notify recipients (users only)', async () => {
@@ -683,7 +643,7 @@ describe('thread create', () => {
         ])
 
         const program = createProgram()
-        const consoleSpy = vi.spyOn(console, 'log').mockImplementation(() => {})
+        captureConsole('log')
 
         await program.parseAsync([
             'node',
@@ -704,8 +664,6 @@ describe('thread create', () => {
                 recipients: [123, 456],
             }),
         )
-
-        consoleSpy.mockRestore()
     })
 
     it('partitions notify IDs into users and groups', async () => {
@@ -717,7 +675,7 @@ describe('thread create', () => {
         groupsMock.getWorkspaceUsers.mockResolvedValue([{ id: 123, fullName: 'Alice' }])
 
         const program = createProgram()
-        const consoleSpy = vi.spyOn(console, 'log').mockImplementation(() => {})
+        captureConsole('log')
 
         await program.parseAsync([
             'node',
@@ -739,8 +697,6 @@ describe('thread create', () => {
                 groups: ['GR456'],
             }),
         )
-
-        consoleSpy.mockRestore()
     })
 
     it('errors when no content is provided', async () => {
@@ -756,12 +712,11 @@ describe('thread create', () => {
         apiMocks.getCommsClient.mockResolvedValue(client)
 
         const program = createProgram()
-        const consoleSpy = vi.spyOn(console, 'log').mockImplementation(() => {})
+        captureConsole('log')
 
         await program.parseAsync(['node', 'tdc', 'thread', 'create', '100', 'T', 'body'])
 
         expect(client.inbox.unarchiveThread).not.toHaveBeenCalled()
-        consoleSpy.mockRestore()
     })
 
     it('unarchives the new thread when --unarchive is passed', async () => {
@@ -769,7 +724,7 @@ describe('thread create', () => {
         apiMocks.getCommsClient.mockResolvedValue(client)
 
         const program = createProgram()
-        const consoleSpy = vi.spyOn(console, 'log').mockImplementation(() => {})
+        captureConsole('log')
 
         await program.parseAsync([
             'node',
@@ -783,7 +738,6 @@ describe('thread create', () => {
         ])
 
         expect(client.inbox.unarchiveThread).toHaveBeenCalledWith('999')
-        consoleSpy.mockRestore()
     })
 
     it('unarchives when userSettings.unarchiveNewThreads is true', async () => {
@@ -794,12 +748,11 @@ describe('thread create', () => {
         apiMocks.getCommsClient.mockResolvedValue(client)
 
         const program = createProgram()
-        const consoleSpy = vi.spyOn(console, 'log').mockImplementation(() => {})
+        captureConsole('log')
 
         await program.parseAsync(['node', 'tdc', 'thread', 'create', '100', 'T', 'body'])
 
         expect(client.inbox.unarchiveThread).toHaveBeenCalledWith('999')
-        consoleSpy.mockRestore()
     })
 
     it('--no-unarchive overrides config default of true', async () => {
@@ -810,7 +763,7 @@ describe('thread create', () => {
         apiMocks.getCommsClient.mockResolvedValue(client)
 
         const program = createProgram()
-        const consoleSpy = vi.spyOn(console, 'log').mockImplementation(() => {})
+        captureConsole('log')
 
         await program.parseAsync([
             'node',
@@ -824,7 +777,6 @@ describe('thread create', () => {
         ])
 
         expect(client.inbox.unarchiveThread).not.toHaveBeenCalled()
-        consoleSpy.mockRestore()
     })
 
     it('unarchive failure does not fail the command', async () => {
@@ -833,8 +785,8 @@ describe('thread create', () => {
         apiMocks.getCommsClient.mockResolvedValue(client)
 
         const program = createProgram()
-        const consoleSpy = vi.spyOn(console, 'log').mockImplementation(() => {})
-        const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
+        const consoleSpy = captureConsole('log')
+        const errorSpy = captureConsole('error')
 
         await program.parseAsync([
             'node',
@@ -850,8 +802,6 @@ describe('thread create', () => {
         expect(client.threads.createThread).toHaveBeenCalled()
         expect(errorSpy).toHaveBeenCalledWith(expect.stringContaining('failed to unarchive'))
         expect(consoleSpy).toHaveBeenCalledWith(expect.stringContaining('Thread created:'))
-        consoleSpy.mockRestore()
-        errorSpy.mockRestore()
     })
 })
 
@@ -866,14 +816,12 @@ describe('thread mute', () => {
         apiMocks.getCommsClient.mockResolvedValue(client)
 
         const program = createProgram()
-        const consoleSpy = vi.spyOn(console, 'log').mockImplementation(() => {})
+        const consoleSpy = captureConsole('log')
 
         await program.parseAsync(['node', 'tdc', 'thread', 'mute', '500'])
 
         expect(client.threads.muteThread).toHaveBeenCalledWith({ id: '500', minutes: 60 })
         expect(consoleSpy).toHaveBeenCalledWith('Thread 500 muted for 60 minutes.')
-
-        consoleSpy.mockRestore()
     })
 
     it('mutes a thread with custom minutes', async () => {
@@ -881,14 +829,12 @@ describe('thread mute', () => {
         apiMocks.getCommsClient.mockResolvedValue(client)
 
         const program = createProgram()
-        const consoleSpy = vi.spyOn(console, 'log').mockImplementation(() => {})
+        const consoleSpy = captureConsole('log')
 
         await program.parseAsync(['node', 'tdc', 'thread', 'mute', '500', '--minutes', '480'])
 
         expect(client.threads.muteThread).toHaveBeenCalledWith({ id: '500', minutes: 480 })
         expect(consoleSpy).toHaveBeenCalledWith('Thread 500 muted for 480 minutes.')
-
-        consoleSpy.mockRestore()
     })
 
     it('shows dry run output', async () => {
@@ -896,7 +842,7 @@ describe('thread mute', () => {
         apiMocks.getCommsClient.mockResolvedValue(client)
 
         const program = createProgram()
-        const consoleSpy = vi.spyOn(console, 'log').mockImplementation(() => {})
+        const consoleSpy = captureConsole('log')
 
         await program.parseAsync(['node', 'tdc', 'thread', 'mute', '500', '--dry-run'])
 
@@ -904,8 +850,6 @@ describe('thread mute', () => {
         expect(consoleSpy).toHaveBeenCalledWith('  Thread: Test Thread (500)')
         expect(consoleSpy).toHaveBeenCalledWith('  Duration: 60 minutes')
         expect(client.threads.muteThread).not.toHaveBeenCalled()
-
-        consoleSpy.mockRestore()
     })
 
     it('runs validation in dry-run mode', async () => {
@@ -926,7 +870,7 @@ describe('thread mute', () => {
         apiMocks.getCommsClient.mockResolvedValue(client)
 
         const program = createProgram()
-        const consoleSpy = vi.spyOn(console, 'log').mockImplementation(() => {})
+        const consoleSpy = captureConsole('log')
 
         await program.parseAsync(['node', 'tdc', 'thread', 'mute', '500', '--json'])
 
@@ -934,8 +878,6 @@ describe('thread mute', () => {
         expect(jsonOutput.id).toBe('500')
         expect(jsonOutput.mutedUntil).toBeDefined()
         expect(Object.keys(jsonOutput)).toEqual(['id', 'mutedUntil'])
-
-        consoleSpy.mockRestore()
     })
 
     it('rejects non-integer --minutes value', async () => {
@@ -958,14 +900,12 @@ describe('thread unmute', () => {
         apiMocks.getCommsClient.mockResolvedValue(client)
 
         const program = createProgram()
-        const consoleSpy = vi.spyOn(console, 'log').mockImplementation(() => {})
+        const consoleSpy = captureConsole('log')
 
         await program.parseAsync(['node', 'tdc', 'thread', 'unmute', '500'])
 
         expect(client.threads.unmuteThread).toHaveBeenCalledWith('500')
         expect(consoleSpy).toHaveBeenCalledWith('Thread 500 unmuted.')
-
-        consoleSpy.mockRestore()
     })
 
     it('shows dry run output', async () => {
@@ -973,15 +913,13 @@ describe('thread unmute', () => {
         apiMocks.getCommsClient.mockResolvedValue(client)
 
         const program = createProgram()
-        const consoleSpy = vi.spyOn(console, 'log').mockImplementation(() => {})
+        const consoleSpy = captureConsole('log')
 
         await program.parseAsync(['node', 'tdc', 'thread', 'unmute', '500', '--dry-run'])
 
         expect(consoleSpy).toHaveBeenCalledWith(expect.stringContaining('Would unmute thread'))
         expect(consoleSpy).toHaveBeenCalledWith('  Thread: Test Thread (500)')
         expect(client.threads.unmuteThread).not.toHaveBeenCalled()
-
-        consoleSpy.mockRestore()
     })
 
     it('runs validation in dry-run mode', async () => {
@@ -1008,54 +946,50 @@ describe('thread delete', () => {
         const client = createClient()
         apiMocks.getCommsClient.mockResolvedValue(client)
         const program = createProgram()
-        const consoleSpy = vi.spyOn(console, 'log').mockImplementation(() => {})
+        const consoleSpy = captureConsole('log')
 
         await program.parseAsync(['node', 'tdc', 'thread', 'delete', '500', '--yes'])
 
         expect(client.threads.deleteThread).toHaveBeenCalledWith('500')
         expect(consoleSpy).toHaveBeenCalledWith('Thread Test Thread (500) deleted.')
-        consoleSpy.mockRestore()
     })
 
     it('prompts for confirmation without --yes', async () => {
         const client = createClient()
         apiMocks.getCommsClient.mockResolvedValue(client)
         const program = createProgram()
-        const consoleSpy = vi.spyOn(console, 'log').mockImplementation(() => {})
+        const consoleSpy = captureConsole('log')
 
         await program.parseAsync(['node', 'tdc', 'thread', 'delete', '500'])
 
         expect(consoleSpy).toHaveBeenCalledWith('Would delete: Test Thread')
         expect(consoleSpy).toHaveBeenCalledWith('Use --yes to confirm.')
         expect(client.threads.deleteThread).not.toHaveBeenCalled()
-        consoleSpy.mockRestore()
     })
 
     it('shows dry run output', async () => {
         const client = createClient()
         apiMocks.getCommsClient.mockResolvedValue(client)
         const program = createProgram()
-        const consoleSpy = vi.spyOn(console, 'log').mockImplementation(() => {})
+        const consoleSpy = captureConsole('log')
 
         await program.parseAsync(['node', 'tdc', 'thread', 'delete', '500', '--dry-run'])
 
         expect(consoleSpy).toHaveBeenCalledWith(expect.stringContaining('Would delete thread'))
         expect(consoleSpy).toHaveBeenCalledWith('  Thread: Test Thread (500)')
         expect(client.threads.deleteThread).not.toHaveBeenCalled()
-        consoleSpy.mockRestore()
     })
 
     it('outputs JSON with --json --yes', async () => {
         const client = createClient()
         apiMocks.getCommsClient.mockResolvedValue(client)
         const program = createProgram()
-        const consoleSpy = vi.spyOn(console, 'log').mockImplementation(() => {})
+        const consoleSpy = captureConsole('log')
 
         await program.parseAsync(['node', 'tdc', 'thread', 'delete', '500', '--json', '--yes'])
 
         const jsonOutput = JSON.parse(consoleSpy.mock.calls[0][0])
         expect(jsonOutput).toEqual({ id: '500', deleted: true })
-        consoleSpy.mockRestore()
     })
 
     it('errors when --json is used without --yes', async () => {
@@ -1094,14 +1028,12 @@ describe('thread rename', () => {
         apiMocks.getCommsClient.mockResolvedValue(client)
 
         const program = createProgram()
-        const consoleSpy = vi.spyOn(console, 'log').mockImplementation(() => {})
+        const consoleSpy = captureConsole('log')
 
         await program.parseAsync(['node', 'tdc', 'thread', 'rename', '500', 'New Title'])
 
         expect(client.threads.updateThread).toHaveBeenCalledWith({ id: '500', title: 'New Title' })
         expect(consoleSpy).toHaveBeenCalledWith('Thread 500 renamed to "New Title".')
-
-        consoleSpy.mockRestore()
     })
 
     it('shows dry run output', async () => {
@@ -1109,7 +1041,7 @@ describe('thread rename', () => {
         apiMocks.getCommsClient.mockResolvedValue(client)
 
         const program = createProgram()
-        const consoleSpy = vi.spyOn(console, 'log').mockImplementation(() => {})
+        const consoleSpy = captureConsole('log')
 
         await program.parseAsync([
             'node',
@@ -1125,8 +1057,6 @@ describe('thread rename', () => {
         expect(consoleSpy).toHaveBeenCalledWith('  Thread: Test Thread (500)')
         expect(consoleSpy).toHaveBeenCalledWith('  New title: New Title')
         expect(client.threads.updateThread).not.toHaveBeenCalled()
-
-        consoleSpy.mockRestore()
     })
 
     it('runs validation in dry-run mode', async () => {
@@ -1155,7 +1085,7 @@ describe('thread rename', () => {
         apiMocks.getCommsClient.mockResolvedValue(client)
 
         const program = createProgram()
-        const consoleSpy = vi.spyOn(console, 'log').mockImplementation(() => {})
+        const consoleSpy = captureConsole('log')
 
         await program.parseAsync(['node', 'tdc', 'thread', 'rename', '500', 'New Title', '--json'])
 
@@ -1163,8 +1093,6 @@ describe('thread rename', () => {
         expect(jsonOutput.id).toBe('500')
         expect(jsonOutput.title).toBe('New Title')
         expect(Object.keys(jsonOutput)).toEqual(['id', 'title'])
-
-        consoleSpy.mockRestore()
     })
 
     it('outputs full JSON with --json --full', async () => {
@@ -1172,7 +1100,7 @@ describe('thread rename', () => {
         apiMocks.getCommsClient.mockResolvedValue(client)
 
         const program = createProgram()
-        const consoleSpy = vi.spyOn(console, 'log').mockImplementation(() => {})
+        const consoleSpy = captureConsole('log')
 
         await program.parseAsync([
             'node',
@@ -1190,8 +1118,6 @@ describe('thread rename', () => {
         expect(jsonOutput.title).toBe('New Title')
         // Full output includes more fields
         expect(Object.keys(jsonOutput).length).toBeGreaterThan(2)
-
-        consoleSpy.mockRestore()
     })
 })
 
@@ -1206,7 +1132,7 @@ describe('thread update', () => {
         apiMocks.getCommsClient.mockResolvedValue(client)
 
         const program = createProgram()
-        const consoleSpy = vi.spyOn(console, 'log').mockImplementation(() => {})
+        const consoleSpy = captureConsole('log')
 
         await program.parseAsync(['node', 'tdc', 'thread', 'update', '500', 'New body'])
 
@@ -1215,8 +1141,6 @@ describe('thread update', () => {
             content: 'New body',
         })
         expect(consoleSpy).toHaveBeenCalledWith('Thread 500 updated.')
-
-        consoleSpy.mockRestore()
     })
 
     it('shows dry run output without calling updateThread', async () => {
@@ -1224,7 +1148,7 @@ describe('thread update', () => {
         apiMocks.getCommsClient.mockResolvedValue(client)
 
         const program = createProgram()
-        const consoleSpy = vi.spyOn(console, 'log').mockImplementation(() => {})
+        const consoleSpy = captureConsole('log')
 
         await program.parseAsync([
             'node',
@@ -1240,8 +1164,6 @@ describe('thread update', () => {
         expect(consoleSpy).toHaveBeenCalledWith('  Thread: Test Thread (500)')
         expect(consoleSpy).toHaveBeenCalledWith('  Content: New body')
         expect(client.threads.updateThread).not.toHaveBeenCalled()
-
-        consoleSpy.mockRestore()
     })
 
     it('reads content from stdin', async () => {
@@ -1250,7 +1172,7 @@ describe('thread update', () => {
         apiMocks.getCommsClient.mockResolvedValue(client)
 
         const program = createProgram()
-        const consoleSpy = vi.spyOn(console, 'log').mockImplementation(() => {})
+        captureConsole('log')
 
         await program.parseAsync(['node', 'tdc', 'thread', 'update', '500'])
 
@@ -1258,19 +1180,15 @@ describe('thread update', () => {
             id: '500',
             content: 'Body from stdin',
         })
-
-        consoleSpy.mockRestore()
     })
 
     it('errors when no content is provided', async () => {
         const program = createProgram()
-        const consoleSpy = vi.spyOn(console, 'log').mockImplementation(() => {})
+        captureConsole('log')
 
         await expect(
             program.parseAsync(['node', 'tdc', 'thread', 'update', '500']),
         ).rejects.toHaveProperty('code', 'MISSING_CONTENT')
-
-        consoleSpy.mockRestore()
     })
 
     it('outputs JSON with --json including id and content', async () => {
@@ -1278,7 +1196,7 @@ describe('thread update', () => {
         apiMocks.getCommsClient.mockResolvedValue(client)
 
         const program = createProgram()
-        const consoleSpy = vi.spyOn(console, 'log').mockImplementation(() => {})
+        const consoleSpy = captureConsole('log')
 
         await program.parseAsync(['node', 'tdc', 'thread', 'update', '500', 'New body', '--json'])
 
@@ -1286,8 +1204,6 @@ describe('thread update', () => {
         expect(jsonOutput.id).toBe('500')
         expect(jsonOutput.content).toBe('New body')
         expect(Object.keys(jsonOutput)).toEqual(['id', 'content'])
-
-        consoleSpy.mockRestore()
     })
 
     it('runs validation in dry-run mode', async () => {
@@ -1315,14 +1231,12 @@ describe('thread done', () => {
         apiMocks.getCommsClient.mockResolvedValue(client)
 
         const program = createProgram()
-        const consoleSpy = vi.spyOn(console, 'log').mockImplementation(() => {})
+        const consoleSpy = captureConsole('log')
 
         await program.parseAsync(['node', 'tdc', 'thread', 'done', '500'])
 
         expect(client.inbox.archiveThread).toHaveBeenCalledWith('500')
         expect(consoleSpy).toHaveBeenCalledWith('Thread 500 archived.')
-
-        consoleSpy.mockRestore()
     })
 
     it('shows dry run output', async () => {
@@ -1330,15 +1244,13 @@ describe('thread done', () => {
         apiMocks.getCommsClient.mockResolvedValue(client)
 
         const program = createProgram()
-        const consoleSpy = vi.spyOn(console, 'log').mockImplementation(() => {})
+        const consoleSpy = captureConsole('log')
 
         await program.parseAsync(['node', 'tdc', 'thread', 'done', '500', '--dry-run'])
 
         expect(consoleSpy).toHaveBeenCalledWith(expect.stringContaining('Would archive thread'))
         expect(consoleSpy).toHaveBeenCalledWith('  Thread: Test Thread (500)')
         expect(client.inbox.archiveThread).not.toHaveBeenCalled()
-
-        consoleSpy.mockRestore()
     })
 
     it('runs validation in dry-run mode', async () => {
