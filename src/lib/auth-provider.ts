@@ -233,6 +233,15 @@ export function createCommsTokenStore(): CommsTokenStore {
             }
             return inner.activeBundle(ref)
         },
+        // cli-core's `account current` resolves through `activeAccount()`. An
+        // env-token session isn't a v2 store account, so report `null` — the
+        // attacher then routes to its `onNotAuthenticated` hook, which renders
+        // the env notice. (A manual-token snapshot stays a real store account;
+        // `account current` special-cases it in its renderers.)
+        async activeAccount(ref?: AccountRef) {
+            if (resolveEnvOverride(ref)) return null
+            return inner.activeAccount(ref)
+        },
         async set(account: CommsAccount, token: string) {
             return inner.set(account, token)
         },
