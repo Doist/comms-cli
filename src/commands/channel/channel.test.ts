@@ -635,6 +635,7 @@ describe('channels delete', () => {
     beforeEach(() => {
         vi.clearAllMocks()
         apiMocks.getCurrentWorkspaceId.mockResolvedValue(1)
+        refsMocks.getDirectChannelId.mockReturnValue(null)
         refsMocks.resolveChannelRef.mockResolvedValue(
             createChannel(500, 'Engineering', { id: 'CH500' }),
         )
@@ -728,6 +729,7 @@ describe('channels archive', () => {
     beforeEach(() => {
         vi.clearAllMocks()
         apiMocks.getCurrentWorkspaceId.mockResolvedValue(1)
+        refsMocks.getDirectChannelId.mockReturnValue(null)
         refsMocks.resolveChannelRef.mockResolvedValue(
             createChannel(500, 'Engineering', { id: 'CH500' }),
         )
@@ -786,6 +788,7 @@ describe('channels unarchive', () => {
     beforeEach(() => {
         vi.clearAllMocks()
         apiMocks.getCurrentWorkspaceId.mockResolvedValue(1)
+        refsMocks.getDirectChannelId.mockReturnValue(null)
         refsMocks.resolveChannelRef.mockResolvedValue(
             createChannel(500, 'Engineering', { id: 'CH500', archived: true }),
         )
@@ -824,4 +827,69 @@ describe('channels unarchive', () => {
 
         expect(JSON.parse(consoleSpy.mock.calls[0][0])).toEqual({ id: 'CH500', archived: false })
     })
+})
+
+const lifecycleCommands = [
+    { name: 'delete', extraArgs: ['--yes'], method: 'deleteChannel', archived: false },
+    { name: 'archive', extraArgs: [], method: 'archiveChannel', archived: false },
+    { name: 'unarchive', extraArgs: [], method: 'unarchiveChannel', archived: true },
+] as const
+
+describe('channels lifecycle --workspace', () => {
+    beforeEach(() => {
+        vi.clearAllMocks()
+        apiMocks.getCurrentWorkspaceId.mockResolvedValue(1)
+        refsMocks.getDirectChannelId.mockReturnValue(null)
+        refsMocks.resolveWorkspaceRef.mockResolvedValue({ id: 42, name: 'Other' })
+    })
+
+    for (const cmd of lifecycleCommands) {
+        it(`${cmd.name} resolves --workspace and passes its ID to resolveChannelRef`, async () => {
+            refsMocks.resolveChannelRef.mockResolvedValue(
+                createChannel(500, 'Engineering', { id: 'CH500', archived: cmd.archived }),
+            )
+            const client = createClient()
+            apiMocks.getCommsClient.mockResolvedValue(client)
+            captureConsole('log')
+
+            await runChannelCommand([
+                cmd.name,
+                'Engineering',
+                '--workspace',
+                'Other',
+                ...cmd.extraArgs,
+            ])
+
+            expect(refsMocks.resolveWorkspaceRef).toHaveBeenCalledWith('Other')
+            expect(refsMocks.resolveChannelRef).toHaveBeenCalledWith('Engineering', 42)
+            expect(client.channels[cmd.method]).toHaveBeenCalledWith('CH500')
+            expect(apiMocks.getCurrentWorkspaceId).not.toHaveBeenCalled()
+        })
+    }
+})
+
+describe('channels lifecycle direct refs', () => {
+    beforeEach(() => {
+        vi.clearAllMocks()
+        refsMocks.getDirectChannelId.mockReturnValue('CH500')
+    })
+
+    for (const cmd of lifecycleCommands) {
+        it(`${cmd.name} fetches a direct ref by ID without resolving a workspace`, async () => {
+            const client = createClient()
+            client.channels.getChannel.mockResolvedValue(
+                createChannel(500, 'Engineering', { id: 'CH500', archived: cmd.archived }),
+            )
+            apiMocks.getCommsClient.mockResolvedValue(client)
+            captureConsole('log')
+
+            await runChannelCommand([cmd.name, 'id:CH500', ...cmd.extraArgs])
+
+            expect(client.channels.getChannel).toHaveBeenCalledWith('CH500')
+            expect(refsMocks.resolveChannelRef).not.toHaveBeenCalled()
+            expect(refsMocks.resolveWorkspaceRef).not.toHaveBeenCalled()
+            expect(apiMocks.getCurrentWorkspaceId).not.toHaveBeenCalled()
+            expect(client.channels[cmd.method]).toHaveBeenCalledWith('CH500')
+        })
+    }
 })

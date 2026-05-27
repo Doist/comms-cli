@@ -1,8 +1,7 @@
 import { getCommsClient } from '../../lib/api.js'
 import type { MutationOptions } from '../../lib/options.js'
 import { formatJson, printDryRun } from '../../lib/output.js'
-import { resolveChannelRef } from '../../lib/refs.js'
-import { resolveChannelWorkspaceId } from './helpers.js'
+import { resolveChannelByRef } from './helpers.js'
 
 type ArchiveChannelOptions = MutationOptions & { workspace?: string }
 
@@ -12,8 +11,7 @@ async function setArchiveState(
     archive: boolean,
 ): Promise<void> {
     const action = archive ? 'archive' : 'unarchive'
-    const workspaceId = await resolveChannelWorkspaceId(options.workspace)
-    const channel = await resolveChannelRef(ref, workspaceId)
+    const channel = await resolveChannelByRef(ref, options.workspace)
 
     if (options.dryRun) {
         printDryRun(`${action} channel`, {
