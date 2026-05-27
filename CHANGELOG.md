@@ -1,3 +1,9 @@
+## [1.2.0](https://github.com/Doist/comms-cli/compare/v1.1.0...v1.2.0) (2026-05-27)
+
+### Features
+
+- **channel:** add delete, archive, unarchive subcommands ([#8](https://github.com/Doist/comms-cli/issues/8)) ([41acfe6](https://github.com/Doist/comms-cli/commit/41acfe6cf5022bb719b9dd4b8d406ce730926867)), closes [#246](https://github.com/Doist/comms-cli/issues/246)
+
 ## [1.1.0](https://github.com/Doist/comms-cli/compare/v1.0.0...v1.1.0) (2026-05-27)
 
 ### Features
