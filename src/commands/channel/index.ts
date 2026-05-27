@@ -1,7 +1,9 @@
 import { Command, Option } from 'commander'
 import { withCaseInsensitiveChoices } from '../../lib/completion.js'
 import { addChannelMembers } from './add.js'
+import { archiveChannel, unarchiveChannel } from './archive.js'
 import { createChannel } from './create.js'
+import { deleteChannel } from './delete.js'
 import { listChannels } from './list.js'
 import { listChannelMembers } from './members.js'
 import { removeChannelMembers } from './remove.js'
@@ -97,6 +99,63 @@ Examples:
   tdc channel update "Leadership" --private --json`,
         )
         .action(updateChannel)
+
+    channel
+        .command('delete <channel-ref>')
+        .description('Permanently delete a channel')
+        .option('--workspace <ref>', 'Workspace ID or name')
+        .option('--yes', 'Confirm deletion')
+        .option('--dry-run', 'Show what would happen without executing')
+        .option('--json', 'Output result as JSON')
+        .addHelpText(
+            'after',
+            `
+Examples:
+  tdc channel delete "Engineering" --dry-run
+  tdc channel delete "Engineering" --yes
+  tdc channel delete id:abc123 --yes --json
+
+Notes:
+  Channel deletion is typically restricted to workspace admins.`,
+        )
+        .action(deleteChannel)
+
+    channel
+        .command('archive <channel-ref>')
+        .description('Archive a channel')
+        .option('--workspace <ref>', 'Workspace ID or name')
+        .option('--dry-run', 'Show what would happen without executing')
+        .option('--json', 'Output result as JSON')
+        .addHelpText(
+            'after',
+            `
+Examples:
+  tdc channel archive "Engineering"
+  tdc channel archive id:abc123 --json
+
+Notes:
+  No-op if the channel is already archived.
+  Archived channels can be listed with: tdc channels --state archived`,
+        )
+        .action(archiveChannel)
+
+    channel
+        .command('unarchive <channel-ref>')
+        .description('Unarchive a channel')
+        .option('--workspace <ref>', 'Workspace ID or name')
+        .option('--dry-run', 'Show what would happen without executing')
+        .option('--json', 'Output result as JSON')
+        .addHelpText(
+            'after',
+            `
+Examples:
+  tdc channel unarchive id:abc123
+  tdc channel unarchive id:abc123 --json
+
+Notes:
+  Name-ref resolution only finds active channels — pass id: or numeric ID for archived channels.`,
+        )
+        .action(unarchiveChannel)
 
     channel
         .command('threads <channel-ref> [workspace-ref]')

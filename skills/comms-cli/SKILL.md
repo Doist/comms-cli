@@ -219,6 +219,10 @@ tdc channel update <ref> --description "Team discussions" # Update channel descr
 tdc channel update <ref> --clear-description # Clear channel description
 tdc channel update <ref> --public # Make a channel public (--private makes it private)
 tdc channel update <ref> --description "Team discussions" --json --full # Update and return all channel fields
+tdc channel delete <channel-ref> --yes # Permanently delete a channel (requires --yes; usually admin-only)
+tdc channel delete <ref> --dry-run # Preview deletion
+tdc channel archive <channel-ref> # Archive a channel (no-op if already archived)
+tdc channel unarchive id:<id> # Unarchive a channel (pass id:/numeric ref for archived channels)
 tdc channel threads <channel-ref>  # List threads in a channel (fuzzy name, id:, numeric ID, or URL)
 tdc channel threads "general" --unread       # Only unread threads
 tdc channel threads <ref> --archive-filter all  # Include archived threads (active|archived|all)
