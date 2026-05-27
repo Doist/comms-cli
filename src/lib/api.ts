@@ -52,6 +52,8 @@ const API_SPINNER_MESSAGES: Record<string, { text: string; color?: 'blue' | 'gre
         'channels.createChannel': { text: 'Creating channel...', color: 'green' },
         'channels.updateChannel': { text: 'Updating channel...', color: 'yellow' },
         'channels.deleteChannel': { text: 'Deleting channel...', color: 'yellow' },
+        'channels.addUsers': { text: 'Adding users to channel...', color: 'green' },
+        'channels.removeUsers': { text: 'Removing users from channel...', color: 'yellow' },
 
         // Conversation operations
         'conversations.getConversations': { text: 'Loading conversations...', color: 'blue' },
@@ -392,6 +394,16 @@ export async function removeUsersFromGroup(
 ): Promise<void> {
     const client = await getCommsClient()
     await client.groups.removeUsers({ id, workspaceId, userIds })
+}
+
+export async function addUsersToChannel(id: string, userIds: number[]): Promise<void> {
+    const client = await getCommsClient()
+    await client.channels.addUsers({ id, userIds })
+}
+
+export async function removeUsersFromChannel(id: string, userIds: number[]): Promise<void> {
+    const client = await getCommsClient()
+    await client.channels.removeUsers({ id, userIds })
 }
 
 export function clearUserCache(): void {
