@@ -3,7 +3,6 @@ import {
     addUsersToChannel,
     getCommsClient,
     getCurrentWorkspaceId,
-    getWorkspaceUsers,
     removeUsersFromChannel,
 } from '../../lib/api.js'
 import type { MutationOptions } from '../../lib/options.js'
@@ -23,11 +22,22 @@ export async function fetchUsersByIds(
     userIds: number[],
 ): Promise<Map<number, WorkspaceUser>> {
     if (userIds.length === 0) return new Map()
-    const wanted = new Set(userIds)
-    const users = await getWorkspaceUsers(workspaceId)
+    const client = await getCommsClient()
+    // Per-member fetch keeps latency tied to channel size, not workspace size
+    // (mirrors groups/view); missing/unresolvable users are simply skipped.
+    const entries = await Promise.all(
+        userIds.map(async (userId) => {
+            try {
+                const user = await client.workspaceUsers.getUserById({ workspaceId, userId })
+                return [userId, user] as const
+            } catch {
+                return null
+            }
+        }),
+    )
     const map = new Map<number, WorkspaceUser>()
-    for (const user of users) {
-        if (wanted.has(user.id)) map.set(user.id, user)
+    for (const entry of entries) {
+        if (entry) map.set(entry[0], entry[1])
     }
     return map
 }

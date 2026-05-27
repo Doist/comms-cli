@@ -582,6 +582,14 @@ describe('resolveChannelMemberRefs', () => {
             description: '',
             version: 1,
         },
+        {
+            id: 'GR200',
+            name: 'Backend',
+            workspaceId: 1,
+            userIds: [3, 4],
+            description: '',
+            version: 1,
+        },
     ]
     const sampleUsers = [
         { id: 1, fullName: 'Alice', email: 'alice@doist.com' },
@@ -620,6 +628,19 @@ describe('resolveChannelMemberRefs', () => {
         const { userIds, expandedFrom } = await resolveChannelMemberRefs(['GROUP:Frontend'], 1)
         expect(userIds).toEqual([1, 2])
         expect(expandedFrom).toHaveLength(1)
+    })
+
+    it('preserves order across interleaved users and multiple groups', async () => {
+        const { userIds, expandedFrom } = await resolveChannelMemberRefs(
+            ['id:5', 'group:Frontend', 'id:1', 'group:Backend'],
+            1,
+        )
+        // 5, then Frontend → 1,2 (1 dedup'd later), then Backend → 3,4
+        expect(userIds).toEqual([5, 1, 2, 3, 4])
+        expect(expandedFrom).toEqual([
+            { groupId: 'GR100', groupName: 'Frontend', userIds: [1, 2] },
+            { groupId: 'GR200', groupName: 'Backend', userIds: [3, 4] },
+        ])
     })
 
     it('rejects an empty group: reference', async () => {

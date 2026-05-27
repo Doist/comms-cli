@@ -54,11 +54,24 @@ const workspaceUsers = [
     { id: 5, fullName: 'Eve', email: 'e@d.com' },
 ]
 
+function createClient() {
+    return {
+        workspaceUsers: {
+            getUserById: vi.fn(async ({ userId }: { workspaceId: number; userId: number }) => {
+                const user = workspaceUsers.find((u) => u.id === userId)
+                if (!user) throw new Error(`User ${userId} not found`)
+                return user
+            }),
+        },
+        channels: { getChannel: vi.fn() },
+    }
+}
+
 beforeEach(() => {
     vi.clearAllMocks()
     apiMocks.getCurrentWorkspaceId.mockResolvedValue(1)
     apiMocks.getWorkspaceGroups.mockResolvedValue(sampleGroups)
-    apiMocks.getWorkspaceUsers.mockResolvedValue(workspaceUsers)
+    apiMocks.getCommsClient.mockResolvedValue(createClient())
     apiMocks.getSessionUser.mockResolvedValue({ id: 1, fullName: 'Alice' })
 })
 
@@ -265,7 +278,7 @@ describe('tdc channel members set', () => {
         expect(output).toContain('dry-run by default')
     })
 
-    it('applies add + remove with --apply, sparing self', async () => {
+    it('applies add + remove with --apply', async () => {
         refsMocks.resolveChannelRef.mockResolvedValue(createChannel([1, 2]))
         refsMocks.resolveChannelMemberRefs.mockResolvedValue({ userIds: [1, 3], expandedFrom: [] })
         const consoleSpy = captureConsole('log')
@@ -287,6 +300,58 @@ describe('tdc channel members set', () => {
         expect(apiMocks.removeUsersFromChannel).toHaveBeenCalledWith('CH1', [2])
         const output = consoleSpy.mock.calls.map((c) => c[0]).join('\n')
         expect(output).toContain('Set "General": +1 / -1 (now 2 members)')
+    })
+
+    it('emits JSON result on --apply --json with both directions changing', async () => {
+        refsMocks.resolveChannelRef.mockResolvedValue(createChannel([1, 2]))
+        refsMocks.resolveChannelMemberRefs.mockResolvedValue({ userIds: [1, 3], expandedFrom: [] })
+        const consoleSpy = captureConsole('log')
+        const program = createProgram()
+
+        await program.parseAsync([
+            'node',
+            'tdc',
+            'channel',
+            'members',
+            'set',
+            'General',
+            'alice',
+            'carol',
+            '--apply',
+            '--json',
+        ])
+
+        const payload = JSON.parse(consoleSpy.mock.calls[0][0] as string)
+        expect(payload).toEqual({ id: 'CH1', memberCount: 2, added: [3], removed: [2] })
+    })
+
+    it('emits JSON (not text) on dry-run --json without --apply', async () => {
+        refsMocks.resolveChannelRef.mockResolvedValue(createChannel([1, 2]))
+        refsMocks.resolveChannelMemberRefs.mockResolvedValue({ userIds: [1, 3], expandedFrom: [] })
+        const consoleSpy = captureConsole('log')
+        const program = createProgram()
+
+        await program.parseAsync([
+            'node',
+            'tdc',
+            'channel',
+            'members',
+            'set',
+            'General',
+            'alice',
+            'carol',
+            '--json',
+        ])
+
+        expect(apiMocks.addUsersToChannel).not.toHaveBeenCalled()
+        const payload = JSON.parse(consoleSpy.mock.calls[0][0] as string)
+        expect(payload).toEqual({
+            id: 'CH1',
+            dryRun: true,
+            memberCount: 2,
+            added: [3],
+            removed: [2],
+        })
     })
 
     it('removes the acting user when --include-self is passed', async () => {

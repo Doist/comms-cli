@@ -515,24 +515,43 @@ export async function resolveChannelMemberRefs(
     const groupSlots = slots.filter(
         (s): s is Extract<Slot, { kind: 'group' }> => s.kind === 'group',
     )
+    // A group ref resolves by id (single fetch) or by name (matched against the
+    // workspace group list). Split here so name refs share one list fetch
+    // instead of re-fetching the whole list per ref.
+    const groupIdSlots = groupSlots.filter((s) => parseRef(s.ref).type === 'id')
+    const groupNameSlots = groupSlots.filter((s) => parseRef(s.ref).type !== 'id')
 
-    // Resolve users (one batched API call) and all groups concurrently.
-    const [userIdsResolved, groupsResolved] = await Promise.all([
-        userSlots.length > 0
-            ? resolveUserRefs(userSlots.map((s) => s.ref).join(','), workspaceId)
-            : Promise.resolve([] as number[]),
-        Promise.all(groupSlots.map((s) => resolveGroupRef(s.ref, workspaceId))),
+    // Resolve each user slot individually (a single ref may expand to several
+    // ids, e.g. a comma list or a name match), all groups by id, and the
+    // workspace group list (once, only when there are name refs) concurrently.
+    const [userIdsPerSlot, idGroups, workspaceGroups] = await Promise.all([
+        Promise.all(userSlots.map((s) => resolveUserRefs(s.ref, workspaceId))),
+        Promise.all(groupIdSlots.map((s) => resolveGroupRef(s.ref, workspaceId))),
+        groupNameSlots.length > 0
+            ? getWorkspaceGroups(workspaceId)
+            : Promise.resolve([] as Group[]),
     ])
 
-    const userIdByIndex = new Map<number, number>()
+    const userIdsByIndex = new Map<number, number[]>()
     userSlots.forEach((s, i) => {
-        const id = userIdsResolved[i]
-        if (typeof id === 'number') userIdByIndex.set(s.index, id)
+        userIdsByIndex.set(s.index, userIdsPerSlot[i])
     })
-    const groupByIndex = new Map<number, (typeof groupsResolved)[number]>()
-    groupSlots.forEach((s, i) => {
-        groupByIndex.set(s.index, groupsResolved[i])
+
+    const groupByIndex = new Map<number, Group>()
+    groupIdSlots.forEach((s, i) => {
+        groupByIndex.set(s.index, idGroups[i])
     })
+    for (const s of groupNameSlots) {
+        groupByIndex.set(
+            s.index,
+            matchByName(workspaceGroups, s.ref, {
+                ambiguousCode: 'AMBIGUOUS_GROUP',
+                notFoundCode: 'GROUP_NOT_FOUND',
+                ref: s.ref,
+                listHint: 'Run: tdc groups to list available groups',
+            }),
+        )
+    }
 
     // Walk the original input order to assemble dedup'd userIds and expandedFrom.
     const expandedFrom: ChannelMemberRefs['expandedFrom'] = []
@@ -546,9 +565,9 @@ export async function resolveChannelMemberRefs(
     }
 
     for (let i = 0; i < refs.length; i++) {
-        if (userIdByIndex.has(i)) {
-            const id = userIdByIndex.get(i)
-            if (typeof id === 'number') pushId(id)
+        const slotUserIds = userIdsByIndex.get(i)
+        if (slotUserIds) {
+            for (const id of slotUserIds) pushId(id)
             continue
         }
         const group = groupByIndex.get(i)

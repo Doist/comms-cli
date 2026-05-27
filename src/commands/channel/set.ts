@@ -33,11 +33,10 @@ export async function setChannelMembers(
     const current = new Set(channelUserIds(channel))
 
     const toAdd = [...desired].filter((id) => !current.has(id))
-    const toRemoveAll = [...current].filter((id) => !desired.has(id))
+    const toRemove = [...current].filter((id) => !desired.has(id))
 
     const selfId = sessionUser.id
-    const wouldRemoveSelf = toRemoveAll.includes(selfId)
-    if (wouldRemoveSelf && !options.includeSelf) {
+    if (toRemove.includes(selfId) && !options.includeSelf) {
         throw new CliError(
             'INVALID_VALUE',
             `Set would remove you (id:${selfId}) from "${channel.name}".`,
@@ -46,14 +45,23 @@ export async function setChannelMembers(
             ],
         )
     }
-    const toRemove =
-        wouldRemoveSelf && !options.includeSelf
-            ? toRemoveAll.filter((id) => id !== selfId)
-            : toRemoveAll
 
+    const newMemberCount = current.size + toAdd.length - toRemove.length
     const isDryRun = options.dryRun || !options.apply
 
     if (isDryRun) {
+        if (options.json) {
+            const result: Record<string, unknown> = {
+                id: channel.id,
+                dryRun: true,
+                memberCount: newMemberCount,
+                added: toAdd,
+                removed: toRemove,
+            }
+            if (expandedFrom.length > 0) result.expandedFrom = expandedFrom
+            console.log(formatJson(result))
+            return
+        }
         printDryRun(`set channel membership`, {
             Channel: `${channel.name} (id:${channel.id})`,
             'Expanded from groups': describeExpansion(expandedFrom),
@@ -68,8 +76,6 @@ export async function setChannelMembers(
         toAdd.length > 0 ? addUsersToChannel(channel.id, toAdd) : Promise.resolve(),
         toRemove.length > 0 ? removeUsersFromChannel(channel.id, toRemove) : Promise.resolve(),
     ])
-
-    const newMemberCount = current.size + toAdd.length - toRemove.length
 
     if (options.json) {
         const result: Record<string, unknown> = {
