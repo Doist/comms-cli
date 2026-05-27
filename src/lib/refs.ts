@@ -467,6 +467,122 @@ export async function resolveGroupRef(ref: string, workspaceId: number): Promise
     ])
 }
 
+export type ChannelMemberRefs = {
+    userIds: number[]
+    expandedFrom: { groupId: string; groupName: string; userIds: number[] }[]
+}
+
+const GROUP_REF_PREFIX = 'group:'
+
+/**
+ * Resolve a mixed list of user and `group:<ref>` references for channel membership.
+ *
+ * Groups are expanded to their current `userIds` at call time. The group itself
+ * is not persistently linked to the channel — callers should surface that
+ * caveat in user-facing help text.
+ *
+ * Returns deduped userIds in input order, with a parallel `expandedFrom` list
+ * recording which groups contributed (and which users each group brought in,
+ * pre-dedup) for reporting purposes.
+ */
+export async function resolveChannelMemberRefs(
+    refs: string[],
+    workspaceId: number,
+): Promise<ChannelMemberRefs> {
+    if (refs.length === 0) {
+        throw new CliError('MISSING_USERS', 'Provide at least one user or group:<ref> reference.')
+    }
+
+    type Slot =
+        | { kind: 'user'; ref: string; index: number }
+        | { kind: 'group'; ref: string; index: number }
+    const slots: Slot[] = refs.map((ref, index) => {
+        const trimmed = normalizeRef(ref)
+        if (trimmed.toLowerCase().startsWith(GROUP_REF_PREFIX)) {
+            const inner = trimmed.slice(GROUP_REF_PREFIX.length).trim()
+            if (!inner) {
+                throw new CliError(
+                    'INVALID_REF',
+                    `Empty group reference: "${ref}". Use group:<id|name>.`,
+                )
+            }
+            return { kind: 'group', ref: inner, index }
+        }
+        return { kind: 'user', ref: trimmed, index }
+    })
+
+    const userSlots = slots.filter((s): s is Extract<Slot, { kind: 'user' }> => s.kind === 'user')
+    const groupSlots = slots.filter(
+        (s): s is Extract<Slot, { kind: 'group' }> => s.kind === 'group',
+    )
+    // A group ref resolves by id (single fetch) or by name (matched against the
+    // workspace group list). Split here so name refs share one list fetch
+    // instead of re-fetching the whole list per ref.
+    const groupIdSlots = groupSlots.filter((s) => parseRef(s.ref).type === 'id')
+    const groupNameSlots = groupSlots.filter((s) => parseRef(s.ref).type !== 'id')
+
+    // Resolve each user slot individually (a single ref may expand to several
+    // ids, e.g. a comma list or a name match), all groups by id, and the
+    // workspace group list (once, only when there are name refs) concurrently.
+    const [userIdsPerSlot, idGroups, workspaceGroups] = await Promise.all([
+        Promise.all(userSlots.map((s) => resolveUserRefs(s.ref, workspaceId))),
+        Promise.all(groupIdSlots.map((s) => resolveGroupRef(s.ref, workspaceId))),
+        groupNameSlots.length > 0
+            ? getWorkspaceGroups(workspaceId)
+            : Promise.resolve([] as Group[]),
+    ])
+
+    const userIdsByIndex = new Map<number, number[]>()
+    userSlots.forEach((s, i) => {
+        userIdsByIndex.set(s.index, userIdsPerSlot[i])
+    })
+
+    const groupByIndex = new Map<number, Group>()
+    groupIdSlots.forEach((s, i) => {
+        groupByIndex.set(s.index, idGroups[i])
+    })
+    for (const s of groupNameSlots) {
+        groupByIndex.set(
+            s.index,
+            matchByName(workspaceGroups, s.ref, {
+                ambiguousCode: 'AMBIGUOUS_GROUP',
+                notFoundCode: 'GROUP_NOT_FOUND',
+                ref: s.ref,
+                listHint: 'Run: tdc groups to list available groups',
+            }),
+        )
+    }
+
+    // Walk the original input order to assemble dedup'd userIds and expandedFrom.
+    const expandedFrom: ChannelMemberRefs['expandedFrom'] = []
+    const seen = new Set<number>()
+    const userIds: number[] = []
+    const pushId = (id: number) => {
+        if (!seen.has(id)) {
+            seen.add(id)
+            userIds.push(id)
+        }
+    }
+
+    for (let i = 0; i < refs.length; i++) {
+        const slotUserIds = userIdsByIndex.get(i)
+        if (slotUserIds) {
+            for (const id of slotUserIds) pushId(id)
+            continue
+        }
+        const group = groupByIndex.get(i)
+        if (!group) continue
+        expandedFrom.push({
+            groupId: group.id,
+            groupName: group.name,
+            userIds: [...group.userIds],
+        })
+        for (const id of group.userIds) pushId(id)
+    }
+
+    return { userIds, expandedFrom }
+}
+
 export async function resolveUserRefs(refs: string, workspaceId: number): Promise<number[]> {
     const numericIds = parseNumericIdRefs(refs, 'user')
     if (numericIds) return numericIds

@@ -27,6 +27,7 @@ import {
     parseRef,
     partitionNotifyIds,
     resolveChannelId,
+    resolveChannelMemberRefs,
     resolveChannelRef,
     resolveCommentId,
     resolveConversationId,
@@ -567,6 +568,84 @@ describe('resolveUserRefs', () => {
     it('throws USER_NOT_FOUND for unknown name', async () => {
         await expect(resolveUserRefs('nobody', 1)).rejects.toMatchObject({
             code: 'USER_NOT_FOUND',
+        })
+    })
+})
+
+describe('resolveChannelMemberRefs', () => {
+    const sampleGroups = [
+        {
+            id: 'GR100',
+            name: 'Frontend',
+            workspaceId: 1,
+            userIds: [1, 2],
+            description: '',
+            version: 1,
+        },
+        {
+            id: 'GR200',
+            name: 'Backend',
+            workspaceId: 1,
+            userIds: [3, 4],
+            description: '',
+            version: 1,
+        },
+    ]
+    const sampleUsers = [
+        { id: 1, fullName: 'Alice', email: 'alice@doist.com' },
+        { id: 2, fullName: 'Bob', email: 'bob@doist.com' },
+        { id: 3, fullName: 'Carol', email: 'carol@doist.com' },
+    ]
+
+    beforeEach(() => {
+        vi.clearAllMocks()
+        apiMocks.getWorkspaceUsers.mockResolvedValue(sampleUsers)
+        apiMocks.getWorkspaceGroups.mockResolvedValue(sampleGroups)
+        apiMocks.getGroup.mockImplementation(async (id: string) => {
+            const group = sampleGroups.find((g) => g.id === id)
+            if (!group) throw new Error(`Group ${id} not found`)
+            return group
+        })
+    })
+
+    it('throws MISSING_USERS for an empty ref list', async () => {
+        await expect(resolveChannelMemberRefs([], 1)).rejects.toMatchObject({
+            code: 'MISSING_USERS',
+        })
+    })
+
+    it('preserves input order and dedupes across users and group expansion', async () => {
+        const { userIds, expandedFrom } = await resolveChannelMemberRefs(
+            ['id:3', 'group:Frontend', 'id:1'],
+            1,
+        )
+        // 3 first, then group expands to 1,2 (3 already seen stays put), 1 already seen
+        expect(userIds).toEqual([3, 1, 2])
+        expect(expandedFrom).toEqual([{ groupId: 'GR100', groupName: 'Frontend', userIds: [1, 2] }])
+    })
+
+    it('accepts a case-insensitive group: prefix', async () => {
+        const { userIds, expandedFrom } = await resolveChannelMemberRefs(['GROUP:Frontend'], 1)
+        expect(userIds).toEqual([1, 2])
+        expect(expandedFrom).toHaveLength(1)
+    })
+
+    it('preserves order across interleaved users and multiple groups', async () => {
+        const { userIds, expandedFrom } = await resolveChannelMemberRefs(
+            ['id:5', 'group:Frontend', 'id:1', 'group:Backend'],
+            1,
+        )
+        // 5, then Frontend → 1,2 (1 dedup'd later), then Backend → 3,4
+        expect(userIds).toEqual([5, 1, 2, 3, 4])
+        expect(expandedFrom).toEqual([
+            { groupId: 'GR100', groupName: 'Frontend', userIds: [1, 2] },
+            { groupId: 'GR200', groupName: 'Backend', userIds: [3, 4] },
+        ])
+    })
+
+    it('rejects an empty group: reference', async () => {
+        await expect(resolveChannelMemberRefs(['group:'], 1)).rejects.toMatchObject({
+            code: 'INVALID_REF',
         })
     })
 })

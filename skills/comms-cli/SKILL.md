@@ -226,6 +226,13 @@ tdc channel threads <ref> --since 2026-01-01 # Filter by last-updated date (ISO)
 tdc channel threads <ref> --limit 20         # Max threads per page (default: 50)
 tdc channel threads <ref> --limit 20 --cursor <cursor-from-prev> # Paginate
 tdc channel threads <ref> --json  # { results, nextCursor } with isUnread + url
+tdc channel members <channel-ref> # List a channel's members + groups fully in the channel
+tdc channel members <ref> --json  # JSON with id, name, workspaceId, members
+tdc channel members add <ref> alice group:Design # Add users and/or expand group:<ref> members
+tdc channel members add <ref> a@d.com id:789 --json # Add refs, output result as JSON
+tdc channel members remove <ref> alice group:Frontend # Remove users and/or group members
+tdc channel members set <ref> group:Squad --apply # Replace membership with the resolved set
+tdc channel members set <ref> alice bob # Dry-run by default; refuses to remove you (--include-self to override)
 tdc groups                        # List workspace groups
 tdc groups --search "frontend"    # Filter groups by name (case-insensitive)
 tdc groups --json                 # JSON output
@@ -250,6 +257,8 @@ tdc groups remove-user <ref> id:123,id:456      # Comma-separated ID refs
 If a channel is not found in `tdc channels`, widen with broader listings such as `tdc channels --scope public`, then `tdc channels --scope public --state all`. Check `tdc channels --help` for other available filters.
 
 `tdc channel threads` returns every thread in the channel; pagination filters (`--limit`, `--cursor`, `--since`, `--until`, `--unread`) are applied client-side after fetch. `--archive-filter` is applied server-side. Results are sorted newest-first by last activity. In `--json` / `--ndjson`, the response includes a `nextCursor` string (opaque) you can pass via `--cursor` to fetch the next page; NDJSON emits the cursor as a final `{ "_meta": true, "nextCursor": "..." }` line.
+
+For `tdc channel members add/remove/set`, refs accept user identifiers (`id:N`, email, name) or `group:<ref>`, which expands to the group's current members. Group expansion is one-shot — it is not a persistent link, so users added to the group later will not auto-join the channel. `set` replaces membership with the resolved set and is dry-run by default (pass `--apply` to mutate); it refuses to remove the acting user unless `--include-self` is passed.
 
 ## Reactions
 
