@@ -52,6 +52,8 @@ const API_SPINNER_MESSAGES: Record<string, { text: string; color?: 'blue' | 'gre
         'channels.createChannel': { text: 'Creating channel...', color: 'green' },
         'channels.updateChannel': { text: 'Updating channel...', color: 'yellow' },
         'channels.deleteChannel': { text: 'Deleting channel...', color: 'yellow' },
+        'channels.archiveChannel': { text: 'Archiving channel...', color: 'yellow' },
+        'channels.unarchiveChannel': { text: 'Unarchiving channel...', color: 'yellow' },
         'channels.addUsers': { text: 'Adding users to channel...', color: 'green' },
         'channels.removeUsers': { text: 'Removing users from channel...', color: 'yellow' },
 

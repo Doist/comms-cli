@@ -1,6 +1,12 @@
-import { getCurrentWorkspaceId } from '../../lib/api.js'
+import type { Channel } from '@doist/comms-sdk'
+import { getCommsClient, getCurrentWorkspaceId } from '../../lib/api.js'
 import { CliError } from '../../lib/errors.js'
-import { parseRef, resolveWorkspaceRef } from '../../lib/refs.js'
+import {
+    getDirectChannelId,
+    parseRef,
+    resolveChannelRef,
+    resolveWorkspaceRef,
+} from '../../lib/refs.js'
 import { validateNonEmptyName } from '../../lib/validation.js'
 
 export function validateChannelName(name: string): void {
@@ -32,6 +38,28 @@ export async function resolveChannelWorkspaceId(workspaceRef: string | undefined
     }
 
     return getCurrentWorkspaceId()
+}
+
+/**
+ * Resolve a channel for a mutation. Direct refs (`id:` or URL) are fetched by
+ * ID via `getChannel`, which is workspace-agnostic — so a channel in another
+ * workspace resolves without a `--workspace` flag. Name refs still need a
+ * workspace to disambiguate. An explicit `--workspace` forces the name path.
+ */
+export async function resolveChannelByRef(
+    ref: string,
+    workspaceRef: string | undefined,
+): Promise<Channel> {
+    if (!workspaceRef) {
+        const directId = getDirectChannelId(ref)
+        if (directId) {
+            const client = await getCommsClient()
+            return client.channels.getChannel(directId)
+        }
+    }
+
+    const workspaceId = await resolveChannelWorkspaceId(workspaceRef)
+    return resolveChannelRef(ref, workspaceId)
 }
 
 export function encodeCursor(offset: number): string {
