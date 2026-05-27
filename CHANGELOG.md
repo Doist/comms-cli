@@ -1,3 +1,9 @@
+## [1.1.0](https://github.com/Doist/comms-cli/compare/v1.0.0...v1.1.0) (2026-05-27)
+
+### Features
+
+- **channel:** channel membership control (members list/add/remove/set) ([#7](https://github.com/Doist/comms-cli/issues/7)) ([2a1e473](https://github.com/Doist/comms-cli/commit/2a1e473fb356fc44ae6bb7fb48f2465a85caad76)), closes [Doist/twist-cli#244](https://github.com/Doist/twist-cli/issues/244)
+
 ## 1.0.0 (2026-05-25)
 
 ### Features
