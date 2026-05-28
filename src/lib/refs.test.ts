@@ -320,13 +320,16 @@ describe('resolveChannelRef', () => {
         expect(mockGetChannel).not.toHaveBeenCalled()
     })
 
-    it('resolves exact case-insensitive name match against joined channels', async () => {
+    it('resolves exact case-insensitive name match against joined channels without fetching public list', async () => {
         const ch = createChannel('CHGEN', 'General')
         mockChannelLists([ch, createChannel('CHLEAD', 'Leadership')])
 
         const result = await resolveChannelRef('general', 1)
 
         expect(result).toEqual(ch)
+        // Common case: exact match in joined list short-circuits before the
+        // workspace-wide getPublicChannels call.
+        expect(mockGetPublicChannels).not.toHaveBeenCalled()
     })
 
     it('resolves unique substring name match', async () => {
@@ -378,16 +381,19 @@ describe('resolveChannelRef', () => {
     })
 
     it('deduplicates channels appearing in both joined and public lists', async () => {
-        // A public channel the user has joined would appear in both. A substring query
+        // A public channel the user has joined appears in both responses. Use distinct
+        // object instances with the same id — that's what two API calls actually return,
+        // and it ensures dedupe is by id (not reference equality). A substring query
         // exercises the dedupe step: without it, matchByName sees two partial matches
         // for the same channel id and throws AMBIGUOUS_CHANNEL. An exact-match query
         // wouldn't catch a regression because matchByName returns on the first .find.
-        const joinedPublic = createChannel('CHJP', 'Engineering', { public: true })
-        mockChannelLists([joinedPublic], [joinedPublic])
+        const joinedCopy = createChannel('CHJP', 'Engineering', { public: true })
+        const publicCopy = createChannel('CHJP', 'Engineering', { public: true })
+        mockChannelLists([joinedCopy], [publicCopy])
 
         const result = await resolveChannelRef('eng', 1)
 
-        expect(result).toEqual(joinedPublic)
+        expect(result).toEqual(joinedCopy)
     })
 
     it('throws AMBIGUOUS_CHANNEL on substring matches spanning joined and public lists', async () => {

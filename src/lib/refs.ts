@@ -270,16 +270,20 @@ export async function resolveChannelRef(ref: string, workspaceId: number): Promi
     }
 
     if (parsed.type === 'name') {
-        // getChannels is membership-scoped — it returns only channels the current user has
-        // joined (across active + archived). Public channels the user hasn't joined are not
-        // included, so name-resolving e.g. `tdc channel archive "Old Public Channel"` would
-        // fail with CHANNEL_NOT_FOUND even though the channel is discoverable. Merge with
-        // getPublicChannels (workspace-scoped, returns all public channels regardless of
-        // membership) and dedupe by id so a joined-and-public channel doesn't match twice.
-        const [joined, publicChannels] = await Promise.all([
-            client.channels.getChannels({ workspaceId }),
-            client.workspaces.getPublicChannels(workspaceId),
-        ])
+        // getChannels is membership-scoped — only channels the current user has joined
+        // (active + archived). Try an exact match against that list first; the common
+        // case (user types a channel they're in) returns without the workspace-wide
+        // getPublicChannels call. Fall through only when we need the unjoined-public
+        // set — for unjoined-but-public matches or cross-list substring resolution.
+        const joined = await client.channels.getChannels({ workspaceId })
+        const lowerName = parsed.name.toLowerCase()
+        const exactJoined = joined.find((channel) => channel.name.toLowerCase() === lowerName)
+        if (exactJoined) return exactJoined
+
+        // getPublicChannels is workspace-scoped (all public channels regardless of
+        // membership). Merge and dedupe by id so a joined-and-public channel doesn't
+        // match twice through matchByName's substring path.
+        const publicChannels = await client.workspaces.getPublicChannels(workspaceId)
         const joinedIds = new Set(joined.map((channel) => channel.id))
         const channels = [
             ...joined,
