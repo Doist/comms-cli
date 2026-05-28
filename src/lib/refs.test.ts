@@ -258,6 +258,17 @@ describe('resolveChannelRef', () => {
 
     const mockGetChannel = vi.fn()
     const mockGetChannels = vi.fn()
+    const mockGetPublicChannels = vi.fn()
+
+    /**
+     * For name refs, resolveChannelRef merges joined channels (getChannels — membership-scoped,
+     * includes both active + archived) with public channels (getPublicChannels — workspace-scoped,
+     * finds unjoined-but-public channels). Tests default both to empty unless overridden.
+     */
+    function mockChannelLists(joined: unknown[] = [], publicChannels: unknown[] = []) {
+        mockGetChannels.mockResolvedValue(joined)
+        mockGetPublicChannels.mockResolvedValue(publicChannels)
+    }
 
     beforeEach(() => {
         vi.clearAllMocks()
@@ -265,6 +276,9 @@ describe('resolveChannelRef', () => {
             channels: {
                 getChannel: mockGetChannel,
                 getChannels: mockGetChannels,
+            },
+            workspaces: {
+                getPublicChannels: mockGetPublicChannels,
             },
         })
     })
@@ -306,19 +320,18 @@ describe('resolveChannelRef', () => {
         expect(mockGetChannel).not.toHaveBeenCalled()
     })
 
-    it('resolves exact case-insensitive name match', async () => {
+    it('resolves exact case-insensitive name match against joined channels', async () => {
         const ch = createChannel('CHGEN', 'General')
-        mockGetChannels.mockResolvedValue([ch, createChannel('CHLEAD', 'Leadership')])
+        mockChannelLists([ch, createChannel('CHLEAD', 'Leadership')])
 
         const result = await resolveChannelRef('general', 1)
 
-        expect(mockGetChannels).toHaveBeenCalledWith({ workspaceId: 1 })
         expect(result).toEqual(ch)
     })
 
     it('resolves unique substring name match', async () => {
         const ch = createChannel('CHMKT', 'Marketing')
-        mockGetChannels.mockResolvedValue([createChannel('CHGEN', 'General'), ch])
+        mockChannelLists([createChannel('CHGEN', 'General'), ch])
 
         const result = await resolveChannelRef('market', 1)
 
@@ -326,7 +339,7 @@ describe('resolveChannelRef', () => {
     })
 
     it('throws AMBIGUOUS_CHANNEL on multiple substring matches', async () => {
-        mockGetChannels.mockResolvedValue([
+        mockChannelLists([
             createChannel('CHENG', 'Engineering'),
             createChannel('CHEOP', 'Engineering-Ops'),
         ])
@@ -338,11 +351,54 @@ describe('resolveChannelRef', () => {
     })
 
     it('throws CHANNEL_NOT_FOUND when no match', async () => {
-        mockGetChannels.mockResolvedValue([createChannel('CHGEN', 'General')])
+        mockChannelLists([createChannel('CHGEN', 'General')])
 
         await expect(resolveChannelRef('nope', 1)).rejects.toHaveProperty(
             'code',
             'CHANNEL_NOT_FOUND',
+        )
+    })
+
+    it('resolves unjoined-but-public channel by name', async () => {
+        const publicCh = createChannel('CHPUB1', 'Old Public Channel')
+        mockChannelLists([createChannel('CHGEN', 'General')], [publicCh])
+
+        const result = await resolveChannelRef('Old Public Channel', 1)
+
+        expect(result).toEqual(publicCh)
+    })
+
+    it('resolves unjoined-but-public channel by substring', async () => {
+        const publicCh = createChannel('CHSMOKE', 'tw-cli-smoke-test-channel')
+        mockChannelLists([createChannel('CHGEN', 'General')], [publicCh])
+
+        const result = await resolveChannelRef('smoke-test', 1)
+
+        expect(result).toEqual(publicCh)
+    })
+
+    it('deduplicates channels appearing in both joined and public lists', async () => {
+        // A public channel the user has joined would appear in both. A substring query
+        // exercises the dedupe step: without it, matchByName sees two partial matches
+        // for the same channel id and throws AMBIGUOUS_CHANNEL. An exact-match query
+        // wouldn't catch a regression because matchByName returns on the first .find.
+        const joinedPublic = createChannel('CHJP', 'Engineering', { public: true })
+        mockChannelLists([joinedPublic], [joinedPublic])
+
+        const result = await resolveChannelRef('eng', 1)
+
+        expect(result).toEqual(joinedPublic)
+    })
+
+    it('throws AMBIGUOUS_CHANNEL on substring matches spanning joined and public lists', async () => {
+        mockChannelLists(
+            [createChannel('CHENG', 'Engineering')],
+            [createChannel('CHEOP', 'Engineering-Ops')],
+        )
+
+        await expect(resolveChannelRef('eng', 1)).rejects.toHaveProperty(
+            'code',
+            'AMBIGUOUS_CHANNEL',
         )
     })
 })
