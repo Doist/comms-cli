@@ -1,3 +1,9 @@
+## [1.3.2](https://github.com/Doist/comms-cli/compare/v1.3.1...v1.3.2) (2026-05-28)
+
+### Bug Fixes
+
+- **refs:** resolve unjoined-but-public channels by name ([#11](https://github.com/Doist/comms-cli/issues/11)) ([0e2aefb](https://github.com/Doist/comms-cli/commit/0e2aefb4929694d75af9d9c659a523a8ea6035f4))
+
 ## [1.3.1](https://github.com/Doist/comms-cli/compare/v1.3.0...v1.3.1) (2026-05-28)
 
 ### Bug Fixes
