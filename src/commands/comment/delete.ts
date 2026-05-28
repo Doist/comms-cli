@@ -5,10 +5,20 @@ import { formatJson, printDryRun } from '../../lib/output.js'
 import { assertChannelIsPublic } from '../../lib/public-channels.js'
 import { resolveCommentId } from '../../lib/refs.js'
 
-type DeleteOptions = MutationOptions & { yes?: boolean }
-
-export async function deleteComment(ref: string, options: DeleteOptions): Promise<void> {
+export async function deleteComment(ref: string, options: MutationOptions): Promise<void> {
     const commentId = resolveCommentId(ref)
+
+    if (!options.yes && !options.dryRun) {
+        if (options.json) {
+            throw new CliError(
+                'MISSING_YES_FLAG',
+                '--yes is required to execute deletion in --json mode.',
+            )
+        }
+        console.log(`Would delete comment ${commentId}`)
+        console.log('Use --yes to confirm.')
+        return
+    }
 
     const client = await getCommsClient()
     const [comment, user] = await Promise.all([
@@ -30,18 +40,6 @@ export async function deleteComment(ref: string, options: DeleteOptions): Promis
             Thread: comment.threadId,
             Content: preview,
         })
-        return
-    }
-
-    if (!options.yes) {
-        if (options.json) {
-            throw new CliError(
-                'MISSING_YES_FLAG',
-                '--yes is required to execute deletion in --json mode.',
-            )
-        }
-        console.log(`Would delete comment ${commentId}`)
-        console.log('Use --yes to confirm.')
         return
     }
 

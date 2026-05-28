@@ -4,10 +4,20 @@ import type { MutationOptions } from '../../lib/options.js'
 import { formatJson, printDryRun } from '../../lib/output.js'
 import { resolveMessageId } from '../../lib/refs.js'
 
-type DeleteOptions = MutationOptions & { yes?: boolean }
-
-export async function deleteMessage(ref: string, options: DeleteOptions): Promise<void> {
+export async function deleteMessage(ref: string, options: MutationOptions): Promise<void> {
     const messageId = resolveMessageId(ref)
+
+    if (!options.yes && !options.dryRun) {
+        if (options.json) {
+            throw new CliError(
+                'MISSING_YES_FLAG',
+                '--yes is required to execute deletion in --json mode.',
+            )
+        }
+        console.log(`Would delete message ${messageId}`)
+        console.log('Use --yes to confirm.')
+        return
+    }
 
     const client = await getCommsClient()
     const [message, user] = await Promise.all([
@@ -27,18 +37,6 @@ export async function deleteMessage(ref: string, options: DeleteOptions): Promis
             Conversation: message.conversationId,
             Content: preview,
         })
-        return
-    }
-
-    if (!options.yes) {
-        if (options.json) {
-            throw new CliError(
-                'MISSING_YES_FLAG',
-                '--yes is required to execute deletion in --json mode.',
-            )
-        }
-        console.log(`Would delete message ${messageId}`)
-        console.log('Use --yes to confirm.')
         return
     }
 

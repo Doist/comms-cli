@@ -5,9 +5,7 @@ import { formatJson, printDryRun } from '../../lib/output.js'
 import { assertChannelIsPublic } from '../../lib/public-channels.js'
 import { resolveThreadId } from '../../lib/refs.js'
 
-type DoneOptions = MutationOptions & { yes?: boolean }
-
-export async function markThreadDone(ref: string, options: DoneOptions): Promise<void> {
+export async function markThreadDone(ref: string, options: MutationOptions): Promise<void> {
     const threadId = resolveThreadId(ref)
 
     const client = await getCommsClient()
