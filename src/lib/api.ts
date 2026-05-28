@@ -346,14 +346,20 @@ export async function buildUserNameMap(
     workspaceId: number,
     client?: CommsApi,
 ): Promise<Map<number, string>> {
-    const key = workspaceUserCacheKey(workspaceId, undefined)
+    // Historical messages can reference users who have since been removed;
+    // those messages should still render the author's name rather than fall
+    // back to `user:123`. So this map always pulls the full roster.
+    const key = workspaceUserCacheKey(workspaceId, true)
     const cached = workspaceUserCache.get(key)
     let users: WorkspaceUser[]
     if (cached) {
         users = cached
     } else {
         const api = client ?? (await getCommsClient())
-        users = await api.workspaceUsers.getWorkspaceUsers({ workspaceId })
+        users = await api.workspaceUsers.getWorkspaceUsers({
+            workspaceId,
+            includeRemoved: true,
+        })
         workspaceUserCache.set(key, users)
     }
     return new Map(users.map((u) => [u.id, u.fullName]))

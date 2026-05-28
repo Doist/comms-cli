@@ -52,4 +52,24 @@ describe('getWorkspaceUsers', () => {
             includeRemoved: true,
         })
     })
+
+    it('caches active and include-removed variants separately', async () => {
+        // First call seeds the active-only cache entry.
+        await getWorkspaceUsers(1585)
+        // Second call (same workspace, default flag) must hit cache → no extra SDK call.
+        await getWorkspaceUsers(1585)
+        expect(getWorkspaceUsersMock).toHaveBeenCalledTimes(1)
+
+        // Switching to include-removed must NOT collide with the active entry.
+        await getWorkspaceUsers(1585, { includeRemoved: true })
+        expect(getWorkspaceUsersMock).toHaveBeenCalledTimes(2)
+        expect(getWorkspaceUsersMock).toHaveBeenLastCalledWith({
+            workspaceId: 1585,
+            includeRemoved: true,
+        })
+
+        // And the include-removed variant is itself cached.
+        await getWorkspaceUsers(1585, { includeRemoved: true })
+        expect(getWorkspaceUsersMock).toHaveBeenCalledTimes(2)
+    })
 })
