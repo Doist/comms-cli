@@ -5,9 +5,7 @@ import { formatJson, printDryRun } from '../../lib/output.js'
 import { assertChannelIsPublic } from '../../lib/public-channels.js'
 import { resolveThreadId } from '../../lib/refs.js'
 
-type DeleteOptions = MutationOptions & { yes?: boolean }
-
-export async function deleteThread(ref: string, options: DeleteOptions): Promise<void> {
+export async function deleteThread(ref: string, options: MutationOptions): Promise<void> {
     const threadId = resolveThreadId(ref)
 
     const client = await getCommsClient()

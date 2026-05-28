@@ -49,13 +49,14 @@ Examples:
     comment
         .command('delete <comment-ref>')
         .description('Delete a thread comment')
+        .option('--yes', 'Confirm deletion')
         .option('--dry-run', 'Show what would happen without executing')
         .option('--json', 'Output result as JSON')
         .addHelpText(
             'after',
             `
 Examples:
-  tdc comment delete 12345
+  tdc comment delete 12345 --yes
   tdc comment delete 12345 --dry-run`,
         )
         .action(deleteComment)

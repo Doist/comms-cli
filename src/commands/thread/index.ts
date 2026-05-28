@@ -94,15 +94,16 @@ Examples:
     thread
         .command('done <thread-ref>')
         .description('Archive a thread (mark as done)')
+        .option('--yes', 'Confirm archive')
         .option('--dry-run', 'Show what would happen without executing')
         .option('--json', 'Output result as JSON')
         .addHelpText(
             'after',
             `
 Examples:
-  tdc thread done 12345
+  tdc thread done 12345 --yes
   tdc thread done 12345 --dry-run
-  tdc thread done 12345 --json`,
+  tdc thread done 12345 --json --yes`,
         )
         .action(markThreadDone)
 

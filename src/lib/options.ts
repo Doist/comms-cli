@@ -15,4 +15,5 @@ export type MutationOptions = {
     dryRun?: boolean
     json?: boolean
     full?: boolean
+    yes?: boolean
 }

@@ -1,12 +1,11 @@
 import { getCommsClient } from '../../lib/api.js'
+import { CliError } from '../../lib/errors.js'
 import type { MutationOptions } from '../../lib/options.js'
 import { formatJson, printDryRun } from '../../lib/output.js'
 import { assertChannelIsPublic } from '../../lib/public-channels.js'
 import { resolveThreadId } from '../../lib/refs.js'
 
-type DoneOptions = MutationOptions
-
-export async function markThreadDone(ref: string, options: DoneOptions): Promise<void> {
+export async function markThreadDone(ref: string, options: MutationOptions): Promise<void> {
     const threadId = resolveThreadId(ref)
 
     const client = await getCommsClient()
@@ -17,6 +16,18 @@ export async function markThreadDone(ref: string, options: DoneOptions): Promise
         printDryRun('archive thread', {
             Thread: `${thread.title} (${threadId})`,
         })
+        return
+    }
+
+    if (!options.yes) {
+        if (options.json) {
+            throw new CliError(
+                'MISSING_YES_FLAG',
+                '--yes is required to execute archive in --json mode.',
+            )
+        }
+        console.log(`Would archive: ${thread.title}`)
+        console.log('Use --yes to confirm.')
         return
     }
 

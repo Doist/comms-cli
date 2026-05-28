@@ -81,7 +81,19 @@ describe('msg delete', () => {
         vi.clearAllMocks()
     })
 
-    it('deletes a message', async () => {
+    it('deletes a message with --yes', async () => {
+        const client = createClient()
+        apiMocks.getCommsClient.mockResolvedValue(client)
+        const program = createProgram()
+        const consoleSpy = captureConsole('log')
+
+        await program.parseAsync(['node', 'tdc', 'msg', 'delete', '200', '--yes'])
+
+        expect(client.conversationMessages.deleteMessage).toHaveBeenCalledWith('200')
+        expect(consoleSpy).toHaveBeenCalledWith('Message 200 deleted.')
+    })
+
+    it('prompts for confirmation without --yes', async () => {
         const client = createClient()
         apiMocks.getCommsClient.mockResolvedValue(client)
         const program = createProgram()
@@ -89,8 +101,9 @@ describe('msg delete', () => {
 
         await program.parseAsync(['node', 'tdc', 'msg', 'delete', '200'])
 
-        expect(client.conversationMessages.deleteMessage).toHaveBeenCalledWith('200')
-        expect(consoleSpy).toHaveBeenCalledWith('Message 200 deleted.')
+        expect(consoleSpy).toHaveBeenCalledWith('Would delete message 200')
+        expect(consoleSpy).toHaveBeenCalledWith('Use --yes to confirm.')
+        expect(client.conversationMessages.deleteMessage).not.toHaveBeenCalled()
     })
 
     it('shows dry run output', async () => {
@@ -118,15 +131,27 @@ describe('msg delete', () => {
         expect(client.conversationMessages.deleteMessage).not.toHaveBeenCalled()
     })
 
-    it('outputs JSON with --json', async () => {
+    it('outputs JSON with --json --yes', async () => {
         const client = createClient()
         apiMocks.getCommsClient.mockResolvedValue(client)
         const program = createProgram()
         const consoleSpy = captureConsole('log')
 
-        await program.parseAsync(['node', 'tdc', 'msg', 'delete', '200', '--json'])
+        await program.parseAsync(['node', 'tdc', 'msg', 'delete', '200', '--json', '--yes'])
 
         const jsonOutput = JSON.parse(consoleSpy.mock.calls[0][0])
         expect(jsonOutput).toEqual({ id: '200', deleted: true })
+    })
+
+    it('errors when --json is used without --yes', async () => {
+        const client = createClient()
+        apiMocks.getCommsClient.mockResolvedValue(client)
+        const program = createProgram()
+
+        await expect(
+            program.parseAsync(['node', 'tdc', 'msg', 'delete', '200', '--json']),
+        ).rejects.toHaveProperty('code', 'MISSING_YES_FLAG')
+
+        expect(client.conversationMessages.deleteMessage).not.toHaveBeenCalled()
     })
 })
