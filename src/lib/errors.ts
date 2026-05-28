@@ -90,14 +90,13 @@ export function isInsufficientScope(error: unknown): boolean {
 }
 
 /**
- * Check whether an error is any Comms API 403 response.
- *
- * Precedence: callers must test `isInsufficientScope` first so OAuth-scope
- * 403s keep their dedicated `INSUFFICIENT_SCOPE` code and hints; `isForbidden`
- * is the catch-all fallback for plain workspace-permission 403s.
+ * Check whether an error is a plain workspace-permission 403 — i.e. a 403 that
+ * is NOT an OAuth-scope failure. Exclusive with `isInsufficientScope` so the
+ * two predicates can be checked in any order without downgrading a scope error
+ * to a generic `FORBIDDEN`.
  */
 export function isForbidden(error: unknown): boolean {
-    return hasCommsStatusCode(error, 403)
+    return hasCommsStatusCode(error, 403) && !isInsufficientScope(error)
 }
 
 /**

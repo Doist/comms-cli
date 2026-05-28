@@ -32,9 +32,11 @@ vi.mock('./auth.js', () => ({
     getAuthMetadata: vi.fn().mockResolvedValue({ authMode: 'full' }),
 }))
 
+// `channels.deleteChannel` is the only mutating method the 403-translation
+// tests exercise; everything else (getWorkspaceUsers) stays on the read path.
 vi.mock('./permissions.js', () => ({
-    ensureWriteAllowed: vi.fn(),
-    isMutatingMethod: vi.fn().mockReturnValue(false),
+    ensureWriteAllowed: vi.fn().mockResolvedValue(undefined),
+    isMutatingMethod: vi.fn((path: string) => path === 'channels.deleteChannel'),
 }))
 
 vi.mock('./spinner.js', () => ({
@@ -45,7 +47,8 @@ vi.mock('./progress.js', () => ({
     getProgressTracker: () => ({ isEnabled: () => false, emitApiCall: vi.fn() }),
 }))
 
-const { clearWorkspaceUserCache, getWorkspaceUsers } = await import('./api.js')
+const { clearWorkspaceUserCache, createWrappedCommsClient, getWorkspaceUsers } =
+    await import('./api.js')
 
 describe('getWorkspaceUsers', () => {
     beforeEach(() => {
@@ -94,16 +97,13 @@ describe('getWorkspaceUsers', () => {
 
 describe('wrapResult — central 403 translation', () => {
     beforeEach(() => {
-        vi.clearAllMocks()
-        vi.resetModules()
+        sdkMocks.deleteChannel.mockReset()
     })
 
     it('translates a plain 403 into a FORBIDDEN CliError', async () => {
         sdkMocks.deleteChannel.mockRejectedValueOnce(
             new CommsRequestError('Request failed with status 403', 403, {}),
         )
-
-        const { createWrappedCommsClient } = await import('./api.js')
         const client = createWrappedCommsClient('test-token')
 
         await expect(client.channels.deleteChannel('CH500')).rejects.toMatchObject({
@@ -122,8 +122,6 @@ describe('wrapResult — central 403 translation', () => {
                 error_string: 'Insufficient scope provided: channels:write',
             }),
         )
-
-        const { createWrappedCommsClient } = await import('./api.js')
         const client = createWrappedCommsClient('test-token')
 
         await expect(client.channels.deleteChannel('CH500')).rejects.toMatchObject({
@@ -136,8 +134,6 @@ describe('wrapResult — central 403 translation', () => {
     it('passes non-403 errors through untranslated', async () => {
         const originalError = new CommsRequestError('Request failed with status 500', 500, {})
         sdkMocks.deleteChannel.mockRejectedValueOnce(originalError)
-
-        const { createWrappedCommsClient } = await import('./api.js')
         const client = createWrappedCommsClient('test-token')
 
         await expect(client.channels.deleteChannel('CH500')).rejects.toBe(originalError)

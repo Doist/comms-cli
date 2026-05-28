@@ -72,14 +72,14 @@ describe('isForbidden', () => {
         expect(isForbidden('string')).toBe(false)
     })
 
-    // Precedence: both predicates fire on a scope 403, so callers must test
-    // isInsufficientScope first (the central handler in api.ts does).
-    it('fires alongside isInsufficientScope for an "Insufficient scope" 403', () => {
+    // Exclusive with isInsufficientScope: a scope 403 must NOT also classify as
+    // a plain FORBIDDEN, so callers can check the two predicates in any order.
+    it('returns false for an "Insufficient scope" 403 (exclusive with isInsufficientScope)', () => {
         const error = new CommsRequestError('Request failed with status 403', 403, {
             error_code: 109,
             error_string: 'Insufficient scope provided: user:write',
         })
         expect(isInsufficientScope(error)).toBe(true)
-        expect(isForbidden(error)).toBe(true)
+        expect(isForbidden(error)).toBe(false)
     })
 })
