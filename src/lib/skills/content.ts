@@ -102,8 +102,9 @@ tdc thread reply <ref> "content" --json  # Post and return comment as JSON
 tdc thread reply <ref> "content" --json --full  # Include all comment fields
 tdc thread reply <ref> "content" --close       # Reply and close the thread
 tdc thread reply <ref> "content" --reopen      # Reply and reopen a closed thread
-tdc thread done <ref>             # Archive thread (mark done)
-tdc thread done <ref> --json      # Archive and return status as JSON
+tdc thread done <ref>                 # Preview thread archive (requires --yes to execute)
+tdc thread done <ref> --yes           # Archive thread (mark done)
+tdc thread done <ref> --yes --json    # Archive and return status as JSON
 tdc thread mute <ref>             # Mute thread for 60 minutes (default)
 tdc thread mute <ref> --minutes 480  # Mute for custom duration
 tdc thread mute <ref> --json      # Mute and return { id, mutedUntil } as JSON
@@ -139,8 +140,9 @@ tdc comment view <comment-ref> --json --full    # Include all fields in JSON out
 tdc comment update <comment-ref> "new content"  # Update a thread comment
 tdc comment update <comment-ref> "content" --json  # Update and return updated comment as JSON
 tdc comment update <comment-ref> "content" --json --full  # Include all comment fields
-tdc comment delete <comment-ref>                # Delete a thread comment
-tdc comment delete <comment-ref> --json         # Delete and return status as JSON
+tdc comment delete <comment-ref>                     # Preview comment deletion (requires --yes to execute)
+tdc comment delete <comment-ref> --yes               # Delete a thread comment
+tdc comment delete <comment-ref> --yes --json        # Delete and return status as JSON
 \`\`\`
 
 ## Conversations (DMs/Groups)
@@ -155,8 +157,9 @@ tdc conversation with <user-ref> --include-groups # List any conversations with 
 tdc conversation reply <ref> "content"     # Send a message
 tdc conversation reply <ref> "content" --json  # Send and return message as JSON
 tdc conversation reply <ref> "content" --json --full  # Include all message fields
-tdc conversation done <ref>                # Archive conversation
-tdc conversation done <ref> --json         # Archive and return status as JSON
+tdc conversation done <ref>                    # Preview conversation archive (requires --yes to execute)
+tdc conversation done <ref> --yes              # Archive conversation
+tdc conversation done <ref> --yes --json       # Archive and return status as JSON
 tdc conversation mute <ref>               # Mute conversation for 60 minutes (default)
 tdc conversation mute <ref> --minutes 480 # Mute for custom duration
 tdc conversation mute <ref> --json        # Mute and return { id, mutedUntil } as JSON
@@ -175,8 +178,9 @@ tdc msg view <message-ref>        # View a single conversation message
 tdc msg update <ref> "content"    # Edit a conversation message
 tdc msg update <ref> "content" --json  # Edit and return updated message as JSON
 tdc msg update <ref> "content" --json --full  # Include all message fields
-tdc msg delete <ref>              # Delete a conversation message
-tdc msg delete <ref> --json       # Delete and return status as JSON
+tdc msg delete <ref>                  # Preview message deletion (requires --yes to execute)
+tdc msg delete <ref> --yes            # Delete a conversation message
+tdc msg delete <ref> --yes --json     # Delete and return status as JSON
 \`\`\`
 
 Alias: \`tdc message\` works the same as \`tdc msg\`.
@@ -399,7 +403,7 @@ tdc view https://comms.todoist.com/a/1585/msg/400/m/500 --json    # View message
 tdc inbox --unread --json
 tdc thread view <id> --unread
 tdc thread reply <id> "Thanks, I'll look into this."
-tdc thread done <id>
+tdc thread done <id> --yes
 \`\`\`
 
 **Search and review:**

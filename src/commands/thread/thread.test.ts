@@ -1226,7 +1226,20 @@ describe('thread done', () => {
         vi.clearAllMocks()
     })
 
-    it('archives a thread', async () => {
+    it('archives a thread with --yes', async () => {
+        const client = createClient()
+        apiMocks.getCommsClient.mockResolvedValue(client)
+
+        const program = createProgram()
+        const consoleSpy = captureConsole('log')
+
+        await program.parseAsync(['node', 'tdc', 'thread', 'done', '500', '--yes'])
+
+        expect(client.inbox.archiveThread).toHaveBeenCalledWith('500')
+        expect(consoleSpy).toHaveBeenCalledWith('Thread 500 archived.')
+    })
+
+    it('prompts for confirmation without --yes', async () => {
         const client = createClient()
         apiMocks.getCommsClient.mockResolvedValue(client)
 
@@ -1235,8 +1248,34 @@ describe('thread done', () => {
 
         await program.parseAsync(['node', 'tdc', 'thread', 'done', '500'])
 
-        expect(client.inbox.archiveThread).toHaveBeenCalledWith('500')
-        expect(consoleSpy).toHaveBeenCalledWith('Thread 500 archived.')
+        expect(consoleSpy).toHaveBeenCalledWith('Would archive: Test Thread')
+        expect(consoleSpy).toHaveBeenCalledWith('Use --yes to confirm.')
+        expect(client.inbox.archiveThread).not.toHaveBeenCalled()
+    })
+
+    it('outputs JSON with --json --yes', async () => {
+        const client = createClient()
+        apiMocks.getCommsClient.mockResolvedValue(client)
+
+        const program = createProgram()
+        const consoleSpy = captureConsole('log')
+
+        await program.parseAsync(['node', 'tdc', 'thread', 'done', '500', '--json', '--yes'])
+
+        const jsonOutput = JSON.parse(consoleSpy.mock.calls[0][0])
+        expect(jsonOutput).toEqual({ id: '500', isArchived: true })
+    })
+
+    it('errors when --json is used without --yes', async () => {
+        const client = createClient()
+        apiMocks.getCommsClient.mockResolvedValue(client)
+        const program = createProgram()
+
+        await expect(
+            program.parseAsync(['node', 'tdc', 'thread', 'done', '500', '--json']),
+        ).rejects.toHaveProperty('code', 'MISSING_YES_FLAG')
+
+        expect(client.inbox.archiveThread).not.toHaveBeenCalled()
     })
 
     it('shows dry run output', async () => {
