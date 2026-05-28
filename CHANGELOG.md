@@ -1,3 +1,9 @@
+## [1.3.0](https://github.com/Doist/comms-cli/compare/v1.2.0...v1.3.0) (2026-05-28)
+
+### Features
+
+- require --yes on msg/comment delete and thread/conversation done ([#9](https://github.com/Doist/comms-cli/issues/9)) ([2e82d30](https://github.com/Doist/comms-cli/commit/2e82d30f2bb588ce5e96354af41dbaafafaacf99))
+
 ## [1.2.0](https://github.com/Doist/comms-cli/compare/v1.1.0...v1.2.0) (2026-05-27)
 
 ### Features
