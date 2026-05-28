@@ -1,3 +1,9 @@
+## [1.3.1](https://github.com/Doist/comms-cli/compare/v1.3.0...v1.3.1) (2026-05-28)
+
+### Bug Fixes
+
+- **users:** filter removed members from `tdc users` by default ([#10](https://github.com/Doist/comms-cli/issues/10)) ([31e185c](https://github.com/Doist/comms-cli/commit/31e185c0ac8f9e6fcbc8b97d1fd9481b8b6a33fc))
+
 ## [1.3.0](https://github.com/Doist/comms-cli/compare/v1.2.0...v1.3.0) (2026-05-28)
 
 ### Features
