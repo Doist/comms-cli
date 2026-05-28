@@ -270,7 +270,25 @@ export async function resolveChannelRef(ref: string, workspaceId: number): Promi
     }
 
     if (parsed.type === 'name') {
-        const channels = await client.channels.getChannels({ workspaceId })
+        // getChannels is membership-scoped — only channels the current user has joined
+        // (active + archived). Try an exact match against that list first; the common
+        // case (user types a channel they're in) returns without the workspace-wide
+        // getPublicChannels call. Fall through only when we need the unjoined-public
+        // set — for unjoined-but-public matches or cross-list substring resolution.
+        const joined = await client.channels.getChannels({ workspaceId })
+        const lowerName = parsed.name.toLowerCase()
+        const exactJoined = joined.find((channel) => channel.name.toLowerCase() === lowerName)
+        if (exactJoined) return exactJoined
+
+        // getPublicChannels is workspace-scoped (all public channels regardless of
+        // membership). Merge and dedupe by id so a joined-and-public channel doesn't
+        // match twice through matchByName's substring path.
+        const publicChannels = await client.workspaces.getPublicChannels(workspaceId)
+        const joinedIds = new Set(joined.map((channel) => channel.id))
+        const channels = [
+            ...joined,
+            ...publicChannels.filter((channel) => !joinedIds.has(channel.id)),
+        ]
         return matchByName(channels, parsed.name, {
             ambiguousCode: 'AMBIGUOUS_CHANNEL',
             notFoundCode: 'CHANNEL_NOT_FOUND',
