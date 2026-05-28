@@ -212,8 +212,9 @@ tdc search "query" --all          # Fetch all result pages
 tdc user                          # Show current user info
 tdc user --json                   # JSON output
 tdc user --json --full            # Include all fields in JSON output
-tdc users                         # List workspace users
+tdc users                         # List active workspace users
 tdc users --search <text>         # Filter by name/email
+tdc users --include-removed       # Include users removed from the workspace
 tdc channels                      # List active joined workspace channels (alias of: tdc channel list)
 tdc channels --state all          # Include archived joined channels too
 tdc channels --scope discoverable # Active public channels you can see but have not joined

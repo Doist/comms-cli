@@ -58,7 +58,14 @@ const MESSAGE_ESSENTIAL_FIELDS = [
 
 const WORKSPACE_ESSENTIAL_FIELDS = ['id', 'name', 'creator', 'plan'] as const
 
-const USER_ESSENTIAL_FIELDS = ['id', 'fullName', 'email', 'timezone', 'userType'] as const
+const USER_ESSENTIAL_FIELDS = [
+    'id',
+    'fullName',
+    'email',
+    'timezone',
+    'userType',
+    'removed',
+] as const
 
 const CHANNEL_ESSENTIAL_FIELDS = [
     'id',
