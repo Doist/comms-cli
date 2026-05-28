@@ -56,6 +56,67 @@ describeEmptyMachineOutput('tdc users empty output', {
     humanMessage: 'No users found.',
 })
 
+describe('tdc users --include-removed', () => {
+    const active = {
+        id: 1,
+        fullName: 'Active',
+        email: 'a@x',
+        userType: 'USER',
+        removed: false,
+    }
+    const removed = {
+        id: 2,
+        fullName: 'Ghost',
+        email: 'ghost@x',
+        userType: 'GUEST',
+        removed: true,
+    }
+
+    beforeEach(() => {
+        vi.clearAllMocks()
+        apiMocks.getCurrentWorkspaceId.mockResolvedValue(1)
+    })
+
+    it('passes includeRemoved: undefined by default so the SDK applies its default filter', async () => {
+        apiMocks.getWorkspaceUsers.mockResolvedValueOnce([active])
+        const program = createProgram()
+        const consoleSpy = captureConsole('log')
+
+        await program.parseAsync(['node', 'tdc', 'users'])
+
+        expect(apiMocks.getWorkspaceUsers).toHaveBeenCalledWith(1, { includeRemoved: undefined })
+        expect(consoleSpy.mock.calls.flat().join('\n')).not.toMatch(/\[removed\]/)
+    })
+
+    it('passes includeRemoved: true and annotates removed users in text output', async () => {
+        apiMocks.getWorkspaceUsers.mockResolvedValueOnce([active, removed])
+        const program = createProgram()
+        const consoleSpy = captureConsole('log')
+
+        await program.parseAsync(['node', 'tdc', 'users', '--include-removed'])
+
+        expect(apiMocks.getWorkspaceUsers).toHaveBeenCalledWith(1, { includeRemoved: true })
+        const lines = consoleSpy.mock.calls.flat().join('\n')
+        expect(lines).toMatch(/id:2.*Ghost.*\[removed\]/)
+        expect(lines).not.toMatch(/id:1.*Active.*\[removed\]/)
+    })
+
+    it('surfaces removed in curated --json output without --full', async () => {
+        apiMocks.getWorkspaceUsers.mockResolvedValueOnce([active, removed])
+        const program = createProgram()
+        const consoleSpy = captureConsole('log')
+
+        await program.parseAsync(['node', 'tdc', 'users', '--include-removed', '--json'])
+
+        const parsed = JSON.parse(consoleSpy.mock.calls[0][0])
+        expect(parsed).toHaveLength(2)
+        expect(parsed[0]).toMatchObject({ id: 1, removed: false })
+        expect(parsed[1]).toMatchObject({ id: 2, removed: true })
+        // Curated, not --full: shortName must not leak in.
+        expect(parsed[0]).not.toHaveProperty('shortName')
+    })
+})
+
 describe('user --json', () => {
     const sampleUser = {
         id: 42,

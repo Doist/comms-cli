@@ -305,19 +305,30 @@ export async function getSessionUser(): Promise<User> {
     return sessionUserCache
 }
 
-const workspaceUserCache = new Map<number, WorkspaceUser[]>()
+const workspaceUserCache = new Map<string, WorkspaceUser[]>()
 
-async function loadWorkspaceUsers(workspaceId: number): Promise<WorkspaceUser[]> {
-    const cached = workspaceUserCache.get(workspaceId)
+function workspaceUserCacheKey(workspaceId: number, includeRemoved: boolean | undefined): string {
+    return `${workspaceId}:${includeRemoved ? 'all' : 'active'}`
+}
+
+async function loadWorkspaceUsers(
+    workspaceId: number,
+    includeRemoved: boolean | undefined,
+): Promise<WorkspaceUser[]> {
+    const key = workspaceUserCacheKey(workspaceId, includeRemoved)
+    const cached = workspaceUserCache.get(key)
     if (cached) return cached
     const client = await getCommsClient()
-    const users = await client.workspaceUsers.getWorkspaceUsers({ workspaceId })
-    workspaceUserCache.set(workspaceId, users)
+    const users = await client.workspaceUsers.getWorkspaceUsers({ workspaceId, includeRemoved })
+    workspaceUserCache.set(key, users)
     return users
 }
 
-export async function getWorkspaceUsers(workspaceId: number): Promise<WorkspaceUser[]> {
-    return loadWorkspaceUsers(workspaceId)
+export async function getWorkspaceUsers(
+    workspaceId: number,
+    options: { includeRemoved?: boolean } = {},
+): Promise<WorkspaceUser[]> {
+    return loadWorkspaceUsers(workspaceId, options.includeRemoved)
 }
 
 export function clearWorkspaceUserCache(): void {
@@ -335,14 +346,15 @@ export async function buildUserNameMap(
     workspaceId: number,
     client?: CommsApi,
 ): Promise<Map<number, string>> {
-    const cached = workspaceUserCache.get(workspaceId)
+    const key = workspaceUserCacheKey(workspaceId, undefined)
+    const cached = workspaceUserCache.get(key)
     let users: WorkspaceUser[]
     if (cached) {
         users = cached
     } else {
         const api = client ?? (await getCommsClient())
         users = await api.workspaceUsers.getWorkspaceUsers({ workspaceId })
-        workspaceUserCache.set(workspaceId, users)
+        workspaceUserCache.set(key, users)
     }
     return new Map(users.map((u) => [u.id, u.fullName]))
 }
