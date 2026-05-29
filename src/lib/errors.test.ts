@@ -40,7 +40,7 @@ describe('isInsufficientScope', () => {
 })
 
 describe('isForbidden', () => {
-    it('returns true for any 403 — even without responseData', () => {
+    it('returns true for a 403 with undefined responseData', () => {
         const error = new CommsRequestError('Request failed with status 403', 403, undefined)
         expect(isForbidden(error)).toBe(true)
     })
