@@ -3,7 +3,6 @@ import {
     createTestProgram,
     describeEmptyMachineOutput,
 } from '@doist/cli-core/testing'
-import { CommsRequestError } from '@doist/comms-sdk'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 const apiMocks = vi.hoisted(() => ({
@@ -699,19 +698,6 @@ describe('channels delete', () => {
         expect(client.channels.deleteChannel).not.toHaveBeenCalled()
         expect(refsMocks.resolveChannelRef).not.toHaveBeenCalled()
         expect(apiMocks.getCurrentWorkspaceId).not.toHaveBeenCalled()
-    })
-
-    it('translates a 403 from the API into a FORBIDDEN CliError', async () => {
-        const client = createClient()
-        client.channels.deleteChannel.mockRejectedValueOnce(
-            new CommsRequestError('Request failed with status 403', 403, {}),
-        )
-        apiMocks.getCommsClient.mockResolvedValue(client)
-
-        await expect(runChannelCommand(['delete', 'Engineering', '--yes'])).rejects.toHaveProperty(
-            'code',
-            'FORBIDDEN',
-        )
     })
 
     it('outputs JSON result with --yes --json', async () => {

@@ -62,28 +62,41 @@ export type ErrorCode =
     // Escape hatch for dynamic codes
     | (string & {})
 
+function hasCommsStatusCode(error: unknown, status: number): error is { httpStatusCode: number } {
+    return (
+        typeof error === 'object' &&
+        error !== null &&
+        'httpStatusCode' in error &&
+        typeof error.httpStatusCode === 'number' &&
+        error.httpStatusCode === status
+    )
+}
+
 /**
  * Check whether an error is a Comms API 403 "Insufficient scope" response.
  * Works with any error shaped like CommsRequestError (httpStatusCode + responseData).
  */
 export function isInsufficientScope(error: unknown): boolean {
-    if (
-        typeof error !== 'object' ||
-        error === null ||
-        !('httpStatusCode' in error) ||
-        !('responseData' in error)
-    ) {
-        return false
-    }
-    const { httpStatusCode, responseData } = error as {
-        httpStatusCode: number
-        responseData: { error_string?: string } | undefined
-    }
+    if (!hasCommsStatusCode(error, 403)) return false
+    if (!('responseData' in error)) return false
+    const data = error.responseData
     return (
-        httpStatusCode === 403 &&
-        typeof responseData?.error_string === 'string' &&
-        responseData.error_string.includes('Insufficient scope')
+        typeof data === 'object' &&
+        data !== null &&
+        'error_string' in data &&
+        typeof data.error_string === 'string' &&
+        data.error_string.includes('Insufficient scope')
     )
+}
+
+/**
+ * Check whether an error is a plain workspace-permission 403 — i.e. a 403 that
+ * is NOT an OAuth-scope failure. Exclusive with `isInsufficientScope` so the
+ * two predicates can be checked in any order without downgrading a scope error
+ * to a generic `FORBIDDEN`.
+ */
+export function isForbidden(error: unknown): boolean {
+    return hasCommsStatusCode(error, 403) && !isInsufficientScope(error)
 }
 
 /**
