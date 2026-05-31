@@ -95,6 +95,7 @@ tdc thread create <channel-ref> "Title" "content" --notify 123,456  # Notify spe
 tdc thread create <channel-ref> "Title" "content" --unarchive  # Land thread in author's Inbox (overrides default Comms auto-archive)
 tdc thread create <channel-ref> "Title" "content" --no-unarchive  # Force archive even when userSettings.unarchiveNewThreads=true
 tdc thread create <channel-ref> "Title" "content" --dry-run  # Preview without posting
+tdc thread create <channel-ref> "Title" --file ./a.png  # Attach a file (repeatable; content optional)
 tdc thread reply <ref> "content"  # Post a comment (notifies EVERYONE_IN_THREAD by default)
 tdc thread reply <ref> "content" --notify EVERYONE  # Notify all workspace members
 tdc thread reply <ref> "content" --notify 123,id:456   # Notify specific user IDs
@@ -102,6 +103,7 @@ tdc thread reply <ref> "content" --json  # Post and return comment as JSON
 tdc thread reply <ref> "content" --json --full  # Include all comment fields
 tdc thread reply <ref> "content" --close       # Reply and close the thread
 tdc thread reply <ref> "content" --reopen      # Reply and reopen a closed thread
+tdc thread reply <ref> "content" --file ./a.png  # Attach a file (repeatable; content optional)
 tdc thread done <ref>                 # Preview thread archive (requires --yes to execute)
 tdc thread done <ref> --yes           # Archive thread (mark done)
 tdc thread done <ref> --yes --json    # Archive and return status as JSON
@@ -157,6 +159,7 @@ tdc conversation with <user-ref> --include-groups # List any conversations with 
 tdc conversation reply <ref> "content"     # Send a message
 tdc conversation reply <ref> "content" --json  # Send and return message as JSON
 tdc conversation reply <ref> "content" --json --full  # Include all message fields
+tdc conversation reply <ref> "content" --file ./a.png  # Attach a file (repeatable; content optional)
 tdc conversation done <ref>                    # Preview conversation archive (requires --yes to execute)
 tdc conversation done <ref> --yes              # Archive conversation
 tdc conversation done <ref> --yes --json       # Archive and return status as JSON
