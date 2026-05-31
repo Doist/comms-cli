@@ -1,6 +1,6 @@
 import chalk from 'chalk'
 import { getCommsClient } from '../../lib/api.js'
-import { uploadAttachments } from '../../lib/attachments.js'
+import { uploadAttachments, validateAttachmentFiles } from '../../lib/attachments.js'
 import { getConfig } from '../../lib/config.js'
 import { CliError } from '../../lib/errors.js'
 import { openEditor, readStdin } from '../../lib/input.js'
@@ -58,6 +58,11 @@ export async function createThread(
     const shouldUnarchive = options.unarchive ?? config.userSettings?.unarchiveNewThreads ?? false
 
     if (options.dryRun) {
+        // Validate attachment paths so the preview fails on a bad path exactly
+        // as a real run would (no upload happens in dry-run).
+        if (hasFiles) {
+            await validateAttachmentFiles(files)
+        }
         const preview =
             messageContent.length > 200 ? `${messageContent.slice(0, 200)}...` : messageContent
         printDryRun('create thread', {

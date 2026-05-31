@@ -22,6 +22,6 @@ export type MutationOptions = {
  * Commander collector for repeatable options (e.g. `--file a --file b`).
  * Use with a `[]` default: `.option('--file <path>', '…', collect, [])`.
  */
-export function collect(value: string, previous: string[]): string[] {
+export function collect(value: string, previous: string[] = []): string[] {
     return [...previous, value]
 }

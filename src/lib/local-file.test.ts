@@ -36,4 +36,12 @@ describe('openLocalFileAsBlob', () => {
             { code: 'FILE_NOT_FOUND' },
         )
     })
+
+    it('throws FILE_READ_ERROR for a non-ENOENT fs failure', async () => {
+        // A path whose parent is a regular file fails with ENOTDIR (not ENOENT),
+        // exercising the structured FILE_READ_ERROR branch deterministically.
+        await expect(
+            openLocalFileAsBlob({ file: join(filePath, 'child.png') }),
+        ).rejects.toMatchObject({ code: 'FILE_READ_ERROR' })
+    })
 })

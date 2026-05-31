@@ -34,12 +34,16 @@ vi.mock('./auth.js', () => ({
     getAuthMetadata: vi.fn().mockResolvedValue({ authMode: 'full' }),
 }))
 
-// `channels.deleteChannel` is the only mutating method the 403-translation
-// tests exercise; everything else (getWorkspaceUsers) stays on the read path.
-vi.mock('./permissions.js', () => ({
+// Mirror production: unknown methods default to the write path. The tests
+// exercise `channels.deleteChannel` and `attachments.upload` as mutating;
+// reads (getWorkspaceUsers) stay off the write path.
+const permMocks = vi.hoisted(() => ({
     ensureWriteAllowed: vi.fn().mockResolvedValue(undefined),
-    isMutatingMethod: vi.fn((path: string) => path === 'channels.deleteChannel'),
+    isMutatingMethod: vi.fn(
+        (path: string) => path === 'channels.deleteChannel' || path === 'attachments.upload',
+    ),
 }))
+vi.mock('./permissions.js', () => permMocks)
 
 vi.mock('./spinner.js', () => ({
     withSpinner: <T>(_label: unknown, fn: () => Promise<T>) => fn(),
@@ -100,6 +104,8 @@ describe('getWorkspaceUsers', () => {
 describe('wrapResult — central 403 translation', () => {
     beforeEach(() => {
         sdkMocks.deleteChannel.mockReset()
+        sdkMocks.uploadAttachment.mockReset()
+        permMocks.ensureWriteAllowed.mockReset().mockResolvedValue(undefined)
     })
 
     it('translates a plain 403 into a FORBIDDEN CliError', async () => {
@@ -134,6 +140,7 @@ describe('wrapResult — central 403 translation', () => {
     })
 
     it('translates an attachments.upload scope 403 into INSUFFICIENT_SCOPE (re-login prompt)', async () => {
+        permMocks.ensureWriteAllowed.mockResolvedValue(undefined)
         sdkMocks.uploadAttachment.mockRejectedValueOnce(
             new CommsRequestError('Request failed with status 403', 403, {
                 error_string: 'Insufficient scope provided: attachments:write',
@@ -148,6 +155,19 @@ describe('wrapResult — central 403 translation', () => {
             message: 'This action requires permissions your current token does not have.',
             hints: ['Run `tdc auth login` to re-authenticate with the required scopes'],
         })
+        // Confirms upload runs through the mutating write-guard.
+        expect(permMocks.ensureWriteAllowed).toHaveBeenCalled()
+    })
+
+    it('routes attachments.upload through the write-guard, blocking it in read-only mode', async () => {
+        permMocks.ensureWriteAllowed.mockRejectedValueOnce(new Error('READ_ONLY'))
+        const client = createWrappedCommsClient('test-token')
+
+        await expect(
+            client.attachments.upload({ file: new Blob(['x']), fileName: 'x.png' }),
+        ).rejects.toThrow('READ_ONLY')
+        // The SDK upload must never fire when the write-guard rejects.
+        expect(sdkMocks.uploadAttachment).not.toHaveBeenCalled()
     })
 
     it('passes non-403 errors through untranslated', async () => {

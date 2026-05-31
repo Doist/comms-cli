@@ -1,6 +1,6 @@
 import chalk from 'chalk'
 import { getCommsClient } from '../../lib/api.js'
-import { uploadAttachments } from '../../lib/attachments.js'
+import { uploadAttachments, validateAttachmentFiles } from '../../lib/attachments.js'
 import { CliError } from '../../lib/errors.js'
 import { openEditor, readStdin } from '../../lib/input.js'
 import { formatJson, printDryRun } from '../../lib/output.js'
@@ -34,6 +34,11 @@ export async function replyToConversation(
     const messageContent = replyContent ?? ''
 
     if (options.dryRun) {
+        // Validate attachment paths so the preview fails on a bad path exactly
+        // as a real run would (no upload happens in dry-run).
+        if (hasFiles) {
+            await validateAttachmentFiles(files)
+        }
         const preview =
             messageContent.length > 200 ? `${messageContent.slice(0, 200)}...` : messageContent
         printDryRun('send message to conversation', {

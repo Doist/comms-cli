@@ -840,6 +840,29 @@ describe('conversation reply --file', () => {
         expect(client.conversationMessages.createMessage).not.toHaveBeenCalled()
     })
 
+    it('skips the upload when the conversation preflight fails (no orphaned upload)', async () => {
+        const { client, program } = setupFileTest()
+        client.conversations.getConversation.mockRejectedValueOnce(
+            new CliError('NOT_FOUND', 'Conversation not found'),
+        )
+
+        await expect(
+            program.parseAsync([
+                'node',
+                'tdc',
+                'conversation',
+                'reply',
+                '42',
+                'See attached',
+                '--file',
+                files.png,
+            ]),
+        ).rejects.toMatchObject({ code: 'NOT_FOUND' })
+
+        expect(client.attachments.upload).not.toHaveBeenCalled()
+        expect(client.conversationMessages.createMessage).not.toHaveBeenCalled()
+    })
+
     it('does not upload during --dry-run but lists the attachment', async () => {
         const { client, program } = setupFileTest()
         const consoleSpy = captureConsole('log')

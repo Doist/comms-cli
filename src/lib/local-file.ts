@@ -20,31 +20,35 @@ export type LocalFileOptions = {
  * (caller's override, falling back to `basename(filePath)`) so call
  * sites don't have to recompute either.
  *
- * Why `open` + `close` rather than `stat`: `stat` only proves the path
- * exists; an unreadable file (chmod 000) would slip past and then
- * fail later inside undici, where the error surfaces as a generic
- * transport failure and renders as `INTERNAL_ERROR`. Opening for read
- * and immediately closing verifies actual readability and keeps any
- * fs failure (ENOENT / EACCES / EPERM / EISDIR / …) on the structured
- * `CliError` path. Also disambiguates the opaque
- * `ERR_INVALID_ARG_VALUE` TypeError that `openAsBlob` rewraps fs
- * errors as.
+ * On the happy path this is a single `openAsBlob` — no separate readability
+ * probe, so no extra filesystem open and no time-of-check/time-of-use window.
+ * The probe only runs when `openAsBlob` fails: it rewraps fs errors as an
+ * opaque `ERR_INVALID_ARG_VALUE` TypeError (it does *not* preserve `ENOENT`),
+ * so we re-open with `fs.open` to recover the real errno and map it to a
+ * precise `FILE_NOT_FOUND` vs `FILE_READ_ERROR`.
  */
 export async function openLocalFileAsBlob(
     options: LocalFileOptions,
 ): Promise<{ blob: Blob; filePath: string; fileName: string }> {
     const filePath = resolve(options.file)
     try {
-        const handle = await open(filePath, 'r')
-        await handle.close()
         const blob = await openAsBlob(filePath)
         return { blob, filePath, fileName: options.fileName || basename(filePath) }
     } catch (err) {
-        if ((err as NodeJS.ErrnoException).code === 'ENOENT') {
-            throw new CliError('FILE_NOT_FOUND', `File not found: ${filePath}`, [
-                'Check the file path and try again.',
-            ])
+        // `openAsBlob` masks the underlying fs error; re-open to recover the errno.
+        try {
+            const handle = await open(filePath, 'r')
+            await handle.close()
+        } catch (fsErr) {
+            if ((fsErr as NodeJS.ErrnoException).code === 'ENOENT') {
+                throw new CliError('FILE_NOT_FOUND', `File not found: ${filePath}`, [
+                    'Check the file path and try again.',
+                ])
+            }
+            const message = fsErr instanceof Error ? fsErr.message : String(fsErr)
+            throw new CliError('FILE_READ_ERROR', `Cannot read file: ${filePath}`, [message])
         }
+        // The path is readable but `openAsBlob` still failed — surface as a read error.
         const message = err instanceof Error ? err.message : String(err)
         throw new CliError('FILE_READ_ERROR', `Cannot read file: ${filePath}`, [message])
     }

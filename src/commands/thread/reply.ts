@@ -1,6 +1,6 @@
 import chalk from 'chalk'
 import { getCommsClient } from '../../lib/api.js'
-import { uploadAttachments } from '../../lib/attachments.js'
+import { uploadAttachments, validateAttachmentFiles } from '../../lib/attachments.js'
 import { CliError } from '../../lib/errors.js'
 import { openEditor, readStdin } from '../../lib/input.js'
 import type { MutationOptions } from '../../lib/options.js'
@@ -74,6 +74,11 @@ export async function replyToThread(
     const actionLabel = action === 'close' ? 'close' : action === 'reopen' ? 'reopen' : undefined
 
     if (options.dryRun) {
+        // Validate attachment paths so the preview fails on a bad path exactly
+        // as a real run would (no upload happens in dry-run).
+        if (hasFiles) {
+            await validateAttachmentFiles(files)
+        }
         const actionSuffix = actionLabel ? ` and ${actionLabel} it` : ''
         const preview =
             messageContent.length > 200 ? `${messageContent.slice(0, 200)}...` : messageContent
@@ -95,8 +100,17 @@ export async function replyToThread(
     }
 
     const attachments = hasFiles ? await uploadAttachments(files) : undefined
-    const attachmentsPayload = attachments ? { attachments } : {}
     const groupsPayload = resolved?.groups ? { groups: resolved.groups } : {}
+
+    // Type-checked against the SDK contract — notably `attachments`. Only `recipients`
+    // needs the assertion below: it carries the EVERYONE / EVERYONE_IN_THREAD sentinels
+    // the SDK type doesn't model.
+    const createCommentArgs = {
+        threadId,
+        content: messageContent,
+        ...groupsPayload,
+        ...(attachments ? { attachments } : {}),
+    } satisfies Parameters<typeof client.comments.createComment>[0]
 
     const comment =
         action === 'close'
@@ -114,11 +128,8 @@ export async function replyToThread(
                     ...groupsPayload,
                 } as Parameters<typeof client.threads.reopenThread>[0])
               : await client.comments.createComment({
-                    threadId,
-                    content: messageContent,
+                    ...createCommentArgs,
                     recipients,
-                    ...groupsPayload,
-                    ...attachmentsPayload,
                 } as Parameters<typeof client.comments.createComment>[0])
 
     if (options.json) {
