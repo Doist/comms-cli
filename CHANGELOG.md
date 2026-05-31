@@ -1,3 +1,9 @@
+## [1.4.0](https://github.com/Doist/comms-cli/compare/v1.3.2...v1.4.0) (2026-05-31)
+
+### Features
+
+- **attachments:** support uploading files on replies and thread creation ([#13](https://github.com/Doist/comms-cli/issues/13)) ([44dc3b7](https://github.com/Doist/comms-cli/commit/44dc3b7c203a5fb6466ffd82ee3de13d05c5bfd4))
+
 ## [1.3.2](https://github.com/Doist/comms-cli/compare/v1.3.1...v1.3.2) (2026-05-28)
 
 ### Bug Fixes
