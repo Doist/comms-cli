@@ -96,6 +96,9 @@ const API_SPINNER_MESSAGES: Record<string, { text: string; color?: 'blue' | 'gre
         'inbox.getInbox': { text: 'Loading inbox...', color: 'blue' },
         'inbox.archiveThread': { text: 'Archiving thread...', color: 'yellow' },
         'inbox.unarchiveThread': { text: 'Unarchiving thread...', color: 'yellow' },
+
+        // Attachment operations
+        'attachments.upload': { text: 'Uploading file...', color: 'blue' },
     }
 
 function createSpinnerWrappedApi(api: CommsApi): CommsApi {
