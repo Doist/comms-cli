@@ -64,13 +64,15 @@ This makes the `tdc` command available globally.
 tdc auth login
 ```
 
-This opens your browser to authenticate with Comms. Once approved, the token is stored in your OS credential manager:
+This opens your browser to authenticate with Todoist for Comms access. Once approved, the token is stored in your OS credential manager:
 
 - macOS: Keychain
 - Windows: Credential Manager
 - Linux: Secret Service/libsecret
 
 If secure storage is unavailable, the CLI warns and falls back to `~/.config/comms-cli/config.json`. Non-secret settings such as the current workspace remain in the config file.
+
+Older tokens issued by Comms OAuth should be refreshed with `tdc auth login`.
 
 ### Alternative methods
 

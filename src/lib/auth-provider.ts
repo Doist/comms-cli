@@ -1,9 +1,11 @@
+import { getErrorMessage } from '@doist/cli-core'
 import {
     type AccountRef,
     type AuthAccount,
     type AuthProvider,
-    createDcrProvider,
     createKeyringTokenStore,
+    deriveChallenge,
+    generateVerifier,
     type KeyringTokenStore,
 } from '@doist/cli-core/auth'
 import { createWrappedCommsClient } from './api.js'
@@ -14,10 +16,13 @@ import { CliError } from './errors.js'
 import { parseRef } from './refs.js'
 import { createCommsUserRecordStore, getDefaultUserRecord } from './user-records.js'
 
-export const AUTHORIZATION_URL = 'https://comms.todoist.com/oauth/authorize'
-export const TOKEN_URL = 'https://comms.todoist.com/oauth/access_token'
-export const REGISTRATION_URL = 'https://comms.todoist.com/oauth/register'
+export const AUTHORIZATION_URL = 'https://todoist.com/oauth/authorize'
+export const TOKEN_URL = 'https://todoist.com/oauth/access_token'
+export const REGISTRATION_URL = 'https://todoist.com/oauth/register'
+export const OAUTH_RESOURCE = 'comms'
 
+const OAUTH_REQUEST_TIMEOUT_MS = 30_000
+const TODOIST_VERIFIER_ALPHABET = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_'
 const LOGO_URI =
     'https://raw.githubusercontent.com/Doist/comms-cli/d65c447ff453eb36af585044c2f5f2f602bcdb34/icons/comms-cli.png'
 
@@ -25,38 +30,24 @@ export const READ_WRITE_SCOPES = [
     'user:read',
     'user:write',
     'workspaces:read',
-    'channels:read',
-    'channels:write',
-    'channels:remove',
-    'threads:read',
-    'threads:write',
-    'comments:read',
-    'comments:write',
-    'messages:read',
-    'messages:write',
-    'reactions:read',
-    'reactions:write',
-    'groups:read',
-    'groups:write',
-    'groups:remove',
-    'search:read',
-    'notifications:read',
-    'attachments:read',
-    'attachments:write',
+    'workspaces:write',
+    'comms:channels:read',
+    'comms:channels:write',
+    'comms:channels:delete',
+    'comms:content:read',
+    'comms:content:write',
+    'comms:content:delete',
+    'comms:messages:read',
+    'comms:messages:write',
+    'comms:messages:delete',
 ]
 
 export const READ_ONLY_SCOPES = [
     'user:read',
     'workspaces:read',
-    'channels:read',
-    'threads:read',
-    'comments:read',
-    'messages:read',
-    'reactions:read',
-    'groups:read',
-    'search:read',
-    'notifications:read',
-    'attachments:read',
+    'comms:channels:read',
+    'comms:content:read',
+    'comms:messages:read',
 ]
 
 const AUTH_HINTS = ['Try again: tdc auth login', 'Or set COMMS_API_TOKEN environment variable']
@@ -107,36 +98,211 @@ export function isManualTokenAccount(account: Pick<CommsAccount, 'id' | 'label'>
 }
 
 /**
- * Comms's OAuth flow uses RFC 7591 Dynamic Client Registration: each login
- * mints a fresh `client_id` / `client_secret`, then runs the standard PKCE
- * authorize + token exchange. cli-core's `createDcrProvider` drives all of that
- * via `oauth4webapi`; the only comms-specific piece is `validate`, which probes
- * `getSessionUser` and records the auth mode/scope the login was granted.
- *
- * `authMode` / `authScope` are derived from `handshake.readOnly` (folded in by
- * `runOAuthFlow`) rather than threaded through `authorize`, because the scope
- * set is itself a pure function of `readOnly` (see `resolveScopes` in login.ts).
+ * Todoist OAuth uses RFC 7591 Dynamic Client Registration plus PKCE. The
+ * provider owns the DCR/register, authorize, and token-exchange mechanics so it
+ * can include the Comms resource indicator on both OAuth requests.
  */
+type DynamicClient = {
+    clientId: string
+    clientSecret: string
+}
+
+type OAuthHandshake = DynamicClient & {
+    codeVerifier?: string
+}
+
+type OAuthHandshakeWithVerifier = DynamicClient & {
+    codeVerifier: string
+}
+
+type DynamicClientResponse = {
+    client_id?: string
+    client_secret?: string
+}
+
+type TokenResponse = {
+    access_token?: string
+    refresh_token?: string
+    expires_in?: number
+}
+
+async function safeReadText(response: Response): Promise<string | undefined> {
+    const text = await response.text().catch(() => '')
+    const trimmed = text.trim()
+    return trimmed.length > 0 ? trimmed : undefined
+}
+
+function authFailed(message: string, error: unknown): CliError {
+    return new CliError('AUTH_FAILED', `${message}: ${getErrorMessage(error)}`, AUTH_HINTS)
+}
+
+function asOAuthHandshake(
+    handshake: Record<string, unknown>,
+    options: { requireCodeVerifier: true },
+): OAuthHandshakeWithVerifier
+function asOAuthHandshake(
+    handshake: Record<string, unknown>,
+    options?: { requireCodeVerifier?: false },
+): OAuthHandshake
+function asOAuthHandshake(
+    handshake: Record<string, unknown>,
+    options: { requireCodeVerifier?: boolean } = {},
+): OAuthHandshake | OAuthHandshakeWithVerifier {
+    const requireCodeVerifier = options.requireCodeVerifier ?? false
+    const clientId = handshake.clientId
+    const clientSecret = handshake.clientSecret
+    const codeVerifier = handshake.codeVerifier
+    if (
+        typeof clientId !== 'string' ||
+        typeof clientSecret !== 'string' ||
+        (requireCodeVerifier && typeof codeVerifier !== 'string')
+    ) {
+        throw new CliError('AUTH_FAILED', 'Internal: OAuth handshake state was lost.', AUTH_HINTS)
+    }
+    return {
+        clientId,
+        clientSecret,
+        codeVerifier: typeof codeVerifier === 'string' ? codeVerifier : undefined,
+    }
+}
+
+async function registerDynamicClient(redirectUri: string): Promise<DynamicClient> {
+    let response: Response
+    try {
+        response = await fetch(REGISTRATION_URL, {
+            method: 'POST',
+            signal: AbortSignal.timeout(OAUTH_REQUEST_TIMEOUT_MS),
+            headers: {
+                'Content-Type': 'application/json',
+                Accept: 'application/json',
+            },
+            body: JSON.stringify({
+                redirect_uris: [redirectUri],
+                grant_types: ['authorization_code', 'refresh_token'],
+                response_types: ['code'],
+                token_endpoint_auth_method: 'client_secret_post',
+                application_type: 'native',
+                client_name: 'Comms CLI',
+                client_uri: 'https://github.com/doist/comms-cli',
+                logo_uri: LOGO_URI,
+            }),
+        })
+    } catch (error) {
+        throw authFailed('Failed to register OAuth client', error)
+    }
+
+    if (!response.ok) {
+        const detail = await safeReadText(response)
+        throw new CliError(
+            'AUTH_FAILED',
+            `Client registration failed: ${response.status} ${response.statusText}`,
+            detail ? [detail, ...AUTH_HINTS] : AUTH_HINTS,
+        )
+    }
+
+    let result: DynamicClientResponse
+    try {
+        result = (await response.json()) as DynamicClientResponse
+    } catch (error) {
+        throw authFailed('Invalid client registration response', error)
+    }
+
+    if (!result.client_id || !result.client_secret) {
+        throw new CliError(
+            'AUTH_FAILED',
+            'Invalid client registration response: missing client_id or client_secret',
+            AUTH_HINTS,
+        )
+    }
+
+    return { clientId: result.client_id, clientSecret: result.client_secret }
+}
+
 export function createCommsAuthProvider(): AuthProvider<CommsAccount> {
-    return createDcrProvider<CommsAccount>({
-        registrationUrl: REGISTRATION_URL,
-        authorizeUrl: AUTHORIZATION_URL,
-        tokenUrl: TOKEN_URL,
-        clientMetadata: {
-            clientName: 'Comms CLI',
-            clientUri: 'https://github.com/doist/comms-cli',
-            logoUri: LOGO_URI,
-            applicationType: 'native',
-            // Comms client_ids can contain `_`. oauth4webapi's
-            // `client_secret_basic` form-url-encodes the Basic credential per
-            // RFC 6749 §2.3.1 (`_` → `%5F`), and the token endpoint doesn't
-            // url-decode it, so the lookup fails with "client_id not found".
-            // `client_secret_post` sends the credential in the body via
-            // URLSearchParams, which preserves `_`, sidestepping the mismatch.
-            tokenEndpointAuthMethod: 'client_secret_post',
+    return {
+        async prepare({ redirectUri }) {
+            return { handshake: await registerDynamicClient(redirectUri) }
         },
-        errorHints: AUTH_HINTS,
-        async validate({ token, handshake }) {
+        async authorize({ redirectUri, state, scopes, handshake }) {
+            const { clientId } = asOAuthHandshake(handshake)
+            const codeVerifier = generateVerifier({ alphabet: TODOIST_VERIFIER_ALPHABET })
+            const url = new URL(AUTHORIZATION_URL)
+            url.searchParams.set('client_id', clientId)
+            url.searchParams.set('response_type', 'code')
+            url.searchParams.set('redirect_uri', redirectUri)
+            url.searchParams.set('scope', scopes.join(','))
+            url.searchParams.set('state', state)
+            url.searchParams.set('code_challenge', deriveChallenge(codeVerifier))
+            url.searchParams.set('code_challenge_method', 'S256')
+            url.searchParams.set('resource', OAUTH_RESOURCE)
+            return {
+                authorizeUrl: url.toString(),
+                handshake: { codeVerifier },
+            }
+        },
+        async exchangeCode({ code, redirectUri, handshake }) {
+            const { clientId, clientSecret, codeVerifier } = asOAuthHandshake(handshake, {
+                requireCodeVerifier: true,
+            })
+            const body = new URLSearchParams({
+                grant_type: 'authorization_code',
+                code,
+                redirect_uri: redirectUri,
+                client_id: clientId,
+                client_secret: clientSecret,
+                code_verifier: codeVerifier,
+                resource: OAUTH_RESOURCE,
+            })
+
+            let response: Response
+            try {
+                response = await fetch(TOKEN_URL, {
+                    method: 'POST',
+                    signal: AbortSignal.timeout(OAUTH_REQUEST_TIMEOUT_MS),
+                    headers: {
+                        'Content-Type': 'application/x-www-form-urlencoded',
+                        Accept: 'application/json',
+                    },
+                    body: body.toString(),
+                })
+            } catch (error) {
+                throw authFailed('Token endpoint request failed', error)
+            }
+
+            if (!response.ok) {
+                const detail = await safeReadText(response)
+                throw new CliError(
+                    'AUTH_FAILED',
+                    `Token endpoint returned HTTP ${response.status}.`,
+                    detail ? [detail, ...AUTH_HINTS] : AUTH_HINTS,
+                )
+            }
+
+            let payload: TokenResponse
+            try {
+                payload = (await response.json()) as TokenResponse
+            } catch (error) {
+                throw authFailed('Token endpoint returned non-JSON response', error)
+            }
+
+            if (!payload.access_token) {
+                throw new CliError(
+                    'AUTH_FAILED',
+                    'Token endpoint response missing access_token.',
+                    AUTH_HINTS,
+                )
+            }
+
+            return {
+                accessToken: payload.access_token,
+                refreshToken: payload.refresh_token,
+                expiresAt:
+                    typeof payload.expires_in === 'number'
+                        ? Date.now() + payload.expires_in * 1000
+                        : undefined,
+            }
+        },
+        async validateToken({ token, handshake }) {
             // `runOAuthFlow` folds a boolean `readOnly` into the handshake.
             // Fail closed on a missing/malformed value rather than letting
             // `Boolean(undefined)` silently grant read-write (which would relax
@@ -156,7 +322,7 @@ export function createCommsAuthProvider(): AuthProvider<CommsAccount> {
                 authScope: getScopes(readOnly).join(' '),
             })
         },
-    })
+    }
 }
 
 /**

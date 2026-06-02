@@ -585,9 +585,9 @@ describe('auth command', () => {
             const [, options] = mockAttachLoginCommand.mock.calls[0]
             const writeScopes = options.resolveScopes({ readOnly: false, flags: {} })
             const readScopes = options.resolveScopes({ readOnly: true, flags: {} })
-            expect(writeScopes).toContain('threads:write')
-            expect(readScopes).not.toContain('threads:write')
-            expect(readScopes).toContain('threads:read')
+            expect(writeScopes).toContain('comms:content:write')
+            expect(readScopes).not.toContain('comms:content:write')
+            expect(readScopes).toContain('comms:content:read')
         })
     })
 

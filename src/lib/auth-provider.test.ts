@@ -4,7 +4,6 @@ vi.mock('./api.js', () => ({ createWrappedCommsClient: vi.fn() }))
 
 const keyringMocks = vi.hoisted(() => ({
     createKeyringTokenStore: vi.fn(),
-    createDcrProvider: vi.fn(),
     inner: {
         active: vi.fn(),
         activeBundle: vi.fn(),
@@ -21,15 +20,9 @@ const keyringMocks = vi.hoisted(() => ({
 vi.mock('@doist/cli-core/auth', async (importOriginal) => {
     const actual = await importOriginal<typeof import('@doist/cli-core/auth')>()
     keyringMocks.createKeyringTokenStore.mockImplementation(() => keyringMocks.inner)
-    // Delegate to the real factory so the returned provider works, while
-    // capturing the options createCommsAuthProvider passes (asserted below).
-    keyringMocks.createDcrProvider.mockImplementation((options) =>
-        actual.createDcrProvider(options),
-    )
     return {
         ...actual,
         createKeyringTokenStore: keyringMocks.createKeyringTokenStore,
-        createDcrProvider: keyringMocks.createDcrProvider,
     }
 })
 
@@ -48,10 +41,14 @@ vi.mock('./config.js', async (importOriginal) => {
 
 import { createWrappedCommsClient } from './api.js'
 import {
+    AUTHORIZATION_URL,
     createCommsAuthProvider,
     matchCommsAccount,
+    OAUTH_RESOURCE,
     READ_ONLY_SCOPES,
     READ_WRITE_SCOPES,
+    REGISTRATION_URL,
+    TOKEN_URL,
 } from './auth-provider.js'
 
 const mockCreateClient = vi.mocked(createWrappedCommsClient)
@@ -73,23 +70,120 @@ async function loadCreateCommsTokenStore(): Promise<
 }
 
 describe('createCommsAuthProvider', () => {
-    // clearAllMocks (not restoreAllMocks) so the createDcrProvider delegating
-    // implementation set in the module mock survives between tests.
+    const fetchMock = vi.fn()
+
+    beforeEach(() => {
+        fetchMock.mockReset()
+        vi.stubGlobal('fetch', fetchMock)
+    })
+
     afterEach(() => {
         vi.clearAllMocks()
+        vi.unstubAllGlobals()
     })
 
-    it('registers with client_secret_post so underscore client_ids survive token-endpoint auth', () => {
-        createCommsAuthProvider()
-        const options = keyringMocks.createDcrProvider.mock.calls.at(-1)?.[0]
-        expect(options.clientMetadata.tokenEndpointAuthMethod).toBe('client_secret_post')
+    it('registers a Todoist dynamic client with client_secret_post', async () => {
+        fetchMock.mockResolvedValue(
+            new Response(JSON.stringify({ client_id: 'tdd_cli', client_secret: 'secret' }), {
+                status: 201,
+                headers: { 'Content-Type': 'application/json' },
+            }),
+        )
+
+        const result = await createCommsAuthProvider().prepare!({
+            redirectUri: 'http://localhost:8766/callback',
+            flags: {},
+        })
+
+        expect(result.handshake).toEqual({ clientId: 'tdd_cli', clientSecret: 'secret' })
+        expect(fetchMock).toHaveBeenCalledWith(
+            REGISTRATION_URL,
+            expect.objectContaining({ method: 'POST', signal: expect.any(AbortSignal) }),
+        )
+        const [, init] = fetchMock.mock.calls[0]
+        const body = JSON.parse(init.body)
+        expect(body).toMatchObject({
+            redirect_uris: ['http://localhost:8766/callback'],
+            grant_types: ['authorization_code', 'refresh_token'],
+            response_types: ['code'],
+            token_endpoint_auth_method: 'client_secret_post',
+            application_type: 'native',
+            client_name: 'Comms CLI',
+        })
     })
 
-    // Registration / authorize / token-exchange mechanics now live in cli-core's
-    // createDcrProvider (covered by its own suite). The only comms-specific
-    // behaviour is `validate`: probe getSessionUser, then derive authMode +
-    // authScope from the folded `readOnly` (the scope set is a pure function of
-    // it — see resolveScopes in login.ts).
+    it('adds the Comms resource indicator to the Todoist authorize URL', async () => {
+        const result = await createCommsAuthProvider().authorize({
+            redirectUri: 'http://localhost:8766/callback',
+            state: 'state-123',
+            scopes: READ_ONLY_SCOPES,
+            readOnly: true,
+            flags: {},
+            handshake: { clientId: 'tdd_cli', clientSecret: 'secret' },
+        })
+
+        const url = new URL(result.authorizeUrl)
+        expect(`${url.origin}${url.pathname}`).toBe(AUTHORIZATION_URL)
+        expect(url.searchParams.get('client_id')).toBe('tdd_cli')
+        expect(url.searchParams.get('response_type')).toBe('code')
+        expect(url.searchParams.get('redirect_uri')).toBe('http://localhost:8766/callback')
+        expect(url.searchParams.get('scope')).toBe(READ_ONLY_SCOPES.join(','))
+        expect(url.searchParams.get('state')).toBe('state-123')
+        expect(url.searchParams.get('code_challenge_method')).toBe('S256')
+        expect(url.searchParams.get('code_challenge')).toEqual(expect.any(String))
+        expect(url.searchParams.get('resource')).toBe(OAUTH_RESOURCE)
+        expect(result.handshake).toEqual({ codeVerifier: expect.any(String) })
+        expect(result.handshake.codeVerifier).toMatch(/^[A-Za-z0-9_-]+$/)
+    })
+
+    it('passes client credentials and resource to the Todoist token endpoint', async () => {
+        fetchMock.mockResolvedValue(
+            new Response(JSON.stringify({ access_token: 'tk_new', expires_in: 3600 }), {
+                status: 200,
+                headers: { 'Content-Type': 'application/json' },
+            }),
+        )
+
+        const provider = createCommsAuthProvider()
+        const preparedHandshake = {
+            clientId: 'tdd_cli',
+            clientSecret: 'secret',
+        }
+        const authorize = await provider.authorize({
+            redirectUri: 'http://localhost:8766/callback',
+            state: 'state-123',
+            scopes: READ_ONLY_SCOPES,
+            readOnly: true,
+            flags: {},
+            handshake: preparedHandshake,
+        })
+
+        const result = await provider.exchangeCode({
+            code: 'auth-code',
+            state: 'state-123',
+            redirectUri: 'http://localhost:8766/callback',
+            handshake: { ...preparedHandshake, ...authorize.handshake },
+        })
+
+        expect(result.accessToken).toBe('tk_new')
+        expect(result.expiresAt).toEqual(expect.any(Number))
+        expect(fetchMock).toHaveBeenCalledWith(
+            TOKEN_URL,
+            expect.objectContaining({ method: 'POST', signal: expect.any(AbortSignal) }),
+        )
+        const [, init] = fetchMock.mock.calls[0]
+        const body = new URLSearchParams(init.body)
+        expect(body.get('grant_type')).toBe('authorization_code')
+        expect(body.get('code')).toBe('auth-code')
+        expect(body.get('redirect_uri')).toBe('http://localhost:8766/callback')
+        expect(body.get('client_id')).toBe('tdd_cli')
+        expect(body.get('client_secret')).toBe('secret')
+        expect(body.get('code_verifier')).toBe(authorize.handshake.codeVerifier)
+        expect(body.get('resource')).toBe(OAUTH_RESOURCE)
+    })
+
+    // The comms-specific validation behavior: probe getSessionUser, then derive
+    // authMode + authScope from the folded `readOnly` flag.
     it('validate builds a CommsAccount, deriving read-write mode + scopes from the handshake', async () => {
         mockCreateClient.mockReturnValue({
             users: { getSessionUser: vi.fn().mockResolvedValue({ id: 42, fullName: 'Ada' }) },
