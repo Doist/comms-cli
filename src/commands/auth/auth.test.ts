@@ -9,7 +9,7 @@ vi.mock('../../lib/auth.js', async (importOriginal) => {
     const actual = await importOriginal<typeof import('../../lib/auth.js')>()
     return {
         ...actual,
-        getAuthMetadata: vi.fn(),
+        getApiTokenSnapshot: vi.fn(),
         probeApiToken: vi.fn(),
     }
 })
@@ -88,7 +88,7 @@ import { attachLoginCommand } from '@doist/cli-core/auth'
 import { CommsRequestError, type User } from '@doist/comms-sdk'
 import { createWrappedCommsClient } from '../../lib/api.js'
 import { type CommsAccount, type CommsTokenStore } from '../../lib/auth-provider.js'
-import { getAuthMetadata, TOKEN_ENV_VAR } from '../../lib/auth.js'
+import { getApiTokenSnapshot, TOKEN_ENV_VAR } from '../../lib/auth.js'
 import { getConfig, updateConfig } from '../../lib/config.js'
 import { resetGlobalArgs } from '../../lib/global-args.js'
 import { registerAuthCommand } from './index.js'
@@ -96,7 +96,7 @@ import { attachCommsStatusCommand } from './status.js'
 
 const mockCreateInterface = vi.mocked(createInterface)
 
-const mockGetAuthMetadata = vi.mocked(getAuthMetadata)
+const mockGetApiTokenSnapshot = vi.mocked(getApiTokenSnapshot)
 const mockCreateWrappedCommsClient = vi.mocked(createWrappedCommsClient)
 const mockAttachLoginCommand = vi.mocked(attachLoginCommand)
 const mockGetConfig = vi.mocked(getConfig)
@@ -392,22 +392,27 @@ describe('auth command', () => {
             vi.stubEnv(TOKEN_ENV_VAR, '')
             storeMocks.list.mockResolvedValue(STORED_RECORDS)
             storeMocks.active.mockResolvedValue(STORED_SNAPSHOT)
+            mockGetApiTokenSnapshot.mockResolvedValue({
+                token: 'tk_refreshed_1234567890',
+                account: {
+                    ...STORED_ACCOUNT,
+                    authResource: 'https://comms.staging.todoist.com',
+                },
+            })
             mockCreateWrappedCommsClient.mockReturnValue({
                 users: { getSessionUser: vi.fn().mockResolvedValue(TEST_USER) },
                 // biome-ignore lint/suspicious/noExplicitAny: only the methods used in this test matter
             } as any)
-            mockGetAuthMetadata.mockResolvedValue({
-                authMode: 'read-write',
-                authScope: 'user:read',
-                source: 'config',
-            })
             process.argv = ['node', 'tdc', '--user', '1', 'auth', 'status']
             resetGlobalArgs()
 
             await createProgram().parseAsync(['node', 'tdc', 'auth', 'status'])
 
             expect(storeMocks.active).toHaveBeenCalledWith('1')
-            expect(mockCreateWrappedCommsClient).toHaveBeenCalledWith('tk_stored_1234567890')
+            expect(mockGetApiTokenSnapshot).toHaveBeenCalledWith('1')
+            expect(mockCreateWrappedCommsClient).toHaveBeenCalledWith('tk_refreshed_1234567890', {
+                baseUrl: 'https://comms.staging.todoist.com',
+            })
             expect(consoleSpy).toHaveBeenCalledWith('✓ Authenticated')
         })
 
@@ -449,6 +454,7 @@ describe('auth command', () => {
             label: TEST_USER.fullName,
             authMode: 'read-write',
             authScope: COMMS_SCOPE,
+            authResource: 'https://comms.staging.todoist.com',
         }
 
         function programWithSnapshot(): Command {
@@ -482,21 +488,22 @@ describe('auth command', () => {
         }
 
         beforeEach(() => {
+            mockGetApiTokenSnapshot.mockResolvedValue({
+                token: 'snapshot_token',
+                account: SNAPSHOT_ACCOUNT,
+            })
             mockCreateWrappedCommsClient.mockReturnValue({
                 users: { getSessionUser: vi.fn().mockResolvedValue(TEST_USER) },
                 // biome-ignore lint/suspicious/noExplicitAny: only the methods used in this test matter
             } as any)
-            mockGetAuthMetadata.mockResolvedValue({
-                authMode: 'read-write',
-                authScope: COMMS_SCOPE,
-                source: 'config',
-            })
         })
 
         it('renders text status from the snapshot', async () => {
             await programWithSnapshot().parseAsync(['node', 'tdc', 'auth', 'status'])
 
-            expect(mockCreateWrappedCommsClient).toHaveBeenCalledWith('snapshot_token')
+            expect(mockCreateWrappedCommsClient).toHaveBeenCalledWith('snapshot_token', {
+                baseUrl: 'https://comms.staging.todoist.com',
+            })
             expect(consoleSpy).toHaveBeenCalledWith('✓ Authenticated')
             expect(consoleSpy).toHaveBeenCalledWith('  Email: test@example.com')
             expect(consoleSpy).toHaveBeenCalledWith('  Name:  Test User')

@@ -25,6 +25,7 @@ export type TokenStorageResult = {
 
 export type AuthMetadata = {
     authMode: AuthMode
+    authResource?: string
     authScope?: string
     authUserId?: number
     authUserName?: string
@@ -33,6 +34,7 @@ export type AuthMetadata = {
 
 export type AuthProbeMetadata = {
     authMode: AuthMode
+    authResource?: string
     authScope?: string
     authUserId?: number
     authUserName?: string
@@ -69,8 +71,8 @@ export async function getApiToken(): Promise<string> {
     return snapshot.token
 }
 
-export async function getApiTokenSnapshot(): Promise<ActiveAuthSnapshot> {
-    return getActiveSnapshot({ refresh: true })
+export async function getApiTokenSnapshot(ref?: string): Promise<ActiveAuthSnapshot> {
+    return getActiveSnapshot({ refresh: true, ref })
 }
 
 /** Token + metadata in one round-trip for `tdc config view` / `tdc doctor`. */
@@ -86,9 +88,15 @@ export async function probeApiToken(): Promise<AuthProbeResult> {
     }
 }
 
-async function getActiveSnapshot({ refresh }: { refresh: boolean }): Promise<ActiveAuthSnapshot> {
+async function getActiveSnapshot({
+    refresh,
+    ref,
+}: {
+    refresh: boolean
+    ref?: string
+}): Promise<ActiveAuthSnapshot> {
     const store = createCommsTokenStore()
-    const snapshot = await store.activeBundle()
+    const snapshot = await store.activeBundle(ref)
     if (!snapshot) throw new NoTokenError()
 
     const { account, bundle } = snapshot
@@ -135,12 +143,14 @@ export async function getAuthMetadata(): Promise<AuthMetadata> {
 
 function toAccountFields(account: CommsAccount): {
     authMode: AuthMode
+    authResource?: string
     authScope?: string
     authUserId?: number
     authUserName?: string
 } {
     return {
         authMode: account.authMode,
+        ...(account.authResource ? { authResource: account.authResource } : {}),
         authScope: account.authScope || undefined,
         authUserId: account.id ? toAuthUserId(account.id) : undefined,
         authUserName: account.label || undefined,

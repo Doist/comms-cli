@@ -284,7 +284,7 @@ async function checkAuthentication(offline: boolean): Promise<DoctorCheck> {
     }
 
     try {
-        const api = createWrappedCommsClient(token)
+        const api = createWrappedCommsClient(token, { baseUrl: metadata.authResource })
         const user = await api.users.getSessionUser()
         details.email = user.email
         details.name = user.fullName

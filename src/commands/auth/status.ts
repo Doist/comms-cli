@@ -4,7 +4,12 @@ import chalk from 'chalk'
 import type { Command } from 'commander'
 import { createWrappedCommsClient } from '../../lib/api.js'
 import type { CommsAccount, CommsTokenStore } from '../../lib/auth-provider.js'
-import { type AuthMetadata, getAuthMetadata, NoTokenError } from '../../lib/auth.js'
+import {
+    type AuthMetadata,
+    getApiTokenSnapshot,
+    NoTokenError,
+    TOKEN_ENV_VAR,
+} from '../../lib/auth.js'
 import type { AuthMode } from '../../lib/config.js'
 import { CliError } from '../../lib/errors.js'
 
@@ -24,19 +29,28 @@ function formatAuthMode(authMode: AuthMode, authScope?: string): string {
 }
 
 /**
- * Fetch the live session user (via the snapshot token) and the local auth
- * metadata concurrently — the API call dominates and the metadata read is
- * independent. 401-translation lives here so both the snapshot path and any
- * future callers emit the same `NO_TOKEN` envelope when the token is
- * rejected by the API.
+ * Fetch the live session user via the selected account's resource. 401
+ * translation lives here so both refreshed OAuth tokens and manual tokens emit
+ * the same `NO_TOKEN` envelope when Comms rejects them.
  */
-async function gatherStatusData(token: string): Promise<StatusData> {
+function metadataFromAccount(account: CommsAccount): AuthMetadata {
+    const authUserId = Number(account.id)
+    return {
+        authMode: account.authMode,
+        ...(account.authResource ? { authResource: account.authResource } : {}),
+        authScope: account.authScope || undefined,
+        authUserId: Number.isFinite(authUserId) && authUserId > 0 ? authUserId : undefined,
+        authUserName: account.label || undefined,
+        source: account.id || !process.env[TOKEN_ENV_VAR] ? 'config' : 'env',
+    }
+}
+
+async function gatherStatusData(token: string, account: CommsAccount): Promise<StatusData> {
     try {
-        const [user, metadata] = await Promise.all([
-            createWrappedCommsClient(token).users.getSessionUser(),
-            getAuthMetadata(),
-        ])
-        return { user, metadata }
+        const user = await createWrappedCommsClient(token, {
+            baseUrl: account.authResource,
+        }).users.getSessionUser()
+        return { user, metadata: metadataFromAccount(account) }
     } catch (error) {
         if (error instanceof CommsRequestError && error.httpStatusCode === 401) {
             throw new CliError('NO_TOKEN', 'Not authenticated (token expired or invalid)', [
@@ -71,14 +85,11 @@ function buildStatusJson({ user, metadata }: StatusData): Record<string, unknown
 /**
  * Attach `tdc auth status` via cli-core's generic `attachStatusCommand`.
  *
- * `CommsTokenStore.active()` returns a snapshot whenever a token resolves
- * (per the adapter's documented contract — see `auth-provider.ts`), so
- * `fetchLive` covers every token-present path: secure-store, plaintext
- * config fallback, env-token mode, and manual `tdc auth token`. The
- * snapshot's token is reused inside `gatherStatusData` so credentials are
- * read once per invocation. `onNotAuthenticated` only fires when nothing
- * is stored — it throws `NoTokenError` so the standard CliError envelope
- * reaches the operator unchanged.
+ * cli-core reads the selected account first. `fetchLive` then refreshes OAuth
+ * accounts through the same auth shim as normal API calls before validating
+ * the token against Comms. `onNotAuthenticated` only fires when nothing is
+ * stored — it throws `NoTokenError` so the standard CliError envelope reaches
+ * the operator unchanged.
  */
 export function attachCommsStatusCommand(auth: Command, store: CommsTokenStore): Command {
     let data: StatusData | null = null
@@ -86,8 +97,9 @@ export function attachCommsStatusCommand(auth: Command, store: CommsTokenStore):
     return attachStatusCommand<CommsAccount>(auth, {
         store,
         description: 'Show current authentication status',
-        fetchLive: async ({ token }) => {
-            data = await gatherStatusData(token)
+        fetchLive: async ({ account, token }) => {
+            const snapshot = account.id ? await getApiTokenSnapshot(account.id) : { account, token }
+            data = await gatherStatusData(snapshot.token, snapshot.account)
             return {
                 id: String(data.user.id),
                 label: data.user.fullName,
