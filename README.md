@@ -64,7 +64,9 @@ This makes the `tdc` command available globally.
 tdc auth login
 ```
 
-This opens your browser to authenticate with Comms. Once approved, the token is stored in your OS credential manager:
+This opens Todoist OAuth in your browser. The default grant can read Comms data and create/update content and messages. It does not include delete, channel management, or user/workspace write scopes; use `--read-only` for read-only access or `--full-access` when needed.
+
+Once approved, the token is stored in your OS credential manager:
 
 - macOS: Keychain
 - Windows: Credential Manager
@@ -96,11 +98,11 @@ Point the CLI at a non-production Comms instance with `COMMS_BASE_URL`:
 
 ```bash
 export COMMS_BASE_URL=https://comms.staging.todoist.com
-export COMMS_API_TOKEN=<staging-token>
+tdc auth login
 tdc user
 ```
 
-The base URL is threaded through both the SDK and the search endpoint. You need a token issued by that environment — production tokens are rejected.
+The base URL is used for OAuth, the SDK, and search. OAuth login supports `comms.todoist.com`, `comms.staging.todoist.com`, and `comms.local.todoist.com`; staging uses `https://staging.todoist.com` as the Todoist OAuth host. For custom Comms hosts, use `COMMS_API_TOKEN`.
 
 ### Auth commands
 
