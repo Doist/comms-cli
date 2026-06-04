@@ -1,7 +1,12 @@
-import { SecureStoreUnavailableError } from '@doist/cli-core/auth'
+import { refreshAccessToken, SecureStoreUnavailableError } from '@doist/cli-core/auth'
 import type { CommsAccount } from './auth-provider.js'
-import { createCommsTokenStore, getActiveTokenSource } from './auth-provider.js'
-import { type AuthMode, getConfig } from './config.js'
+import {
+    createCommsAuthProvider,
+    createCommsTokenStore,
+    getActiveTokenSource,
+    getCommsOAuthRefreshHandshake,
+} from './auth-provider.js'
+import { type AuthMode, getConfig, getConfigPath } from './config.js'
 import { CliError } from './errors.js'
 import { getDefaultUserRecord } from './user-records.js'
 
@@ -39,6 +44,13 @@ export type AuthProbeResult = {
     metadata: AuthProbeMetadata
 }
 
+export type ActiveAuthSnapshot = {
+    token: string
+    account: CommsAccount
+}
+
+const REFRESH_SKEW_MS = 60_000
+
 export class NoTokenError extends CliError {
     constructor() {
         super(
@@ -53,15 +65,17 @@ export class NoTokenError extends CliError {
 
 /** Read the active token. The store wraps env-var precedence internally. */
 export async function getApiToken(): Promise<string> {
-    const snapshot = await createCommsTokenStore().active()
-    if (!snapshot) throw new NoTokenError()
+    const snapshot = await getApiTokenSnapshot()
     return snapshot.token
+}
+
+export async function getApiTokenSnapshot(): Promise<ActiveAuthSnapshot> {
+    return getActiveSnapshot({ refresh: true })
 }
 
 /** Token + metadata in one round-trip for `tdc config view` / `tdc doctor`. */
 export async function probeApiToken(): Promise<AuthProbeResult> {
-    const snapshot = await createCommsTokenStore().active()
-    if (!snapshot) throw new NoTokenError()
+    const snapshot = await getActiveSnapshot({ refresh: false })
     const source = await getActiveTokenSource()
     return {
         token: snapshot.token,
@@ -70,6 +84,44 @@ export async function probeApiToken(): Promise<AuthProbeResult> {
                 ? { authMode: 'unknown', source: 'env' }
                 : { ...toAccountFields(snapshot.account), source },
     }
+}
+
+async function getActiveSnapshot({ refresh }: { refresh: boolean }): Promise<ActiveAuthSnapshot> {
+    const store = createCommsTokenStore()
+    const snapshot = await store.activeBundle()
+    if (!snapshot) throw new NoTokenError()
+
+    const { account, bundle } = snapshot
+    const expiresAt = bundle.accessTokenExpiresAt
+    if (expiresAt !== undefined) {
+        const now = Date.now()
+        if (refresh && bundle.refreshToken && expiresAt - now < REFRESH_SKEW_MS) {
+            if (!account.oauthClientId) {
+                if (expiresAt > now) return { token: bundle.accessToken, account }
+                throw new CliError(
+                    'NO_TOKEN',
+                    'Stored OAuth token cannot be refreshed because its client metadata is missing.',
+                    ['Run: tdc auth login'],
+                )
+            }
+            const refreshed = await refreshAccessToken({
+                store,
+                provider: createCommsAuthProvider(),
+                skewMs: REFRESH_SKEW_MS,
+                lockPath: `${getConfigPath()}.refresh.lock`,
+                handshake: getCommsOAuthRefreshHandshake(account),
+            })
+            return { token: refreshed.bundle.accessToken, account: refreshed.account }
+        }
+        if (refresh && expiresAt <= now) {
+            throw new CliError(
+                'NO_TOKEN',
+                'Stored OAuth token has expired and cannot be refreshed.',
+                ['Run: tdc auth login'],
+            )
+        }
+    }
+    return { token: bundle.accessToken, account }
 }
 
 /** Auth metadata for `tdc auth status` and `ensureWriteAllowed`. */

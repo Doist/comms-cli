@@ -5,7 +5,7 @@ import {
     type Workspace,
     type WorkspaceUser,
 } from '@doist/comms-sdk'
-import { getApiToken } from './auth.js'
+import { getApiTokenSnapshot } from './auth.js'
 import { getConfig, updateConfig } from './config.js'
 import { CliError, isForbidden, isInsufficientScope } from './errors.js'
 import { ensureWriteAllowed, isMutatingMethod } from './permissions.js'
@@ -195,7 +195,10 @@ function wrapResult(
                 throw new CliError(
                     'INSUFFICIENT_SCOPE',
                     'This action requires permissions your current token does not have.',
-                    ['Run `tdc auth login` to re-authenticate with the required scopes'],
+                    [
+                        'Run `tdc auth login` to re-authenticate with standard write scopes',
+                        'Use `tdc auth login --full-access` when the action deletes content or manages channels/workspaces',
+                    ],
                 )
             }
             if (isForbidden(error)) {
@@ -244,16 +247,19 @@ function analyzeAndEmitApiResponse(
 
 let apiClient: CommsApi | null = null
 
-export function createWrappedCommsClient(token: string): CommsApi {
-    const baseUrl = process.env.COMMS_BASE_URL
+export function createWrappedCommsClient(
+    token: string,
+    options: { baseUrl?: string } = {},
+): CommsApi {
+    const baseUrl = process.env.COMMS_BASE_URL ?? options.baseUrl
     const rawApi = new CommsApi(token, baseUrl ? { baseUrl } : undefined)
     return createSpinnerWrappedApi(rawApi)
 }
 
 export async function getCommsClient(): Promise<CommsApi> {
     if (!apiClient) {
-        const token = await getApiToken()
-        apiClient = createWrappedCommsClient(token)
+        const { token, account } = await getApiTokenSnapshot()
+        apiClient = createWrappedCommsClient(token, { baseUrl: account.authResource })
     }
     return apiClient
 }

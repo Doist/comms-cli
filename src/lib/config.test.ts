@@ -87,8 +87,28 @@ describe('validateConfigForDoctor', () => {
     it('accepts a well-formed schema (defaultUserId, users[])', () => {
         const issues = validateConfigForDoctor({
             defaultUserId: '42',
+            oauthClients: [
+                {
+                    clientId: 'tdd_123',
+                    authBaseUrl: 'https://todoist.com',
+                    authResource: 'https://comms.todoist.com',
+                    redirectUri: 'http://localhost:8766/callback',
+                },
+            ],
             users: [
-                { id: '42', name: 'Ada', authMode: 'read-write', authScope: 'user:read' },
+                {
+                    id: '42',
+                    name: 'Ada',
+                    authMode: 'read-write',
+                    authScope: 'user:read',
+                    fallbackRefreshToken: 'rt_fallback',
+                    accessTokenExpiresAt: 1770000000000,
+                    refreshTokenExpiresAt: 1780000000000,
+                    hasRefreshToken: true,
+                    oauthClientId: 'tdd_123',
+                    authBaseUrl: 'https://todoist.com',
+                    authResource: 'https://comms.todoist.com',
+                },
                 { id: '99', name: 'Bob' },
             ],
         })
@@ -100,6 +120,9 @@ describe('validateConfigForDoctor', () => {
             'defaultUserId must be a string',
         )
         expect(validateConfigForDoctor({ users: { id: '42' } })).toContain('users must be an array')
+        expect(validateConfigForDoctor({ oauthClients: { clientId: 'tdd_123' } })).toContain(
+            'oauthClients must be an array',
+        )
     })
 
     it('rejects malformed StoredUser entries (shape, types, unknown keys, invalid authMode)', () => {
@@ -111,6 +134,17 @@ describe('validateConfigForDoctor', () => {
                 { id: '7', name: 'Carl', somethingElse: true },
                 { id: '8', name: 'Dora', authMode: 'bogus' },
                 { id: '9', name: 'Eve', authScope: 1, token: false },
+                {
+                    id: '10',
+                    name: 'Finn',
+                    fallbackRefreshToken: 1,
+                    accessTokenExpiresAt: 'soon',
+                    refreshTokenExpiresAt: Number.POSITIVE_INFINITY,
+                    hasRefreshToken: 'yes',
+                    oauthClientId: 123,
+                    authBaseUrl: false,
+                    authResource: 7,
+                },
             ],
         })
         expect(issues).toEqual(
@@ -122,6 +156,40 @@ describe('validateConfigForDoctor', () => {
                 'users[4].authMode must be one of: read-only, read-write, unknown',
                 'users[5].authScope must be a string',
                 'users[5].token must be a string',
+                'users[6].fallbackRefreshToken must be a string',
+                'users[6].accessTokenExpiresAt must be a finite number',
+                'users[6].refreshTokenExpiresAt must be a finite number',
+                'users[6].hasRefreshToken must be a boolean',
+                'users[6].oauthClientId must be a string',
+                'users[6].authBaseUrl must be a string',
+                'users[6].authResource must be a string',
+            ]),
+        )
+    })
+
+    it('rejects malformed cached OAuth clients', () => {
+        const issues = validateConfigForDoctor({
+            oauthClients: [
+                'not-an-object',
+                { clientId: 123, authBaseUrl: false, authResource: 7, redirectUri: null },
+                {
+                    clientId: 'tdd_123',
+                    authBaseUrl: 'https://todoist.com',
+                    authResource: 'https://comms.todoist.com',
+                    redirectUri: 'http://localhost:8766/callback',
+                    unexpected: true,
+                },
+            ],
+        })
+
+        expect(issues).toEqual(
+            expect.arrayContaining([
+                'oauthClients[0] must be an object',
+                'oauthClients[1].clientId must be a string',
+                'oauthClients[1].authBaseUrl must be a string',
+                'oauthClients[1].authResource must be a string',
+                'oauthClients[1].redirectUri must be a string',
+                'oauthClients[2] contains unrecognized key "unexpected"',
             ]),
         )
     })
