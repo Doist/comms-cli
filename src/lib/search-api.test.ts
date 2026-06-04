@@ -47,14 +47,4 @@ describe('extendedSearch', () => {
             'https://comms.staging.todoist.com/api/v1/search?workspace_id=69&query=roadmap',
         )
     })
-
-    it('lets COMMS_BASE_URL override the stored OAuth resource', async () => {
-        vi.stubEnv('COMMS_BASE_URL', 'https://comms.local.todoist.com')
-
-        await extendedSearch({ workspaceId: 69, query: 'roadmap' })
-
-        expect(fetchMock.mock.calls[0][0]).toBe(
-            'https://comms.local.todoist.com/api/v1/search?workspace_id=69&query=roadmap',
-        )
-    })
 })

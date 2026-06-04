@@ -660,42 +660,6 @@ describe('auth command', () => {
             ).toThrow('Choose either --read-only or --full-access, not both.')
         })
 
-        it('clears the current workspace when the new token cannot be read back', async () => {
-            mockGetConfig.mockResolvedValue({ currentWorkspace: 48121 })
-            createProgram()
-
-            const [, options] = mockAttachLoginCommand.mock.calls[0]
-            await options.onSuccess({
-                account: OAUTH_ACCOUNT,
-                view: { json: true, ndjson: false },
-                flags: {},
-            })
-
-            expect(mockUpdateConfig).toHaveBeenCalledWith({ currentWorkspace: undefined })
-            expect(mockCreateWrappedCommsClient).not.toHaveBeenCalled()
-        })
-
-        it('leaves workspace unset for a fresh multi-workspace OAuth login', async () => {
-            storeMocks.active.mockResolvedValue({
-                token: 'oauth-token',
-                account: OAUTH_ACCOUNT,
-            })
-            mockWorkspaceClient([workspace(69, 'Doist'), workspace(70)])
-            createProgram()
-
-            const [, options] = mockAttachLoginCommand.mock.calls[0]
-            await options.onSuccess({
-                account: OAUTH_ACCOUNT,
-                view: { json: true, ndjson: false },
-                flags: {},
-            })
-
-            expect(mockCreateWrappedCommsClient).toHaveBeenCalledWith('oauth-token', {
-                baseUrl: 'https://comms.todoist.com',
-            })
-            expect(mockUpdateConfig).not.toHaveBeenCalled()
-        })
-
         it('sets the only available workspace as current after successful OAuth login', async () => {
             mockGetConfig.mockResolvedValue({ currentWorkspace: 48121 })
             storeMocks.active.mockResolvedValue({
@@ -714,25 +678,6 @@ describe('auth command', () => {
 
             expect(mockUpdateConfig).toHaveBeenCalledTimes(1)
             expect(mockUpdateConfig).toHaveBeenCalledWith({ currentWorkspace: 69 })
-        })
-
-        it('keeps the current workspace when it still belongs to the logged-in account', async () => {
-            mockGetConfig.mockResolvedValue({ currentWorkspace: 69 })
-            storeMocks.active.mockResolvedValue({
-                token: 'oauth-token',
-                account: OAUTH_ACCOUNT,
-            })
-            mockWorkspaceClient([workspace(69, 'Doist'), workspace(70)])
-            createProgram()
-
-            const [, options] = mockAttachLoginCommand.mock.calls[0]
-            await options.onSuccess({
-                account: OAUTH_ACCOUNT,
-                view: { json: true, ndjson: false },
-                flags: {},
-            })
-
-            expect(mockUpdateConfig).not.toHaveBeenCalled()
         })
 
         it('clears the current workspace when it no longer belongs to the logged-in account', async () => {

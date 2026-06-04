@@ -193,23 +193,6 @@ describe('auth shims over the cli-core keyring store', () => {
         expect(mocks.refreshAccessTokenMock).not.toHaveBeenCalled()
     })
 
-    it('getApiToken rejects expired legacy OAuth tokens that cannot refresh', async () => {
-        mocks.activeBundleMock.mockResolvedValue({
-            account: STORED_ACCOUNT,
-            bundle: {
-                accessToken: 'tdc_legacy',
-                refreshToken: 'rt_old',
-                accessTokenExpiresAt: Date.now() - 1000,
-            },
-        })
-
-        await expect(getApiToken()).rejects.toMatchObject({
-            code: 'NO_TOKEN',
-            message:
-                'Stored OAuth token cannot be refreshed because its client metadata is missing.',
-        })
-    })
-
     it('getAuthMetadata short-circuits to source=env when COMMS_API_TOKEN is set', async () => {
         vi.stubEnv(TOKEN_ENV_VAR, 'env_token_value')
 

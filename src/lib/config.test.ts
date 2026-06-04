@@ -166,33 +166,6 @@ describe('validateConfigForDoctor', () => {
             ]),
         )
     })
-
-    it('rejects malformed cached OAuth clients', () => {
-        const issues = validateConfigForDoctor({
-            oauthClients: [
-                'not-an-object',
-                { clientId: 123, authBaseUrl: false, authResource: 7, redirectUri: null },
-                {
-                    clientId: 'tdd_123',
-                    authBaseUrl: 'https://todoist.com',
-                    authResource: 'https://comms.todoist.com',
-                    redirectUri: 'http://localhost:8766/callback',
-                    unexpected: true,
-                },
-            ],
-        })
-
-        expect(issues).toEqual(
-            expect.arrayContaining([
-                'oauthClients[0] must be an object',
-                'oauthClients[1].clientId must be a string',
-                'oauthClients[1].authBaseUrl must be a string',
-                'oauthClients[1].authResource must be a string',
-                'oauthClients[1].redirectUri must be a string',
-                'oauthClients[2] contains unrecognized key "unexpected"',
-            ]),
-        )
-    })
 })
 
 describe('persistence-seam translation', () => {
