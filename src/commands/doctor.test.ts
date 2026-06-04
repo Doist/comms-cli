@@ -114,6 +114,7 @@ describe('doctor command', () => {
         expect(consoleSpy).toHaveBeenCalledWith(
             expect.stringContaining('PASS Authenticated as person@example.com via secure-store'),
         )
+        expect(mockProbeApiToken).toHaveBeenCalledWith({ refresh: true })
         expect(mockCreateWrappedCommsClient).toHaveBeenCalledWith('test_token_123456789', {
             baseUrl: 'https://comms.staging.todoist.com',
         })
@@ -236,6 +237,7 @@ describe('doctor command', () => {
         const program = createProgram()
         await program.parseAsync(['node', 'tdc', 'doctor', '--offline'])
 
+        expect(mockProbeApiToken).toHaveBeenCalledWith({ refresh: false })
         expect(consoleSpy).toHaveBeenCalledWith(
             expect.stringContaining(
                 'SKIP Auth validation skipped (--offline); credentials found via secure-store',

@@ -322,7 +322,14 @@ export function createCommsAuthProvider(
 }
 
 export function getCommsOAuthRefreshHandshake(account: CommsAccount): Record<string, unknown> {
-    const config = getCommsOAuthConfigForAccount(account)
+    if (!account.oauthClientId || !account.authBaseUrl || !account.authResource) {
+        throw new CliError(
+            'NO_TOKEN',
+            'Stored OAuth token cannot be refreshed because its client metadata is missing.',
+            ['Run: tdc auth login'],
+        )
+    }
+    const config = buildCommsOAuthConfig(account.authBaseUrl, account.authResource)
     return {
         ...config,
         oauthClientId: account.oauthClientId,
@@ -335,13 +342,6 @@ export function getCommsOAuthRefreshHandshake(account: CommsAccount): Record<str
 function getCommsOAuthConfig(): CommsOAuthConfig {
     const resource = getCommsOAuthResource()
     return buildCommsOAuthConfig(getTodoistAuthBaseUrl(resource), resource)
-}
-
-function getCommsOAuthConfigForAccount(account: CommsAccount): CommsOAuthConfig {
-    if (account.authBaseUrl && account.authResource) {
-        return buildCommsOAuthConfig(account.authBaseUrl, account.authResource)
-    }
-    return getCommsOAuthConfig()
 }
 
 function buildCommsOAuthConfig(authBaseUrl: string, resource: string): CommsOAuthConfig {

@@ -46,6 +46,10 @@ export type AuthProbeResult = {
     metadata: AuthProbeMetadata
 }
 
+export type AuthProbeOptions = {
+    refresh?: boolean
+}
+
 export type ActiveAuthSnapshot = {
     token: string
     account: CommsAccount
@@ -76,8 +80,8 @@ export async function getApiTokenSnapshot(ref?: string): Promise<ActiveAuthSnaps
 }
 
 /** Token + metadata in one round-trip for `tdc config view` / `tdc doctor`. */
-export async function probeApiToken(): Promise<AuthProbeResult> {
-    const snapshot = await getActiveSnapshot({ refresh: false })
+export async function probeApiToken(options: AuthProbeOptions = {}): Promise<AuthProbeResult> {
+    const snapshot = await getActiveSnapshot({ refresh: options.refresh === true })
     const source = await getActiveTokenSource()
     return {
         token: snapshot.token,

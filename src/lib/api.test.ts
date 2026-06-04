@@ -35,7 +35,13 @@ vi.mock('@doist/comms-sdk', () => {
 vi.mock('./auth.js', () => ({
     getApiTokenSnapshot: vi.fn().mockResolvedValue({
         token: 'test-token',
-        account: { id: '42', label: 'Ada', authMode: 'read-write', authScope: '' },
+        account: {
+            id: '42',
+            label: 'Ada',
+            authMode: 'read-write',
+            authResource: 'https://comms.staging.todoist.com',
+            authScope: '',
+        },
     }),
     getAuthMetadata: vi.fn().mockResolvedValue({ authMode: 'full' }),
 }))
@@ -59,12 +65,18 @@ vi.mock('./progress.js', () => ({
     getProgressTracker: () => ({ isEnabled: () => false, emitApiCall: vi.fn() }),
 }))
 
-const { clearWorkspaceUserCache, createWrappedCommsClient, getWorkspaceUsers } =
-    await import('./api.js')
+const {
+    clearApiClientCache,
+    clearWorkspaceUserCache,
+    createWrappedCommsClient,
+    getCommsClient,
+    getWorkspaceUsers,
+} = await import('./api.js')
 
 describe('getWorkspaceUsers', () => {
     beforeEach(() => {
         getWorkspaceUsersMock.mockClear()
+        clearApiClientCache()
         clearWorkspaceUserCache()
     })
 
@@ -109,6 +121,7 @@ describe('getWorkspaceUsers', () => {
 
 describe('wrapResult — central 403 translation', () => {
     beforeEach(() => {
+        clearApiClientCache()
         sdkMocks.createClient.mockReset()
         sdkMocks.deleteChannel.mockReset()
         sdkMocks.uploadAttachment.mockReset()
@@ -117,6 +130,14 @@ describe('wrapResult — central 403 translation', () => {
 
     it('uses the explicit base URL when creating the wrapped SDK client', () => {
         createWrappedCommsClient('test-token', { baseUrl: 'https://comms.staging.todoist.com' })
+
+        expect(sdkMocks.createClient).toHaveBeenCalledWith('test-token', {
+            baseUrl: 'https://comms.staging.todoist.com',
+        })
+    })
+
+    it('uses the active OAuth account resource when creating the shared SDK client', async () => {
+        await getCommsClient()
 
         expect(sdkMocks.createClient).toHaveBeenCalledWith('test-token', {
             baseUrl: 'https://comms.staging.todoist.com',

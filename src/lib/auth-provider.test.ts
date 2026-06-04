@@ -275,6 +275,40 @@ describe('createCommsAuthProvider', () => {
         expect(exchange.refreshToken).toBe('refresh_rotated')
     })
 
+    it('keeps stored account scope metadata when a refresh response omits scope', async () => {
+        const fetchImpl = vi.fn().mockResolvedValue(
+            jsonResponse({
+                access_token: 'tdc_fresh',
+                expires_in: 3600,
+            }),
+        )
+
+        const exchange = await createCommsAuthProvider(fetchImpl).refreshToken!({
+            refreshToken: 'refresh_old',
+            handshake: {
+                oauthClientId: 'tdd_123',
+                accountId: '42',
+                accountLabel: 'Ada',
+                authScope: READ_WRITE_SCOPES.join(' '),
+                authBaseUrl: 'https://todoist.com',
+                authorizationUrl: 'https://todoist.com/oauth/authorize',
+                tokenUrl: 'https://todoist.com/oauth/access_token',
+                registrationUrl: 'https://todoist.com/oauth/register',
+                resource: 'https://comms.todoist.com',
+            },
+        })
+
+        expect(exchange.account).toEqual({
+            id: '42',
+            label: 'Ada',
+            authMode: 'read-write',
+            authScope: READ_WRITE_SCOPES.join(' '),
+            oauthClientId: 'tdd_123',
+            authBaseUrl: 'https://todoist.com',
+            authResource: 'https://comms.todoist.com',
+        })
+    })
+
     it('translates invalid_grant refresh failures into AUTH_REFRESH_EXPIRED', async () => {
         const fetchImpl = vi.fn().mockResolvedValue(
             jsonResponse(

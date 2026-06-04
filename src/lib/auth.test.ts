@@ -178,6 +178,28 @@ describe('auth shims over the cli-core keyring store', () => {
         )
     })
 
+    it('getApiToken rejects partial OAuth client metadata instead of defaulting refresh target', async () => {
+        mocks.activeBundleMock.mockResolvedValue({
+            account: {
+                ...STORED_ACCOUNT,
+                oauthClientId: 'tdd_123',
+            },
+            bundle: {
+                accessToken: 'tdc_old',
+                refreshToken: 'rt_old',
+                accessTokenExpiresAt: Date.now() - 1000,
+            },
+        })
+
+        await expect(getApiToken()).rejects.toMatchObject({
+            code: 'NO_TOKEN',
+            message:
+                'Stored OAuth token cannot be refreshed because its client metadata is missing.',
+        })
+
+        expect(mocks.refreshAccessTokenMock).not.toHaveBeenCalled()
+    })
+
     it('getApiToken uses a legacy OAuth token until it actually expires', async () => {
         mocks.activeBundleMock.mockResolvedValue({
             account: STORED_ACCOUNT,

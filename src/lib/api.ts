@@ -247,6 +247,10 @@ function analyzeAndEmitApiResponse(
 
 let apiClient: CommsApi | null = null
 
+export function clearApiClientCache(): void {
+    apiClient = null
+}
+
 export function createWrappedCommsClient(
     token: string,
     options: { baseUrl?: string } = {},
