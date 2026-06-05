@@ -167,7 +167,8 @@ describe('auth shims over the cli-core keyring store', () => {
                 skewMs: 60_000,
                 lockPath: '/home/user/.config/comms-cli/config.json.refresh.lock',
                 handshake: expect.objectContaining({
-                    oauthClientId: 'tdd_123',
+                    // cli-core's createDcrProvider refresh reads `clientId`.
+                    clientId: 'tdd_123',
                     accountId: '42',
                     accountLabel: 'Ada',
                     authScope: 'user:read',

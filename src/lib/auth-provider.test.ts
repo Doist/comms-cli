@@ -107,9 +107,11 @@ describe('createCommsAuthProvider', () => {
             flags: {},
         })
 
+        // Registration runs through cli-core's createDcrProvider (oauth4webapi);
+        // comms-cli owns the metadata it POSTs and where it caches the result.
         expect(fetchImpl).toHaveBeenCalledTimes(1)
         expect(fetchImpl.mock.calls[0][0]).toBe('https://todoist.com/oauth/register')
-        expect(JSON.parse(String((fetchImpl.mock.calls[0][1] as RequestInit).body))).toEqual({
+        expect(JSON.parse(String((fetchImpl.mock.calls[0][1] as RequestInit).body))).toMatchObject({
             client_name: 'Comms CLI',
             client_uri: 'https://github.com/doist/comms-cli',
             logo_uri: 'https://raw.githubusercontent.com/doist/comms-cli/main/icons/comms-cli.png',
@@ -119,11 +121,9 @@ describe('createCommsAuthProvider', () => {
             response_types: ['code'],
             token_endpoint_auth_method: 'none',
         })
-        expect(result.handshake).toMatchObject({
-            oauthClientId: 'tdd_123',
-            authBaseUrl: 'https://todoist.com',
-            resource: 'https://comms.todoist.com',
-        })
+        // cli-core stashes only the issued client in the handshake.
+        expect(result.handshake).toMatchObject({ clientId: 'tdd_123' })
+        // comms-cli's saveClient hook persists it keyed on auth server + resource + redirect.
         expect(configMocks.updateConfig).toHaveBeenCalledWith({
             oauthClients: [
                 {
@@ -136,7 +136,7 @@ describe('createCommsAuthProvider', () => {
         })
     })
 
-    it('reuses a cached DCR client for the same auth server, resource, and redirect URI', async () => {
+    it('reuses a cached DCR client (loadClient hook) for the same auth server, resource, and redirect URI', async () => {
         configMocks.getConfig.mockResolvedValue({
             oauthClients: [
                 {
@@ -154,13 +154,10 @@ describe('createCommsAuthProvider', () => {
             flags: {},
         })
 
+        // Cache hit: no registration round-trip, nothing re-persisted.
         expect(fetchImpl).not.toHaveBeenCalled()
         expect(configMocks.updateConfig).not.toHaveBeenCalled()
-        expect(result.handshake).toMatchObject({
-            oauthClientId: 'tdd_cached',
-            authBaseUrl: 'https://todoist.com',
-            resource: 'https://comms.todoist.com',
-        })
+        expect(result.handshake).toMatchObject({ clientId: 'tdd_cached' })
     })
 
     it('uses staging Todoist OAuth endpoints when COMMS_BASE_URL targets staging Comms', async () => {
@@ -197,6 +194,7 @@ describe('createCommsAuthProvider', () => {
     it('exchanges authorization codes as a public client and includes the Comms resource', async () => {
         const fetchImpl = vi.fn().mockResolvedValue(
             jsonResponse({
+                token_type: 'bearer',
                 access_token: 'tdc_access',
                 refresh_token: 'refresh_123',
                 expires_in: 3600,
@@ -205,12 +203,9 @@ describe('createCommsAuthProvider', () => {
         )
 
         const handshake = {
-            oauthClientId: 'tdd_123',
+            clientId: 'tdd_123',
             codeVerifier: 'verifier_123',
             authBaseUrl: 'https://todoist.com',
-            authorizationUrl: 'https://todoist.com/oauth/authorize',
-            tokenUrl: 'https://todoist.com/oauth/access_token',
-            registrationUrl: 'https://todoist.com/oauth/register',
             resource: 'https://comms.todoist.com',
         }
         const exchange = await createCommsAuthProvider(fetchImpl).exchangeCode({
@@ -230,20 +225,19 @@ describe('createCommsAuthProvider', () => {
         expect(exchange.accessToken).toBe('tdc_access')
         expect(exchange.refreshToken).toBe('refresh_123')
         expect(exchange.expiresAt).toEqual(expect.any(Number))
-        expect((exchange as typeof exchange & { scope?: string }).scope).toBe(
-            'user:read comms:content:read',
+        expect(exchange.scope).toBe('user:read comms:content:read')
+        // The wrapper stashes the granted scope + token diagnostics on the shared
+        // handshake; cli-core threads the same object into validateToken next.
+        expect(handshake).toMatchObject({ grantedScope: 'user:read comms:content:read' })
+        expect((handshake as { tokenDiagnostics?: string[] }).tokenDiagnostics).toEqual(
+            expect.arrayContaining(['Todoist token response: refresh_token=yes']),
         )
-        expect(handshake).toMatchObject({
-            grantedScope: 'user:read comms:content:read',
-            tokenResponseExpiresIn: 3600,
-            tokenResponseHasRefreshToken: true,
-            tokenResponseScope: 'user:read comms:content:read',
-        })
     })
 
     it('refreshes access tokens with the stored public client id and Comms resource', async () => {
         const fetchImpl = vi.fn().mockResolvedValue(
             jsonResponse({
+                token_type: 'bearer',
                 access_token: 'tdc_fresh',
                 refresh_token: 'refresh_rotated',
                 expires_in: 3600,
@@ -254,13 +248,10 @@ describe('createCommsAuthProvider', () => {
         const exchange = await createCommsAuthProvider(fetchImpl).refreshToken!({
             refreshToken: 'refresh_old',
             handshake: {
-                oauthClientId: 'tdd_123',
+                clientId: 'tdd_123',
                 authBaseUrl: 'https://todoist.com',
-                authorizationUrl: 'https://todoist.com/oauth/authorize',
-                tokenUrl: 'https://todoist.com/oauth/access_token',
-                registrationUrl: 'https://todoist.com/oauth/register',
                 resource: 'https://comms.todoist.com',
-                grantedScope: READ_WRITE_SCOPES.join(' '),
+                authScope: READ_WRITE_SCOPES.join(' '),
             },
         })
         const body = formBody(fetchImpl.mock.calls[0])
@@ -277,6 +268,7 @@ describe('createCommsAuthProvider', () => {
     it('keeps stored account scope metadata when a refresh response omits scope', async () => {
         const fetchImpl = vi.fn().mockResolvedValue(
             jsonResponse({
+                token_type: 'bearer',
                 access_token: 'tdc_fresh',
                 expires_in: 3600,
             }),
@@ -285,14 +277,11 @@ describe('createCommsAuthProvider', () => {
         const exchange = await createCommsAuthProvider(fetchImpl).refreshToken!({
             refreshToken: 'refresh_old',
             handshake: {
-                oauthClientId: 'tdd_123',
+                clientId: 'tdd_123',
                 accountId: '42',
                 accountLabel: 'Ada',
                 authScope: READ_WRITE_SCOPES.join(' '),
                 authBaseUrl: 'https://todoist.com',
-                authorizationUrl: 'https://todoist.com/oauth/authorize',
-                tokenUrl: 'https://todoist.com/oauth/access_token',
-                registrationUrl: 'https://todoist.com/oauth/register',
                 resource: 'https://comms.todoist.com',
             },
         })
@@ -323,11 +312,8 @@ describe('createCommsAuthProvider', () => {
             createCommsAuthProvider(fetchImpl).refreshToken!({
                 refreshToken: 'refresh_old',
                 handshake: {
-                    oauthClientId: 'tdd_123',
+                    clientId: 'tdd_123',
                     authBaseUrl: 'https://todoist.com',
-                    authorizationUrl: 'https://todoist.com/oauth/authorize',
-                    tokenUrl: 'https://todoist.com/oauth/access_token',
-                    registrationUrl: 'https://todoist.com/oauth/register',
                     resource: 'https://comms.todoist.com',
                 },
             }),
@@ -346,11 +332,8 @@ describe('createCommsAuthProvider', () => {
             token: 'tk_new',
             handshake: {
                 readOnly: false,
-                oauthClientId: 'tdd_123',
+                clientId: 'tdd_123',
                 authBaseUrl: 'https://todoist.com',
-                authorizationUrl: 'https://todoist.com/oauth/authorize',
-                tokenUrl: 'https://todoist.com/oauth/access_token',
-                registrationUrl: 'https://todoist.com/oauth/register',
                 resource: 'https://comms.todoist.com',
                 grantedScope: READ_WRITE_SCOPES.join(' '),
             },
@@ -370,38 +353,35 @@ describe('createCommsAuthProvider', () => {
         })
     })
 
-    it('validate includes Todoist token response diagnostics when Comms rejects OAuth', async () => {
+    it('validate surfaces the exchange token diagnostics when Comms rejects OAuth', async () => {
         mockCreateClient.mockReturnValue({
             users: { getSessionUser: vi.fn().mockRejectedValue({ code: 'FORBIDDEN' }) },
         } as unknown as ReturnType<typeof createWrappedCommsClient>)
 
+        // exchangeCode stashes these on the handshake; validate surfaces them
+        // so a Comms rejection can explain what Todoist actually issued.
+        const diagnostics = [
+            'Todoist token response: refresh_token=no',
+            'Todoist token response access_token: shape=other, length=61',
+            `Todoist token response scope: ${READ_WRITE_SCOPES.join(' ')}`,
+            'Todoist issued a non-refresh access token; Comms intentionally rejects tokens without expiring introspection.',
+        ]
         await expect(
             createCommsAuthProvider().validateToken!({
                 token: 'tk_forbidden',
                 handshake: {
                     readOnly: false,
-                    oauthClientId: 'tdd_123',
+                    clientId: 'tdd_123',
                     authBaseUrl: 'https://todoist.com',
-                    authorizationUrl: 'https://todoist.com/oauth/authorize',
-                    tokenUrl: 'https://todoist.com/oauth/access_token',
-                    registrationUrl: 'https://todoist.com/oauth/register',
                     resource: 'https://comms.todoist.com',
                     grantedScope: READ_WRITE_SCOPES.join(' '),
-                    tokenResponseExpiresIn: 315360000,
-                    tokenResponseHasRefreshToken: false,
-                    tokenResponseAccessTokenShape: 'shape=other, length=61',
-                    tokenResponseScope: READ_WRITE_SCOPES.join(' '),
+                    tokenDiagnostics: diagnostics,
                 },
             }),
         ).rejects.toMatchObject({
             code: 'AUTH_FAILED',
             message: 'Comms rejected the OAuth token during validation.',
-            hints: expect.arrayContaining([
-                'Todoist token response: expires_in=315360000, refresh_token=no',
-                'Todoist token response access_token: shape=other, length=61',
-                `Todoist token response scope: ${READ_WRITE_SCOPES.join(' ')}`,
-                'Todoist issued a non-refresh access token; Comms intentionally rejects tokens without expiring introspection.',
-            ]),
+            hints: expect.arrayContaining(diagnostics),
         })
     })
 

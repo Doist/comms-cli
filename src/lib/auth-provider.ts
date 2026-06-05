@@ -2,11 +2,16 @@ import {
     type AccountRef,
     type AuthAccount,
     type AuthProvider,
+    createDcrProvider,
     createKeyringTokenStore,
-    deriveChallenge,
-    generateVerifier,
+    type DcrRegisteredClient,
+    type ExchangeInput,
+    type ExchangeResult,
     type KeyringTokenStore,
+    type PrepareInput,
+    type RefreshInput,
     type TokenBundle,
+    type ValidateInput,
 } from '@doist/cli-core/auth'
 import { createWrappedCommsClient } from './api.js'
 import { SECURE_STORE_SERVICE } from './auth-constants.js'
@@ -19,7 +24,7 @@ import {
     updateConfig,
 } from './config.js'
 import { CliError } from './errors.js'
-import { isSupportedCommsHost, parseRef, SUPPORTED_COMMS_HOSTS } from './refs.js'
+import { parseRef } from './refs.js'
 import { createCommsUserRecordStore, getDefaultUserRecord } from './user-records.js'
 
 const DEFAULT_TODOIST_AUTH_BASE_URL = 'https://todoist.com'
@@ -137,189 +142,144 @@ export type CommsOAuthConfig = {
     resource: string
 }
 
-type RegistrationResponse = {
-    client_id?: unknown
-    token_endpoint_auth_method?: unknown
-}
-
-type TokenEndpointResponse = {
-    access_token?: unknown
-    refresh_token?: unknown
-    expires_in?: unknown
-    scope?: unknown
-}
-
 /**
  * Todoist is the OAuth authorization server; Comms is the protected resource.
- * The CLI registers as a public DCR client and uses PKCE, so no client secret
- * has to be persisted for refresh grants.
+ * The CLI registers as a public DCR client (PKCE, no client secret) and pins
+ * tokens to the Comms resource via the RFC 8707 `resource` indicator. The
+ * registration / authorize / token-exchange / refresh mechanics all live in
+ * cli-core's `createDcrProvider`; the Comms-specific behaviour is:
+ *
+ *  - endpoint + resource resolution from `COMMS_BASE_URL` / `COMMS_AS_URL`
+ *    (see `getCommsOAuthResource` / `getTodoistAuthBaseUrl`),
+ *  - caching the registered `client_id` in config (`loadClient` / `saveClient`),
+ *  - recording the server-granted scope on the account (the `exchangeCode`
+ *    wrapper stashes it on the handshake for `validate`; `refreshToken`
+ *    refreshes it), and
+ *  - `validate`: probe `getSessionUser`, derive `authMode` from the granted
+ *    scope, and build the `CommsAccount`.
  */
 export function createCommsAuthProvider(
     fetchImpl: typeof fetch = fetch,
 ): AuthProvider<CommsAccount> {
-    return {
-        async prepare({ redirectUri }) {
-            const config = getCommsOAuthConfig()
-            const cachedClientId = await getCachedOAuthClientId(config, redirectUri)
-            if (cachedClientId) {
-                return {
-                    handshake: {
-                        ...config,
-                        oauthClientId: cachedClientId,
-                    },
-                }
-            }
+    const base = createDcrProvider<CommsAccount>({
+        registrationUrl: ({ handshake }) => getOAuthConfigForHandshake(handshake).registrationUrl,
+        authorizeUrl: ({ handshake }) => getOAuthConfigForHandshake(handshake).authorizationUrl,
+        tokenUrl: ({ handshake }) => getOAuthConfigForHandshake(handshake).tokenUrl,
+        resource: ({ handshake }) => getOAuthConfigForHandshake(handshake).resource,
+        clientMetadata: {
+            clientName: 'Comms CLI',
+            clientUri: 'https://github.com/doist/comms-cli',
+            logoUri: LOGO_URI,
+            tokenEndpointAuthMethod: 'none',
+            grantTypes: ['authorization_code', 'refresh_token'],
+            responseTypes: ['code'],
+            // Request the full scope set at registration; the per-login
+            // authorize request narrows it via `resolveScopes`.
+            extra: { scope: FULL_ACCESS_SCOPES.join(' ') },
+        },
+        loadClient: loadCachedClient,
+        saveClient: saveCachedClient,
+        validate: validateCommsToken,
+        errorHints: AUTH_HINTS,
+        fetchImpl,
+    })
 
-            const payload = {
-                client_name: 'Comms CLI',
-                client_uri: 'https://github.com/doist/comms-cli',
-                logo_uri: LOGO_URI,
-                redirect_uris: [redirectUri],
-                scope: FULL_ACCESS_SCOPES.join(' '),
-                grant_types: ['authorization_code', 'refresh_token'],
-                response_types: ['code'],
-                token_endpoint_auth_method: 'none',
-            }
-            const response = await postJson<RegistrationResponse>({
-                url: config.registrationUrl,
-                body: JSON.stringify(payload),
-                headers: {
-                    'Content-Type': 'application/json',
-                    Accept: 'application/json',
-                },
-                errorCode: 'AUTH_DCR_FAILED',
-                errorLabel: 'OAuth client registration',
-                fetchImpl,
-            })
-            if (typeof response.client_id !== 'string' || !response.client_id) {
-                throw new CliError(
-                    'AUTH_DCR_FAILED',
-                    'OAuth client registration response missing client_id.',
-                    AUTH_HINTS,
-                )
-            }
-            if (
-                response.token_endpoint_auth_method !== undefined &&
-                response.token_endpoint_auth_method !== 'none'
-            ) {
-                throw new CliError(
-                    'AUTH_DCR_FAILED',
-                    `OAuth server registered an unsupported token_endpoint_auth_method: ${String(
-                        response.token_endpoint_auth_method,
-                    )}.`,
-                    AUTH_HINTS,
-                )
-            }
-            await cacheOAuthClientRegistration({
-                clientId: response.client_id,
-                authBaseUrl: config.authBaseUrl,
-                authResource: config.resource,
-                redirectUri,
-            })
-            return {
-                handshake: {
-                    ...config,
-                    oauthClientId: response.client_id,
-                },
-            }
-        },
-        async authorize({ redirectUri, state, scopes, readOnly, flags, handshake }) {
-            const clientId = requireHandshakeString(handshake, 'oauthClientId')
-            const config = getOAuthConfigFromHandshake(handshake)
-            const verifier = generateVerifier()
-            const challenge = deriveChallenge(verifier)
-            const url = new URL(config.authorizationUrl)
-            url.searchParams.set('response_type', 'code')
-            url.searchParams.set('client_id', clientId)
-            url.searchParams.set('redirect_uri', redirectUri)
-            url.searchParams.set('state', state)
-            url.searchParams.set('code_challenge', challenge)
-            url.searchParams.set('code_challenge_method', 'S256')
-            url.searchParams.set('resource', config.resource)
-            if (scopes.length > 0) url.searchParams.set('scope', scopes.join(' '))
-            return {
-                authorizeUrl: url.toString(),
-                handshake: {
-                    ...handshake,
-                    codeVerifier: verifier,
-                    fullAccess: !readOnly && isFullAccessFlag(flags),
-                },
-            }
-        },
-        async exchangeCode({ code, redirectUri, handshake }) {
-            const clientId = requireHandshakeString(handshake, 'oauthClientId')
-            const verifier = requireHandshakeString(handshake, 'codeVerifier')
-            const config = getOAuthConfigFromHandshake(handshake)
-            const exchange = await exchangeToken(
-                config.tokenUrl,
-                new URLSearchParams({
-                    grant_type: 'authorization_code',
-                    code,
-                    redirect_uri: redirectUri,
-                    client_id: clientId,
-                    code_verifier: verifier,
-                    resource: config.resource,
-                }),
-                fetchImpl,
-            )
-            handshake.grantedScope = getGrantedScope(exchange.scope, handshake)
-            handshake.tokenResponseExpiresIn = exchange.expiresIn
-            handshake.tokenResponseHasRefreshToken = Boolean(exchange.refreshToken)
-            handshake.tokenResponseScope = exchange.scope
-            handshake.tokenResponseAccessTokenShape = describeAccessTokenShape(exchange.accessToken)
+    return {
+        ...base,
+        async exchangeCode(input: ExchangeInput): Promise<ExchangeResult<CommsAccount>> {
+            const exchange = await base.exchangeCode(input)
+            // cli-core threads this same handshake object into `validateToken`
+            // next, so stash the server-granted scope (so `validate` records the
+            // authoritative scope) and the token-response diagnostics (so a
+            // Comms rejection can explain what Todoist actually issued).
+            if (exchange.scope) input.handshake.grantedScope = exchange.scope
+            input.handshake.tokenDiagnostics = describeTokenResponse(exchange)
             return exchange
         },
-        async refreshToken({ refreshToken, handshake }) {
-            const clientId = requireHandshakeString(handshake, 'oauthClientId')
-            const config = getOAuthConfigFromHandshake(handshake)
-            const exchange = await exchangeToken(
-                config.tokenUrl,
-                new URLSearchParams({
-                    grant_type: 'refresh_token',
-                    refresh_token: refreshToken,
-                    client_id: clientId,
-                    resource: config.resource,
-                }),
-                fetchImpl,
-                'refresh',
-            )
-            const grantedScope = exchange.scope ?? optionalHandshakeString(handshake, 'authScope')
-            const account = grantedScope ? buildRefreshAccount(handshake, grantedScope) : undefined
+        async refreshToken(input: RefreshInput): Promise<ExchangeResult<CommsAccount>> {
+            const exchange = await base.refreshToken!(input)
+            const grantedScope =
+                exchange.scope ?? optionalHandshakeString(input.handshake, 'authScope')
+            const account = grantedScope
+                ? buildRefreshAccount(input.handshake, grantedScope)
+                : undefined
             return account ? { ...exchange, account } : exchange
-        },
-        async validateToken({ token, handshake }) {
-            requireHandshakeReadOnly(handshake)
-            const grantedScope = requireHandshakeString(handshake, 'grantedScope', 'AUTH_FAILED')
-            const authMode = getAuthModeForGrantedScope(grantedScope)
-            const config = getOAuthConfigFromHandshake(handshake)
-            const client = createWrappedCommsClient(token, { baseUrl: config.resource })
-            let user
-            try {
-                user = await client.users.getSessionUser()
-            } catch (error) {
-                if (hasErrorCode(error, 'FORBIDDEN')) {
-                    throw new CliError(
-                        'AUTH_FAILED',
-                        'Comms rejected the OAuth token during validation.',
-                        [
-                            ...tokenResponseDiagnosticHints(handshake),
-                            'Check Comms logs for Todoist OAuth introspection: active, aud, exp, scope, user_id/sub',
-                        ],
-                    )
-                }
-                throw error
-            }
-            return toCommsAccount(user, {
-                authMode,
-                authScope: grantedScope,
-                oauthClientId: requireHandshakeString(handshake, 'oauthClientId'),
-                authBaseUrl: config.authBaseUrl,
-                authResource: config.resource,
-            })
         },
     }
 }
 
+/**
+ * Probe `getSessionUser` to confirm the token works, then build a
+ * `CommsAccount`. Granted scope comes from the server (stashed on the
+ * handshake by `exchangeCode`); it falls back to the requested scope set when
+ * the token endpoint didn't echo one.
+ */
+async function validateCommsToken({ token, handshake }: ValidateInput): Promise<CommsAccount> {
+    const readOnly = requireHandshakeReadOnly(handshake)
+    const grantedScope =
+        optionalHandshakeString(handshake, 'grantedScope') ??
+        getScopes({ readOnly, fullAccess: isFullAccessHandshake(handshake) }).join(' ')
+    const authMode = getAuthModeForGrantedScope(grantedScope)
+    const config = getOAuthConfigForHandshake(handshake)
+    const client = createWrappedCommsClient(token, { baseUrl: config.resource })
+    let user
+    try {
+        user = await client.users.getSessionUser()
+    } catch (error) {
+        if (hasErrorCode(error, 'FORBIDDEN')) {
+            const diagnostics = Array.isArray(handshake.tokenDiagnostics)
+                ? (handshake.tokenDiagnostics as string[])
+                : []
+            throw new CliError('AUTH_FAILED', 'Comms rejected the OAuth token during validation.', [
+                ...diagnostics,
+                'Check Comms logs for Todoist OAuth introspection: active, aud, exp, scope, user_id/sub',
+            ])
+        }
+        throw error
+    }
+    return toCommsAccount(user, {
+        authMode,
+        authScope: normalizeScopeString(grantedScope),
+        oauthClientId: requireHandshakeString(handshake, 'clientId', 'AUTH_FAILED'),
+        authBaseUrl: config.authBaseUrl,
+        authResource: config.resource,
+    })
+}
+
+/**
+ * Rebuild the rotated `CommsAccount` after a refresh so the stored
+ * `authScope` / `authMode` track the (possibly changed) granted scope. Returns
+ * `undefined` when the refresh handshake lacks the identity fields, leaving the
+ * previously-stored account in place.
+ */
+function buildRefreshAccount(
+    handshake: Record<string, unknown>,
+    grantedScope: string,
+): CommsAccount | undefined {
+    const id = optionalHandshakeString(handshake, 'accountId')
+    const label = optionalHandshakeString(handshake, 'accountLabel')
+    const clientId = optionalHandshakeString(handshake, 'clientId')
+    if (!id || !label || !clientId) return undefined
+
+    const config = getOAuthConfigForHandshake(handshake)
+    return makeCommsAccount({
+        id,
+        label,
+        authMode: getAuthModeForGrantedScope(grantedScope),
+        authScope: normalizeScopeString(grantedScope),
+        oauthClientId: clientId,
+        authBaseUrl: config.authBaseUrl,
+        authResource: config.resource,
+    })
+}
+
+/**
+ * The handshake `refreshAccessToken` forwards to the provider's
+ * `refreshToken`. cli-core doesn't persist the DCR handshake, so we
+ * reconstruct it from the stored account: `clientId` (read by cli-core's
+ * refresh grant), the resource / auth base URL (read by the endpoint
+ * resolvers), and the identity fields (read by `buildRefreshAccount`).
+ */
 export function getCommsOAuthRefreshHandshake(account: CommsAccount): Record<string, unknown> {
     if (!account.oauthClientId || !account.authBaseUrl || !account.authResource) {
         throw new CliError(
@@ -328,19 +288,33 @@ export function getCommsOAuthRefreshHandshake(account: CommsAccount): Record<str
             ['Run: tdc auth login'],
         )
     }
-    const config = buildCommsOAuthConfig(account.authBaseUrl, account.authResource)
     return {
-        ...config,
-        oauthClientId: account.oauthClientId,
+        clientId: account.oauthClientId,
         accountId: account.id,
         accountLabel: account.label,
         authScope: account.authScope,
+        authBaseUrl: account.authBaseUrl,
+        resource: account.authResource,
     }
 }
 
+/** Endpoint + resource config derived from the environment (login path). */
 function getCommsOAuthConfig(): CommsOAuthConfig {
     const resource = getCommsOAuthResource()
     return buildCommsOAuthConfig(getTodoistAuthBaseUrl(resource), resource)
+}
+
+/**
+ * Endpoint + resource config for a provider hook. Prefers values carried on
+ * the handshake (the refresh path reconstructs them from the stored account)
+ * and falls back to the environment (the login path, where the handshake
+ * doesn't carry them).
+ */
+function getOAuthConfigForHandshake(handshake: Record<string, unknown>): CommsOAuthConfig {
+    const resource = optionalHandshakeString(handshake, 'resource') ?? getCommsOAuthResource()
+    const authBaseUrl =
+        optionalHandshakeString(handshake, 'authBaseUrl') ?? getTodoistAuthBaseUrl(resource)
+    return buildCommsOAuthConfig(authBaseUrl, resource)
 }
 
 function buildCommsOAuthConfig(authBaseUrl: string, resource: string): CommsOAuthConfig {
@@ -353,22 +327,14 @@ function buildCommsOAuthConfig(authBaseUrl: string, resource: string): CommsOAut
     }
 }
 
-function getOAuthConfigFromHandshake(handshake: Record<string, unknown>): CommsOAuthConfig {
-    const authBaseUrl = requireHandshakeString(handshake, 'authBaseUrl')
-    const resource = requireHandshakeString(handshake, 'resource')
-    return {
-        authBaseUrl,
-        authorizationUrl: requireHandshakeString(handshake, 'authorizationUrl'),
-        tokenUrl: requireHandshakeString(handshake, 'tokenUrl'),
-        registrationUrl: requireHandshakeString(handshake, 'registrationUrl'),
-        resource,
-    }
-}
-
-async function getCachedOAuthClientId(
-    config: CommsOAuthConfig,
-    redirectUri: string,
-): Promise<string | undefined> {
+/**
+ * `loadClient` hook: reuse a registered `client_id` cached in config for the
+ * current auth server + resource + redirect URI. Keying on `redirectUri` is
+ * required — the registration is bound to its `redirect_uris` and the callback
+ * port can change between logins.
+ */
+async function loadCachedClient(input: PrepareInput): Promise<DcrRegisteredClient | undefined> {
+    const config = getCommsOAuthConfig()
     const { oauthClients } = await getConfig()
     const cached = (Array.isArray(oauthClients) ? oauthClients : [])
         .filter(isStoredOAuthClient)
@@ -376,23 +342,31 @@ async function getCachedOAuthClientId(
             (client) =>
                 client.authBaseUrl === config.authBaseUrl &&
                 client.authResource === config.resource &&
-                client.redirectUri === redirectUri,
+                client.redirectUri === input.redirectUri,
         )
-    return cached?.clientId
+    return cached ? { clientId: cached.clientId } : undefined
 }
 
-async function cacheOAuthClientRegistration(client: StoredOAuthClient): Promise<void> {
-    const config = await getConfig()
-    const existing = (Array.isArray(config.oauthClients) ? config.oauthClients : [])
+/** `saveClient` hook: persist a freshly registered public client for reuse. */
+async function saveCachedClient(client: DcrRegisteredClient, input: PrepareInput): Promise<void> {
+    const config = getCommsOAuthConfig()
+    const entry: StoredOAuthClient = {
+        clientId: client.clientId,
+        authBaseUrl: config.authBaseUrl,
+        authResource: config.resource,
+        redirectUri: input.redirectUri,
+    }
+    const stored = await getConfig()
+    const existing = (Array.isArray(stored.oauthClients) ? stored.oauthClients : [])
         .filter(isStoredOAuthClient)
         .filter(
-            (entry) =>
-                entry.authBaseUrl !== client.authBaseUrl ||
-                entry.authResource !== client.authResource ||
-                entry.redirectUri !== client.redirectUri,
+            (other) =>
+                other.authBaseUrl !== entry.authBaseUrl ||
+                other.authResource !== entry.authResource ||
+                other.redirectUri !== entry.redirectUri,
         )
     await updateConfig({
-        oauthClients: [...existing, client].slice(-MAX_CACHED_OAUTH_CLIENTS),
+        oauthClients: [...existing, entry].slice(-MAX_CACHED_OAUTH_CLIENTS),
     })
 }
 
@@ -426,12 +400,17 @@ function getCommsOAuthResource(): string {
         ])
     }
     const origin = url.origin
-    if (isSupportedCommsHost(url.hostname)) {
+    const host = url.hostname.toLowerCase()
+    if (
+        host === 'comms.todoist.com' ||
+        host === 'comms.staging.todoist.com' ||
+        host === 'comms.local.todoist.com'
+    ) {
         return origin
     }
     throw new CliError('INVALID_URL', `Unsupported Comms OAuth resource: ${origin}`, [
         'Use COMMS_API_TOKEN for custom Comms hosts',
-        `Supported OAuth hosts: ${SUPPORTED_COMMS_HOSTS.join(', ')}`,
+        'Supported OAuth hosts: comms.todoist.com, comms.staging.todoist.com, comms.local.todoist.com',
     ])
 }
 
@@ -490,26 +469,6 @@ function optionalHandshakeString(
     return typeof value === 'string' && value.length > 0 ? value : undefined
 }
 
-function optionalHandshakeBoolean(
-    handshake: Record<string, unknown>,
-    key: string,
-): boolean | undefined {
-    const value = handshake[key]
-    if (value === undefined) return undefined
-    if (typeof value === 'boolean') return value
-    throw new CliError('AUTH_FAILED', `Internal: OAuth handshake has invalid ${key}.`, AUTH_HINTS)
-}
-
-function optionalHandshakeNumber(
-    handshake: Record<string, unknown>,
-    key: string,
-): number | undefined {
-    const value = handshake[key]
-    if (value === undefined) return undefined
-    if (typeof value === 'number' && Number.isFinite(value)) return value
-    throw new CliError('AUTH_FAILED', `Internal: OAuth handshake has invalid ${key}.`, AUTH_HINTS)
-}
-
 function requireHandshakeReadOnly(handshake: Record<string, unknown>): boolean {
     if (typeof handshake.readOnly !== 'boolean') {
         throw new CliError(
@@ -521,187 +480,14 @@ function requireHandshakeReadOnly(handshake: Record<string, unknown>): boolean {
     return handshake.readOnly
 }
 
-function isFullAccessFlag(flags: Record<string, unknown>): boolean {
-    return flags.fullAccess === true
-}
-
-function getGrantedScope(scope: string | undefined, handshake: Record<string, unknown>): string {
+/** Read the `--full-access` flag from the runtime flags folded onto the handshake. */
+function isFullAccessHandshake(handshake: Record<string, unknown>): boolean {
+    const flags = handshake.flags
     return (
-        scope ??
-        getScopes({
-            readOnly: requireHandshakeReadOnly(handshake),
-            fullAccess: optionalHandshakeBoolean(handshake, 'fullAccess') === true,
-        }).join(' ')
+        typeof flags === 'object' &&
+        flags !== null &&
+        (flags as Record<string, unknown>).fullAccess === true
     )
-}
-
-function buildRefreshAccount(
-    handshake: Record<string, unknown>,
-    grantedScope: string,
-): CommsAccount | undefined {
-    const id = optionalHandshakeString(handshake, 'accountId')
-    const label = optionalHandshakeString(handshake, 'accountLabel')
-    const oauthClientId = optionalHandshakeString(handshake, 'oauthClientId')
-    if (!id || !label || !oauthClientId) return undefined
-
-    const config = getOAuthConfigFromHandshake(handshake)
-    return makeCommsAccount({
-        id,
-        label,
-        authMode: getAuthModeForGrantedScope(grantedScope),
-        authScope: normalizeScopeString(grantedScope),
-        oauthClientId,
-        authBaseUrl: config.authBaseUrl,
-        authResource: config.resource,
-    })
-}
-
-async function postJson<T>(input: {
-    url: string
-    body: string
-    headers: Record<string, string>
-    errorCode: string
-    errorLabel: string
-    fetchImpl: typeof fetch
-}): Promise<T> {
-    let response: Response
-    try {
-        response = await input.fetchImpl(input.url, {
-            method: 'POST',
-            headers: input.headers,
-            body: input.body,
-        })
-    } catch (error) {
-        throw new CliError(
-            input.errorCode,
-            `${input.errorLabel} request failed for ${input.url}: ${errorMessage(error)}`,
-            AUTH_HINTS,
-        )
-    }
-    if (!response.ok) {
-        const detail = await safeReadText(response)
-        throw new CliError(
-            input.errorCode,
-            `${input.errorLabel} returned HTTP ${response.status}.`,
-            detail ? [...AUTH_HINTS, detail] : AUTH_HINTS,
-        )
-    }
-    try {
-        return (await response.json()) as T
-    } catch (error) {
-        throw new CliError(
-            input.errorCode,
-            `${input.errorLabel} returned non-JSON response: ${errorMessage(error)}`,
-            AUTH_HINTS,
-        )
-    }
-}
-
-async function exchangeToken(
-    tokenUrl: string,
-    body: URLSearchParams,
-    fetchImpl: typeof fetch,
-    mode: 'login' | 'refresh' = 'login',
-): Promise<{
-    accessToken: string
-    refreshToken?: string
-    expiresAt?: number
-    expiresIn?: number
-    scope?: string
-}> {
-    let response: Response
-    try {
-        response = await fetchImpl(tokenUrl, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/x-www-form-urlencoded',
-                Accept: 'application/json',
-            },
-            body: body.toString(),
-        })
-    } catch (error) {
-        throw new CliError(
-            refreshErrorCode(mode),
-            `Token endpoint request failed: ${errorMessage(error)}`,
-            refreshHints(mode),
-        )
-    }
-    if (!response.ok) {
-        const detail = await safeReadText(response)
-        const oauthError = parseOAuthError(detail)
-        if (mode === 'refresh' && oauthError?.error === 'invalid_grant') {
-            throw new CliError(
-                'AUTH_REFRESH_EXPIRED',
-                `Refresh token rejected: ${formatOAuthError(oauthError)}`,
-                ['Re-run the login command to reauthorize.'],
-            )
-        }
-        throw new CliError(
-            refreshErrorCode(mode),
-            `Token endpoint returned HTTP ${response.status}.`,
-            detail ? [...refreshHints(mode), detail] : refreshHints(mode),
-        )
-    }
-
-    let payload: TokenEndpointResponse
-    try {
-        payload = (await response.json()) as TokenEndpointResponse
-    } catch (error) {
-        throw new CliError(
-            refreshErrorCode(mode),
-            `Token endpoint returned non-JSON response: ${errorMessage(error)}`,
-            refreshHints(mode),
-        )
-    }
-    if (typeof payload.access_token !== 'string' || !payload.access_token) {
-        throw new CliError(
-            refreshErrorCode(mode),
-            'Token endpoint response missing access_token.',
-            refreshHints(mode),
-        )
-    }
-    return {
-        accessToken: payload.access_token,
-        refreshToken: typeof payload.refresh_token === 'string' ? payload.refresh_token : undefined,
-        expiresIn: typeof payload.expires_in === 'number' ? payload.expires_in : undefined,
-        expiresAt:
-            typeof payload.expires_in === 'number'
-                ? Date.now() + payload.expires_in * 1000
-                : undefined,
-        scope: typeof payload.scope === 'string' ? normalizeScopeString(payload.scope) : undefined,
-    }
-}
-
-function tokenResponseDiagnosticHints(handshake: Record<string, unknown>): string[] {
-    const expiresIn = optionalHandshakeNumber(handshake, 'tokenResponseExpiresIn')
-    const hasRefreshToken = optionalHandshakeBoolean(handshake, 'tokenResponseHasRefreshToken')
-    const scope = optionalHandshakeString(handshake, 'tokenResponseScope')
-    const accessTokenShape = optionalHandshakeString(handshake, 'tokenResponseAccessTokenShape')
-    const hints = [
-        `Todoist token response: expires_in=${expiresIn ?? 'missing'}, refresh_token=${
-            hasRefreshToken ? 'yes' : 'no'
-        }`,
-    ]
-    if (accessTokenShape) {
-        hints.push(`Todoist token response access_token: ${accessTokenShape}`)
-    }
-    if (scope) {
-        hints.push(`Todoist token response scope: ${scope}`)
-    }
-    if (expiresIn === 315360000 || hasRefreshToken === false) {
-        hints.push(
-            'Todoist issued a non-refresh access token; Comms intentionally rejects tokens without expiring introspection.',
-        )
-    }
-    return hints
-}
-
-function describeAccessTokenShape(accessToken: string): string {
-    let shape = 'other'
-    if (/^[0-9a-f]{40}$/.test(accessToken)) {
-        shape = 'raw-hex-40'
-    }
-    return `shape=${shape}, length=${accessToken.length}`
 }
 
 function hasErrorCode(error: unknown, code: string): boolean {
@@ -712,6 +498,31 @@ function hasErrorCode(error: unknown, code: string): boolean {
         typeof error.code === 'string' &&
         error.code === code
     )
+}
+
+/**
+ * Operator-facing hints describing what Todoist's token endpoint actually
+ * issued — surfaced only when Comms later rejects the token during `validate`.
+ * Reconstructed from the `ExchangeResult` (cli-core's DCR exchange surfaces the
+ * access token, refresh-token presence, and granted scope).
+ */
+function describeTokenResponse(exchange: ExchangeResult<CommsAccount>): string[] {
+    const hints = [
+        `Todoist token response: refresh_token=${exchange.refreshToken ? 'yes' : 'no'}`,
+        `Todoist token response access_token: ${describeAccessTokenShape(exchange.accessToken)}`,
+    ]
+    if (exchange.scope) hints.push(`Todoist token response scope: ${exchange.scope}`)
+    if (!exchange.refreshToken) {
+        hints.push(
+            'Todoist issued a non-refresh access token; Comms intentionally rejects tokens without expiring introspection.',
+        )
+    }
+    return hints
+}
+
+function describeAccessTokenShape(accessToken: string): string {
+    const shape = /^[0-9a-f]{40}$/.test(accessToken) ? 'raw-hex-40' : 'other'
+    return `shape=${shape}, length=${accessToken.length}`
 }
 
 function getAuthModeForGrantedScope(scope: string): AuthMode {
@@ -730,59 +541,6 @@ function splitScopeString(scope: string): string[] {
         .split(/\s+/)
         .map((part) => part.trim())
         .filter(Boolean)
-}
-
-function refreshErrorCode(mode: 'login' | 'refresh'): string {
-    return mode === 'refresh' ? 'AUTH_REFRESH_TRANSIENT' : 'AUTH_TOKEN_EXCHANGE_FAILED'
-}
-
-function refreshHints(mode: 'login' | 'refresh'): string[] {
-    return mode === 'refresh' ? ['Try again.', ...AUTH_HINTS] : AUTH_HINTS
-}
-
-async function safeReadText(response: Response): Promise<string | undefined> {
-    try {
-        const text = (await response.text()).trim()
-        return text.length > 0 ? text : undefined
-    } catch {
-        return undefined
-    }
-}
-
-function parseOAuthError(
-    detail: string | undefined,
-): { error: string; errorDescription?: string } | null {
-    if (!detail) return null
-    try {
-        const parsed = JSON.parse(detail) as unknown
-        if (!parsed || typeof parsed !== 'object') return null
-        const record = parsed as Record<string, unknown>
-        if (typeof record.error !== 'string') return null
-        return {
-            error: record.error,
-            errorDescription:
-                typeof record.error_description === 'string' ? record.error_description : undefined,
-        }
-    } catch {
-        return null
-    }
-}
-
-function formatOAuthError(error: { error: string; errorDescription?: string }): string {
-    return error.errorDescription ? `${error.error} (${error.errorDescription})` : error.error
-}
-
-function errorMessage(error: unknown): string {
-    if (!(error instanceof Error)) return String(error)
-    const cause = (error as { cause?: unknown }).cause
-    if (!cause || typeof cause !== 'object') return error.message
-
-    const code = 'code' in cause && typeof cause.code === 'string' ? cause.code : undefined
-    const message =
-        'message' in cause && typeof cause.message === 'string' ? cause.message : undefined
-    if (code && message) return `${error.message} (${code}: ${message})`
-    if (message) return `${error.message} (${message})`
-    return error.message
 }
 
 /**
