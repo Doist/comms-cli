@@ -32,16 +32,6 @@ const DEFAULT_COMMS_OAUTH_RESOURCE = 'https://comms.todoist.com'
 
 const LOGO_URI = 'https://raw.githubusercontent.com/doist/comms-cli/main/icons/comms-cli.png'
 
-export const READ_WRITE_SCOPES = [
-    'user:read',
-    'workspaces:read',
-    'comms:channels:read',
-    'comms:content:read',
-    'comms:content:write',
-    'comms:messages:read',
-    'comms:messages:write',
-]
-
 export const READ_ONLY_SCOPES = [
     'user:read',
     'workspaces:read',
@@ -50,34 +40,24 @@ export const READ_ONLY_SCOPES = [
     'comms:messages:read',
 ]
 
-export const FULL_ACCESS_SCOPES = [
-    'user:read',
+const DEFAULT_WRITE_SCOPES = ['comms:content:write', 'comms:messages:write']
+
+const FULL_ACCESS_EXTRA_SCOPES = [
     'user:write',
-    'workspaces:read',
     'workspaces:write',
-    'comms:channels:read',
     'comms:channels:write',
     'comms:channels:delete',
-    'comms:content:read',
-    'comms:content:write',
     'comms:content:delete',
-    'comms:messages:read',
-    'comms:messages:write',
     'comms:messages:delete',
 ]
 
+export const READ_WRITE_SCOPES = [...READ_ONLY_SCOPES, ...DEFAULT_WRITE_SCOPES]
+
+export const FULL_ACCESS_SCOPES = [...READ_WRITE_SCOPES, ...FULL_ACCESS_EXTRA_SCOPES]
+
 const AUTH_HINTS = ['Try again: tdc auth login', 'Or set COMMS_API_TOKEN environment variable']
 
-const WRITE_SCOPES = new Set([
-    'user:write',
-    'workspaces:write',
-    'comms:channels:write',
-    'comms:channels:delete',
-    'comms:content:write',
-    'comms:content:delete',
-    'comms:messages:write',
-    'comms:messages:delete',
-])
+const WRITE_SCOPES = new Set([...DEFAULT_WRITE_SCOPES, ...FULL_ACCESS_EXTRA_SCOPES])
 const MAX_CACHED_OAUTH_CLIENTS = 25
 
 /**
@@ -173,8 +153,10 @@ export function createCommsAuthProvider(
             tokenEndpointAuthMethod: 'none',
             grantTypes: ['authorization_code', 'refresh_token'],
             responseTypes: ['code'],
-            // Request the full scope set at registration; the per-login
-            // authorize request narrows it via `resolveScopes`.
+            // DCR scope is the upper bound this public client may request.
+            // Per-login authorize scopes are still narrowed by `resolveScopes`;
+            // keeping registration broad lets one cached client serve read-only,
+            // default, and full-access logins.
             extra: { scope: FULL_ACCESS_SCOPES.join(' ') },
         },
         loadClient: loadCachedClient,

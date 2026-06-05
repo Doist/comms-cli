@@ -46,6 +46,7 @@ import { createWrappedCommsClient } from './api.js'
 import {
     createCommsAuthProvider,
     FULL_ACCESS_SCOPES,
+    getScopes,
     matchCommsAccount,
     READ_WRITE_SCOPES,
 } from './auth-provider.js'
@@ -390,6 +391,42 @@ describe('createCommsAuthProvider', () => {
         await expect(
             createCommsAuthProvider().validateToken!({ token: 'tk', handshake: {} }),
         ).rejects.toMatchObject({ code: 'AUTH_FAILED' })
+    })
+})
+
+describe('getScopes', () => {
+    it('returns the exact read-only, default write, and full-access scope sets', () => {
+        expect(getScopes({ readOnly: true })).toEqual([
+            'user:read',
+            'workspaces:read',
+            'comms:channels:read',
+            'comms:content:read',
+            'comms:messages:read',
+        ])
+        expect(getScopes({ readOnly: false })).toEqual([
+            'user:read',
+            'workspaces:read',
+            'comms:channels:read',
+            'comms:content:read',
+            'comms:messages:read',
+            'comms:content:write',
+            'comms:messages:write',
+        ])
+        expect(getScopes({ readOnly: false, fullAccess: true })).toEqual([
+            'user:read',
+            'workspaces:read',
+            'comms:channels:read',
+            'comms:content:read',
+            'comms:messages:read',
+            'comms:content:write',
+            'comms:messages:write',
+            'user:write',
+            'workspaces:write',
+            'comms:channels:write',
+            'comms:channels:delete',
+            'comms:content:delete',
+            'comms:messages:delete',
+        ])
     })
 })
 

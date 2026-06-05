@@ -1,5 +1,8 @@
 import type { TokenStorageResult } from '@doist/cli-core/auth'
 import chalk from 'chalk'
+import { createWrappedCommsClient } from '../../lib/api.js'
+import type { CommsAccount, CommsTokenStore } from '../../lib/auth-provider.js'
+import { getConfig, updateConfig } from '../../lib/config.js'
 
 /**
  * Surface a `TokenStorageResult` from a save/clear operation: the
@@ -38,4 +41,64 @@ export function logStoredTokenRemoval(
         'Stored token removed from the system credential manager',
         view.json || view.ndjson,
     )
+}
+
+export async function resetCurrentWorkspaceAfterLogin(
+    store: CommsTokenStore,
+    account: CommsAccount,
+): Promise<void> {
+    let currentWorkspace: number | undefined
+    try {
+        currentWorkspace = (await getConfig()).currentWorkspace
+    } catch {
+        // Treat unreadable config as having no reliable workspace preference.
+    }
+
+    let token: string | undefined
+    try {
+        token = (await store.active(account.id))?.token
+    } catch {
+        await clearCurrentWorkspaceAfterLogin(currentWorkspace)
+        return
+    }
+    if (!token) {
+        await clearCurrentWorkspaceAfterLogin(currentWorkspace)
+        return
+    }
+
+    try {
+        const client = createWrappedCommsClient(token, { baseUrl: account.authResource })
+        const workspaces = await client.workspaces.getWorkspaces()
+        if (
+            currentWorkspace !== undefined &&
+            workspaces.some((workspace) => workspace.id === currentWorkspace)
+        ) {
+            return
+        }
+        if (workspaces.length === 1) {
+            await updateCurrentWorkspaceAfterLogin(workspaces[0].id)
+            return
+        }
+        await clearCurrentWorkspaceAfterLogin(currentWorkspace)
+    } catch {
+        await clearCurrentWorkspaceAfterLogin(currentWorkspace)
+    }
+}
+
+async function clearCurrentWorkspaceAfterLogin(
+    currentWorkspace: number | undefined,
+): Promise<void> {
+    if (currentWorkspace !== undefined) {
+        await updateCurrentWorkspaceAfterLogin(undefined)
+    }
+}
+
+async function updateCurrentWorkspaceAfterLogin(
+    currentWorkspace: number | undefined,
+): Promise<void> {
+    try {
+        await updateConfig({ currentWorkspace })
+    } catch {
+        // Login should not fail just because workspace preselection failed.
+    }
 }

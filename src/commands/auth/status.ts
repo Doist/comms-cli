@@ -28,11 +28,6 @@ function formatAuthMode(authMode: AuthMode, authScope?: string): string {
     return 'unknown (manual token or env var; assuming write access)'
 }
 
-/**
- * Fetch the live session user via the selected account's resource. 401
- * translation lives here so both refreshed OAuth tokens and manual tokens emit
- * the same `NO_TOKEN` envelope when Comms rejects them.
- */
 function metadataFromAccount(account: CommsAccount): AuthMetadata {
     const authUserId = Number(account.id)
     return {
@@ -45,6 +40,11 @@ function metadataFromAccount(account: CommsAccount): AuthMetadata {
     }
 }
 
+/**
+ * Fetch the live session user via the selected account's resource. 401
+ * translation lives here so both refreshed OAuth tokens and manual tokens emit
+ * the same `NO_TOKEN` envelope when Comms rejects them.
+ */
 async function gatherStatusData(token: string, account: CommsAccount): Promise<StatusData> {
     try {
         const user = await createWrappedCommsClient(token, {
