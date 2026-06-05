@@ -1,3 +1,9 @@
+## [1.5.0](https://github.com/Doist/comms-cli/compare/v1.4.0...v1.5.0) (2026-06-05)
+
+### Features
+
+- Add Todoist OAuth for Comms auth ([#15](https://github.com/Doist/comms-cli/issues/15)) ([cd64fa7](https://github.com/Doist/comms-cli/commit/cd64fa7ac27f53a2164deedf3a390ecf5ec32f98))
+
 ## [1.4.0](https://github.com/Doist/comms-cli/compare/v1.3.2...v1.4.0) (2026-05-31)
 
 ### Features
