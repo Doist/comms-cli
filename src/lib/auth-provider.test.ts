@@ -85,6 +85,17 @@ describe('createCommsAuthProvider', () => {
         expect(options.clientMetadata.tokenEndpointAuthMethod).toBe('client_secret_post')
     })
 
+    it('registers the Comms CLI client metadata, including the current repo icon', () => {
+        createCommsAuthProvider()
+        const options = keyringMocks.createDcrProvider.mock.calls.at(-1)?.[0]
+
+        expect(options.clientMetadata).toMatchObject({
+            clientName: 'Comms CLI',
+            clientUri: 'https://github.com/doist/comms-cli',
+            logoUri: 'https://raw.githubusercontent.com/doist/comms-cli/main/icons/comms-cli.png',
+        })
+    })
+
     // Registration / authorize / token-exchange mechanics now live in cli-core's
     // createDcrProvider (covered by its own suite). The only comms-specific
     // behaviour is `validate`: probe getSessionUser, then derive authMode +

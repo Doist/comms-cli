@@ -18,8 +18,7 @@ export const AUTHORIZATION_URL = 'https://comms.todoist.com/oauth/authorize'
 export const TOKEN_URL = 'https://comms.todoist.com/oauth/access_token'
 export const REGISTRATION_URL = 'https://comms.todoist.com/oauth/register'
 
-const LOGO_URI =
-    'https://raw.githubusercontent.com/Doist/comms-cli/d65c447ff453eb36af585044c2f5f2f602bcdb34/icons/comms-cli.png'
+const LOGO_URI = 'https://raw.githubusercontent.com/doist/comms-cli/main/icons/comms-cli.png'
 
 export const READ_WRITE_SCOPES = [
     'user:read',
