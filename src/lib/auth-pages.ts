@@ -171,8 +171,9 @@ export function renderSuccess(): string {
             --text: #1d1d1f;
             --text-secondary: #6e6e73;
             --text-muted: #aeaeb2;
-            --comms-teal: #0dbed9;
-            --comms-teal-soft: rgba(13, 190, 217, 0.06);
+            --comms-ink: #344168;
+            --comms-lavender: #a5b1ff;
+            --comms-lavender-soft: rgba(165, 177, 255, 0.16);
             --green: #058527;
             --terminal-bg: #1a1b26;
             --terminal-text: #c0caf5;
@@ -203,7 +204,7 @@ export function renderSuccess(): string {
             transform: translateX(-50%);
             width: 800px;
             height: 500px;
-            background: radial-gradient(ellipse, rgba(13, 190, 217, 0.07) 0%, transparent 70%);
+            background: radial-gradient(ellipse, rgba(165, 177, 255, 0.14) 0%, transparent 70%);
             pointer-events: none;
         }
         .container {
@@ -226,10 +227,12 @@ export function renderSuccess(): string {
             height: 72px;
             margin: 0 auto 20px;
             position: relative;
+            isolation: isolate;
         }
         .logo-wrap svg {
             width: 100%;
             height: 100%;
+            display: block;
             filter: drop-shadow(0 4px 12px rgba(0, 0, 0, 0.15));
         }
         .badge {
@@ -298,7 +301,7 @@ export function renderSuccess(): string {
             color: var(--terminal-text);
         }
         .line:last-child { margin-bottom: 0; }
-        .ps { color: var(--comms-teal); user-select: none; font-weight: 500; }
+        .ps { color: var(--comms-lavender); user-select: none; font-weight: 500; }
         .arg { color: var(--terminal-green); }
         .out {
             color: var(--terminal-muted);
@@ -313,7 +316,7 @@ export function renderSuccess(): string {
             display: inline-block;
             width: 8px;
             height: 16px;
-            background: var(--comms-teal);
+            background: var(--comms-lavender);
             border-radius: 1px;
             animation: blink 1.2s step-end infinite;
         }
@@ -335,22 +338,22 @@ export function renderSuccess(): string {
             flex-shrink: 0;
             width: 34px;
             height: 34px;
-            background: var(--comms-teal-soft);
+            background: var(--comms-lavender-soft);
             border-radius: 8px;
             display: flex;
             align-items: center;
             justify-content: center;
         }
-        .info-icon svg { width: 16px; height: 16px; color: var(--comms-teal); }
+        .info-icon svg { width: 16px; height: 16px; color: var(--comms-ink); }
         .info-text h4 { font-size: 13px; font-weight: 600; margin-bottom: 2px; }
         .info-text p { font-size: 13px; color: var(--text-secondary); line-height: 1.5; }
         .info-text code {
             font-family: ui-monospace, 'SF Mono', SFMono-Regular, Menlo, Consolas, monospace;
             font-size: 12px;
-            background: var(--comms-teal-soft);
+            background: var(--comms-lavender-soft);
             padding: 2px 6px;
             border-radius: 4px;
-            color: var(--comms-teal);
+            color: var(--comms-ink);
         }
         footer {
             margin-top: 20px;
@@ -376,7 +379,7 @@ export function renderSuccess(): string {
             font-size: 12px;
             transition: color 0.2s;
         }
-        .gh a:hover { color: var(--comms-teal); }
+        .gh a:hover { color: var(--comms-ink); }
         .gh svg { width: 14px; height: 14px; }
         @media (max-width: 480px) {
             .container { padding: 32px 16px; }
@@ -508,10 +511,12 @@ export function renderError(errorMessage: string): string {
             height: 72px;
             margin: 0 auto 20px;
             position: relative;
+            isolation: isolate;
         }
         .logo svg {
             width: 100%;
             height: 100%;
+            display: block;
             filter: drop-shadow(0 4px 12px rgba(0, 0, 0, 0.15));
         }
         .badge {
