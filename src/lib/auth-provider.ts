@@ -19,14 +19,13 @@ import {
     updateConfig,
 } from './config.js'
 import { CliError } from './errors.js'
-import { parseRef } from './refs.js'
+import { isSupportedCommsHost, parseRef, SUPPORTED_COMMS_HOSTS } from './refs.js'
 import { createCommsUserRecordStore, getDefaultUserRecord } from './user-records.js'
 
 const DEFAULT_TODOIST_AUTH_BASE_URL = 'https://todoist.com'
 const DEFAULT_COMMS_OAUTH_RESOURCE = 'https://comms.todoist.com'
 
-const LOGO_URI =
-    'https://raw.githubusercontent.com/Doist/comms-cli/d65c447ff453eb36af585044c2f5f2f602bcdb34/icons/comms-cli.png'
+const LOGO_URI = 'https://raw.githubusercontent.com/doist/comms-cli/main/icons/comms-cli.png'
 
 export const READ_WRITE_SCOPES = [
     'user:read',
@@ -427,17 +426,12 @@ function getCommsOAuthResource(): string {
         ])
     }
     const origin = url.origin
-    const host = url.hostname.toLowerCase()
-    if (
-        host === 'comms.todoist.com' ||
-        host === 'comms.staging.todoist.com' ||
-        host === 'comms.local.todoist.com'
-    ) {
+    if (isSupportedCommsHost(url.hostname)) {
         return origin
     }
     throw new CliError('INVALID_URL', `Unsupported Comms OAuth resource: ${origin}`, [
         'Use COMMS_API_TOKEN for custom Comms hosts',
-        'Supported OAuth hosts: comms.todoist.com, comms.staging.todoist.com, comms.local.todoist.com',
+        `Supported OAuth hosts: ${SUPPORTED_COMMS_HOSTS.join(', ')}`,
     ])
 }
 

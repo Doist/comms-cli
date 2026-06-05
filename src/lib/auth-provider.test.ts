@@ -112,8 +112,7 @@ describe('createCommsAuthProvider', () => {
         expect(JSON.parse(String((fetchImpl.mock.calls[0][1] as RequestInit).body))).toEqual({
             client_name: 'Comms CLI',
             client_uri: 'https://github.com/doist/comms-cli',
-            logo_uri:
-                'https://raw.githubusercontent.com/Doist/comms-cli/d65c447ff453eb36af585044c2f5f2f602bcdb34/icons/comms-cli.png',
+            logo_uri: 'https://raw.githubusercontent.com/doist/comms-cli/main/icons/comms-cli.png',
             redirect_uris: ['http://localhost:8766/callback'],
             scope: FULL_ACCESS_SCOPES.join(' '),
             grant_types: ['authorization_code', 'refresh_token'],

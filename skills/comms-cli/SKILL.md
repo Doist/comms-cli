@@ -59,6 +59,8 @@ Routes automatically based on URL structure:
 - Thread+comment URL → `tdc thread view` (comment ID extracted from URL)
 - Thread URL → `tdc thread view`
 
+URLs may use either `https://comms.todoist.com/{workspaceId}/...` or `https://comms.todoist.com/a/{workspaceId}/...`.
+
 All target command flags pass through (e.g. `--json`, `--raw`, `--full`).
 
 ## Inbox
@@ -393,6 +395,7 @@ If no content argument is provided and no stdin is piped, the CLI opens `$EDITOR
 
 **View by URL (auto-routes to the right command):**
 ```bash
+tdc view https://comms.todoist.com/1585/ch/100/t/200            # View thread
 tdc view https://comms.todoist.com/a/1585/ch/100/t/200          # View thread
 tdc view https://comms.todoist.com/a/1585/ch/100/t/200/c/300     # View comment
 tdc view https://comms.todoist.com/a/1585/msg/400                 # View conversation
