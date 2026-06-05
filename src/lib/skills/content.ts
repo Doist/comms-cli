@@ -18,8 +18,9 @@ Access Comms messaging via the \`tdc\` CLI. Use when the user asks about their C
 ## Setup
 
 \`\`\`bash
-tdc auth login                    # OAuth login (opens browser, read-write)
+tdc auth login                    # OAuth login (standard write scopes)
 tdc auth login --read-only        # OAuth login with read-only scope
+tdc auth login --full-access      # OAuth login with delete/admin scopes
 tdc auth login --callback-port <n># Override the local OAuth callback port (default 8766)
 tdc auth login --json             # Emit a JSON envelope for scripted / agent use
 tdc auth login --ndjson           # Emit an NDJSON envelope for scripted / agent use
@@ -46,7 +47,7 @@ tdc update                        # Update CLI to latest version
 tdc changelog                     # Show recent changelog entries
 \`\`\`
 
-Stored auth uses the system credential manager when available. If secure storage is unavailable, \`tdc\` warns and falls back to \`~/.config/comms-cli/config.json\`. \`COMMS_API_TOKEN\` always takes priority over the stored token.
+OAuth login uses Todoist OAuth for Comms access. The default grant can read Comms data and create/update content or messages. It does not include delete, channel management, or user/workspace write scopes; use \`tdc auth login --full-access\` only when needed. Stored auth uses the system credential manager when available. If secure storage is unavailable, \`tdc\` warns and falls back to \`~/.config/comms-cli/config.json\`. \`COMMS_API_TOKEN\` always takes priority over the stored token.
 
 In read-only mode (\`tdc auth login --read-only\`), commands that modify Comms data (reply, archive, react, delete, etc.) are blocked by the CLI. Externally provided tokens (\`COMMS_API_TOKEN\` or \`tdc auth token\`) are treated as unknown scope and assumed write-capable.
 
@@ -61,6 +62,8 @@ Routes automatically based on URL structure:
 - Conversation URL → \`tdc conversation view\`
 - Thread+comment URL → \`tdc thread view\` (comment ID extracted from URL)
 - Thread URL → \`tdc thread view\`
+
+URLs may use either \`https://comms.todoist.com/{workspaceId}/...\` or \`https://comms.todoist.com/a/{workspaceId}/...\`.
 
 All target command flags pass through (e.g. \`--json\`, \`--raw\`, \`--full\`).
 
@@ -396,6 +399,7 @@ If no content argument is provided and no stdin is piped, the CLI opens \`$EDITO
 
 **View by URL (auto-routes to the right command):**
 \`\`\`bash
+tdc view https://comms.todoist.com/1585/ch/100/t/200            # View thread
 tdc view https://comms.todoist.com/a/1585/ch/100/t/200          # View thread
 tdc view https://comms.todoist.com/a/1585/ch/100/t/200/c/300     # View comment
 tdc view https://comms.todoist.com/a/1585/msg/400                 # View conversation

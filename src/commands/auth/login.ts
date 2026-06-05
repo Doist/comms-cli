@@ -7,7 +7,8 @@ import {
     getScopes,
     type CommsTokenStore,
 } from '../../lib/auth-provider.js'
-import { logTokenStorageResult } from './helpers.js'
+import { CliError } from '../../lib/errors.js'
+import { logTokenStorageResult, resetCurrentWorkspaceAfterLogin } from './helpers.js'
 
 const PREFERRED_CALLBACK_PORT = 8766
 
@@ -18,10 +19,19 @@ export function attachCommsLoginCommand(parent: Command, store: CommsTokenStore)
         provider,
         store,
         preferredPort: PREFERRED_CALLBACK_PORT,
-        resolveScopes: ({ readOnly }) => getScopes(readOnly),
+        resolveScopes: ({ readOnly, flags }) => {
+            if (readOnly && flags.fullAccess === true) {
+                throw new CliError(
+                    'CONFLICTING_OPTIONS',
+                    'Choose either --read-only or --full-access, not both.',
+                )
+            }
+            return getScopes({ readOnly, fullAccess: flags.fullAccess === true })
+        },
         renderSuccess,
         renderError,
-        onSuccess({ view, account }) {
+        async onSuccess({ view, account }) {
+            await resetCurrentWorkspaceAfterLogin(store, account)
             const isMachineOutput = view.json || view.ndjson
             if (!isMachineOutput) {
                 console.log(chalk.green('✓'), 'OAuth authentication successful!')
@@ -36,5 +46,7 @@ export function attachCommsLoginCommand(parent: Command, store: CommsTokenStore)
                 )
             }
         },
-    }).description('Authenticate using OAuth (opens browser)')
+    })
+        .description('Authenticate using OAuth (opens browser)')
+        .option('--full-access', 'Request delete and workspace/user write scopes')
 }

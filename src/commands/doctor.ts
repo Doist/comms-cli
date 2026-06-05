@@ -245,7 +245,7 @@ async function checkAuthentication(offline: boolean): Promise<DoctorCheck> {
     let metadata: Awaited<ReturnType<typeof probeApiToken>>['metadata']
 
     try {
-        const probe = await probeApiToken()
+        const probe = await probeApiToken({ refresh: !offline })
         token = probe.token
         metadata = probe.metadata
     } catch (error) {
@@ -284,7 +284,7 @@ async function checkAuthentication(offline: boolean): Promise<DoctorCheck> {
     }
 
     try {
-        const api = createWrappedCommsClient(token)
+        const api = createWrappedCommsClient(token, { baseUrl: metadata.authResource })
         const user = await api.users.getSessionUser()
         details.email = user.email
         details.name = user.fullName

@@ -4,70 +4,76 @@ import {
     type AuthProvider,
     createDcrProvider,
     createKeyringTokenStore,
+    type DcrRegisteredClient,
+    type ExchangeInput,
+    type ExchangeResult,
     type KeyringTokenStore,
+    type PrepareInput,
+    type RefreshInput,
+    type TokenBundle,
+    type ValidateInput,
 } from '@doist/cli-core/auth'
 import { createWrappedCommsClient } from './api.js'
 import { SECURE_STORE_SERVICE } from './auth-constants.js'
-import { toCommsAccount } from './comms-account.js'
-import { type AuthMode, getConfig, getConfigPath } from './config.js'
+import { makeCommsAccount, toCommsAccount } from './comms-account.js'
+import {
+    type AuthMode,
+    getConfig,
+    getConfigPath,
+    type StoredOAuthClient,
+    updateConfig,
+} from './config.js'
 import { CliError } from './errors.js'
 import { parseRef } from './refs.js'
 import { createCommsUserRecordStore, getDefaultUserRecord } from './user-records.js'
 
-export const AUTHORIZATION_URL = 'https://comms.todoist.com/oauth/authorize'
-export const TOKEN_URL = 'https://comms.todoist.com/oauth/access_token'
-export const REGISTRATION_URL = 'https://comms.todoist.com/oauth/register'
+const DEFAULT_TODOIST_AUTH_BASE_URL = 'https://todoist.com'
+const DEFAULT_COMMS_OAUTH_RESOURCE = 'https://comms.todoist.com'
 
 const LOGO_URI = 'https://raw.githubusercontent.com/doist/comms-cli/main/icons/comms-cli.png'
-
-export const READ_WRITE_SCOPES = [
-    'user:read',
-    'user:write',
-    'workspaces:read',
-    'channels:read',
-    'channels:write',
-    'channels:remove',
-    'threads:read',
-    'threads:write',
-    'comments:read',
-    'comments:write',
-    'messages:read',
-    'messages:write',
-    'reactions:read',
-    'reactions:write',
-    'groups:read',
-    'groups:write',
-    'groups:remove',
-    'search:read',
-    'notifications:read',
-    'attachments:read',
-    'attachments:write',
-]
 
 export const READ_ONLY_SCOPES = [
     'user:read',
     'workspaces:read',
-    'channels:read',
-    'threads:read',
-    'comments:read',
-    'messages:read',
-    'reactions:read',
-    'groups:read',
-    'search:read',
-    'notifications:read',
-    'attachments:read',
+    'comms:channels:read',
+    'comms:content:read',
+    'comms:messages:read',
 ]
+
+const DEFAULT_WRITE_SCOPES = ['comms:content:write', 'comms:messages:write']
+
+const FULL_ACCESS_EXTRA_SCOPES = [
+    'user:write',
+    'workspaces:write',
+    'comms:channels:write',
+    'comms:channels:delete',
+    'comms:content:delete',
+    'comms:messages:delete',
+]
+
+export const READ_WRITE_SCOPES = [...READ_ONLY_SCOPES, ...DEFAULT_WRITE_SCOPES]
+
+export const FULL_ACCESS_SCOPES = [...READ_WRITE_SCOPES, ...FULL_ACCESS_EXTRA_SCOPES]
 
 const AUTH_HINTS = ['Try again: tdc auth login', 'Or set COMMS_API_TOKEN environment variable']
 
+const WRITE_SCOPES = new Set([...DEFAULT_WRITE_SCOPES, ...FULL_ACCESS_EXTRA_SCOPES])
+const MAX_CACHED_OAUTH_CLIENTS = 25
+
 /**
- * The scope set a login is granted, as a pure function of `--read-only`. Single
- * source of truth shared by `attachCommsLoginCommand`'s `resolveScopes` (what we
- * request at authorize) and the provider's `validate` (what we record on the
- * account), so the two can't drift.
+ * Single source of truth shared by `attachCommsLoginCommand`'s `resolveScopes`
+ * (what we request at authorize) and the provider's token-response fallback
+ * (what we record on the account), so the two can't drift.
  */
-export function getScopes(readOnly: boolean): string[] {
-    return readOnly ? READ_ONLY_SCOPES : READ_WRITE_SCOPES
+export function getScopes({
+    readOnly,
+    fullAccess = false,
+}: {
+    readOnly: boolean
+    fullAccess?: boolean
+}): string[] {
+    if (readOnly) return READ_ONLY_SCOPES
+    return fullAccess ? FULL_ACCESS_SCOPES : READ_WRITE_SCOPES
 }
 
 /**
@@ -82,6 +88,9 @@ export type CommsAccount = AuthAccount & {
     label: string
     authMode: AuthMode
     authScope: string
+    oauthClientId?: string
+    authBaseUrl?: string
+    authResource?: string
 }
 
 export type CommsTokenStore = KeyringTokenStore<CommsAccount>
@@ -105,57 +114,415 @@ export function isManualTokenAccount(account: Pick<CommsAccount, 'id' | 'label'>
     return !account.id || !account.label
 }
 
+export type CommsOAuthConfig = {
+    authBaseUrl: string
+    authorizationUrl: string
+    tokenUrl: string
+    registrationUrl: string
+    resource: string
+}
+
 /**
- * Comms's OAuth flow uses RFC 7591 Dynamic Client Registration: each login
- * mints a fresh `client_id` / `client_secret`, then runs the standard PKCE
- * authorize + token exchange. cli-core's `createDcrProvider` drives all of that
- * via `oauth4webapi`; the only comms-specific piece is `validate`, which probes
- * `getSessionUser` and records the auth mode/scope the login was granted.
+ * Todoist is the OAuth authorization server; Comms is the protected resource.
+ * The CLI registers as a public DCR client (PKCE, no client secret) and pins
+ * tokens to the Comms resource via the RFC 8707 `resource` indicator. The
+ * registration / authorize / token-exchange / refresh mechanics all live in
+ * cli-core's `createDcrProvider`; the Comms-specific behaviour is:
  *
- * `authMode` / `authScope` are derived from `handshake.readOnly` (folded in by
- * `runOAuthFlow`) rather than threaded through `authorize`, because the scope
- * set is itself a pure function of `readOnly` (see `resolveScopes` in login.ts).
+ *  - endpoint + resource resolution from `COMMS_BASE_URL` / `COMMS_AS_URL`
+ *    (see `getCommsOAuthResource` / `getTodoistAuthBaseUrl`),
+ *  - caching the registered `client_id` in config (`loadClient` / `saveClient`),
+ *  - recording the server-granted scope on the account (the `exchangeCode`
+ *    wrapper stashes it on the handshake for `validate`; `refreshToken`
+ *    refreshes it), and
+ *  - `validate`: probe `getSessionUser`, derive `authMode` from the granted
+ *    scope, and build the `CommsAccount`.
  */
-export function createCommsAuthProvider(): AuthProvider<CommsAccount> {
-    return createDcrProvider<CommsAccount>({
-        registrationUrl: REGISTRATION_URL,
-        authorizeUrl: AUTHORIZATION_URL,
-        tokenUrl: TOKEN_URL,
+export function createCommsAuthProvider(
+    fetchImpl: typeof fetch = fetch,
+): AuthProvider<CommsAccount> {
+    const base = createDcrProvider<CommsAccount>({
+        registrationUrl: ({ handshake }) => getOAuthConfigForHandshake(handshake).registrationUrl,
+        authorizeUrl: ({ handshake }) => getOAuthConfigForHandshake(handshake).authorizationUrl,
+        tokenUrl: ({ handshake }) => getOAuthConfigForHandshake(handshake).tokenUrl,
+        resource: ({ handshake }) => getOAuthConfigForHandshake(handshake).resource,
         clientMetadata: {
             clientName: 'Comms CLI',
             clientUri: 'https://github.com/doist/comms-cli',
             logoUri: LOGO_URI,
-            applicationType: 'native',
-            // Comms client_ids can contain `_`. oauth4webapi's
-            // `client_secret_basic` form-url-encodes the Basic credential per
-            // RFC 6749 §2.3.1 (`_` → `%5F`), and the token endpoint doesn't
-            // url-decode it, so the lookup fails with "client_id not found".
-            // `client_secret_post` sends the credential in the body via
-            // URLSearchParams, which preserves `_`, sidestepping the mismatch.
-            tokenEndpointAuthMethod: 'client_secret_post',
+            tokenEndpointAuthMethod: 'none',
+            grantTypes: ['authorization_code', 'refresh_token'],
+            responseTypes: ['code'],
+            // DCR scope is the upper bound this public client may request.
+            // Per-login authorize scopes are still narrowed by `resolveScopes`;
+            // keeping registration broad lets one cached client serve read-only,
+            // default, and full-access logins.
+            extra: { scope: FULL_ACCESS_SCOPES.join(' ') },
         },
+        loadClient: loadCachedClient,
+        saveClient: saveCachedClient,
+        validate: validateCommsToken,
         errorHints: AUTH_HINTS,
-        async validate({ token, handshake }) {
-            // `runOAuthFlow` folds a boolean `readOnly` into the handshake.
-            // Fail closed on a missing/malformed value rather than letting
-            // `Boolean(undefined)` silently grant read-write (which would relax
-            // the local write guard).
-            const readOnly = handshake.readOnly
-            if (typeof readOnly !== 'boolean') {
-                throw new CliError(
-                    'AUTH_FAILED',
-                    'Internal: auth handshake missing the readOnly flag.',
-                    AUTH_HINTS,
-                )
-            }
-            const client = createWrappedCommsClient(token)
-            const user = await client.users.getSessionUser()
-            return toCommsAccount(user, {
-                authMode: readOnly ? 'read-only' : 'read-write',
-                authScope: getScopes(readOnly).join(' '),
-            })
-        },
+        fetchImpl,
     })
+
+    return {
+        ...base,
+        async exchangeCode(input: ExchangeInput): Promise<ExchangeResult<CommsAccount>> {
+            const exchange = await base.exchangeCode(input)
+            // cli-core threads this same handshake object into `validateToken`
+            // next, so stash the server-granted scope (so `validate` records the
+            // authoritative scope) and the token-response diagnostics (so a
+            // Comms rejection can explain what Todoist actually issued).
+            if (exchange.scope) input.handshake.grantedScope = exchange.scope
+            input.handshake.tokenDiagnostics = describeTokenResponse(exchange)
+            return exchange
+        },
+        async refreshToken(input: RefreshInput): Promise<ExchangeResult<CommsAccount>> {
+            const exchange = await base.refreshToken!(input)
+            const grantedScope =
+                exchange.scope ?? optionalHandshakeString(input.handshake, 'authScope')
+            const account = grantedScope
+                ? buildRefreshAccount(input.handshake, grantedScope)
+                : undefined
+            return account ? { ...exchange, account } : exchange
+        },
+    }
+}
+
+/**
+ * Probe `getSessionUser` to confirm the token works, then build a
+ * `CommsAccount`. Granted scope comes from the server (stashed on the
+ * handshake by `exchangeCode`); it falls back to the requested scope set when
+ * the token endpoint didn't echo one.
+ */
+async function validateCommsToken({ token, handshake }: ValidateInput): Promise<CommsAccount> {
+    const readOnly = requireHandshakeReadOnly(handshake)
+    const grantedScope =
+        optionalHandshakeString(handshake, 'grantedScope') ??
+        getScopes({ readOnly, fullAccess: isFullAccessHandshake(handshake) }).join(' ')
+    const authMode = getAuthModeForGrantedScope(grantedScope)
+    const config = getOAuthConfigForHandshake(handshake)
+    const client = createWrappedCommsClient(token, { baseUrl: config.resource })
+    let user
+    try {
+        user = await client.users.getSessionUser()
+    } catch (error) {
+        if (hasErrorCode(error, 'FORBIDDEN')) {
+            const diagnostics = Array.isArray(handshake.tokenDiagnostics)
+                ? (handshake.tokenDiagnostics as string[])
+                : []
+            throw new CliError('AUTH_FAILED', 'Comms rejected the OAuth token during validation.', [
+                ...diagnostics,
+                'Check Comms logs for Todoist OAuth introspection: active, aud, exp, scope, user_id/sub',
+            ])
+        }
+        throw error
+    }
+    return toCommsAccount(user, {
+        authMode,
+        authScope: normalizeScopeString(grantedScope),
+        oauthClientId: requireHandshakeString(handshake, 'clientId', 'AUTH_FAILED'),
+        authBaseUrl: config.authBaseUrl,
+        authResource: config.resource,
+    })
+}
+
+/**
+ * Rebuild the rotated `CommsAccount` after a refresh so the stored
+ * `authScope` / `authMode` track the (possibly changed) granted scope. Returns
+ * `undefined` when the refresh handshake lacks the identity fields, leaving the
+ * previously-stored account in place.
+ */
+function buildRefreshAccount(
+    handshake: Record<string, unknown>,
+    grantedScope: string,
+): CommsAccount | undefined {
+    const id = optionalHandshakeString(handshake, 'accountId')
+    const label = optionalHandshakeString(handshake, 'accountLabel')
+    const clientId = optionalHandshakeString(handshake, 'clientId')
+    if (!id || !label || !clientId) return undefined
+
+    const config = getOAuthConfigForHandshake(handshake)
+    return makeCommsAccount({
+        id,
+        label,
+        authMode: getAuthModeForGrantedScope(grantedScope),
+        authScope: normalizeScopeString(grantedScope),
+        oauthClientId: clientId,
+        authBaseUrl: config.authBaseUrl,
+        authResource: config.resource,
+    })
+}
+
+/**
+ * The handshake `refreshAccessToken` forwards to the provider's
+ * `refreshToken`. cli-core doesn't persist the DCR handshake, so we
+ * reconstruct it from the stored account: `clientId` (read by cli-core's
+ * refresh grant), the resource / auth base URL (read by the endpoint
+ * resolvers), and the identity fields (read by `buildRefreshAccount`).
+ */
+export function getCommsOAuthRefreshHandshake(account: CommsAccount): Record<string, unknown> {
+    if (!account.oauthClientId || !account.authBaseUrl || !account.authResource) {
+        throw new CliError(
+            'NO_TOKEN',
+            'Stored OAuth token cannot be refreshed because its client metadata is missing.',
+            ['Run: tdc auth login'],
+        )
+    }
+    return {
+        clientId: account.oauthClientId,
+        accountId: account.id,
+        accountLabel: account.label,
+        authScope: account.authScope,
+        authBaseUrl: account.authBaseUrl,
+        resource: account.authResource,
+    }
+}
+
+/** Endpoint + resource config derived from the environment (login path). */
+function getCommsOAuthConfig(): CommsOAuthConfig {
+    const resource = getCommsOAuthResource()
+    return buildCommsOAuthConfig(getTodoistAuthBaseUrl(resource), resource)
+}
+
+/**
+ * Endpoint + resource config for a provider hook. Prefers values carried on
+ * the handshake (the refresh path reconstructs them from the stored account)
+ * and falls back to the environment (the login path, where the handshake
+ * doesn't carry them).
+ */
+function getOAuthConfigForHandshake(handshake: Record<string, unknown>): CommsOAuthConfig {
+    const resource = optionalHandshakeString(handshake, 'resource') ?? getCommsOAuthResource()
+    const authBaseUrl =
+        optionalHandshakeString(handshake, 'authBaseUrl') ?? getTodoistAuthBaseUrl(resource)
+    return buildCommsOAuthConfig(authBaseUrl, resource)
+}
+
+function buildCommsOAuthConfig(authBaseUrl: string, resource: string): CommsOAuthConfig {
+    return {
+        authBaseUrl,
+        authorizationUrl: `${authBaseUrl}/oauth/authorize`,
+        tokenUrl: `${authBaseUrl}/oauth/access_token`,
+        registrationUrl: `${authBaseUrl}/oauth/register`,
+        resource,
+    }
+}
+
+/**
+ * `loadClient` hook: reuse a registered `client_id` cached in config for the
+ * current auth server + resource + redirect URI. Keying on `redirectUri` is
+ * required — the registration is bound to its `redirect_uris` and the callback
+ * port can change between logins.
+ */
+async function loadCachedClient(input: PrepareInput): Promise<DcrRegisteredClient | undefined> {
+    const config = getCommsOAuthConfig()
+    const { oauthClients } = await getConfig()
+    const cached = (Array.isArray(oauthClients) ? oauthClients : [])
+        .filter(isStoredOAuthClient)
+        .find(
+            (client) =>
+                client.authBaseUrl === config.authBaseUrl &&
+                client.authResource === config.resource &&
+                client.redirectUri === input.redirectUri,
+        )
+    return cached ? { clientId: cached.clientId } : undefined
+}
+
+/** `saveClient` hook: persist a freshly registered public client for reuse. */
+async function saveCachedClient(client: DcrRegisteredClient, input: PrepareInput): Promise<void> {
+    const config = getCommsOAuthConfig()
+    const entry: StoredOAuthClient = {
+        clientId: client.clientId,
+        authBaseUrl: config.authBaseUrl,
+        authResource: config.resource,
+        redirectUri: input.redirectUri,
+    }
+    const stored = await getConfig()
+    const existing = (Array.isArray(stored.oauthClients) ? stored.oauthClients : [])
+        .filter(isStoredOAuthClient)
+        .filter(
+            (other) =>
+                other.authBaseUrl !== entry.authBaseUrl ||
+                other.authResource !== entry.authResource ||
+                other.redirectUri !== entry.redirectUri,
+        )
+    await updateConfig({
+        oauthClients: [...existing, entry].slice(-MAX_CACHED_OAUTH_CLIENTS),
+    })
+}
+
+function isStoredOAuthClient(value: unknown): value is StoredOAuthClient {
+    if (!value || typeof value !== 'object' || Array.isArray(value)) return false
+    const record = value as Record<string, unknown>
+    return (
+        typeof record.clientId === 'string' &&
+        typeof record.authBaseUrl === 'string' &&
+        typeof record.authResource === 'string' &&
+        typeof record.redirectUri === 'string'
+    )
+}
+
+function getCommsOAuthResource(): string {
+    const override = process.env.COMMS_BASE_URL
+    if (!override) return DEFAULT_COMMS_OAUTH_RESOURCE
+
+    let url: URL
+    try {
+        url = new URL(override)
+    } catch {
+        throw new CliError('INVALID_URL', `COMMS_BASE_URL is not a valid URL: ${override}`, [
+            'Use a URL like https://comms.todoist.com',
+            'Or unset COMMS_BASE_URL before running OAuth login',
+        ])
+    }
+    if (url.protocol !== 'https:') {
+        throw new CliError('INVALID_URL', 'Todoist OAuth requires an HTTPS Comms resource.', [
+            'Use https://comms.todoist.com, https://comms.staging.todoist.com, or https://comms.local.todoist.com',
+        ])
+    }
+    const origin = url.origin
+    const host = url.hostname.toLowerCase()
+    if (
+        host === 'comms.todoist.com' ||
+        host === 'comms.staging.todoist.com' ||
+        host === 'comms.local.todoist.com'
+    ) {
+        return origin
+    }
+    throw new CliError('INVALID_URL', `Unsupported Comms OAuth resource: ${origin}`, [
+        'Use COMMS_API_TOKEN for custom Comms hosts',
+        'Supported OAuth hosts: comms.todoist.com, comms.staging.todoist.com, comms.local.todoist.com',
+    ])
+}
+
+function getTodoistAuthBaseUrl(resource: string): string {
+    const override = process.env.COMMS_AS_URL
+    if (override) return normalizeAuthBaseUrlOverride(override)
+
+    const host = new URL(resource).hostname.toLowerCase()
+    if (host === 'comms.staging.todoist.com') return 'https://staging.todoist.com'
+    if (host === 'comms.local.todoist.com') return 'https://local.todoist.com'
+    return DEFAULT_TODOIST_AUTH_BASE_URL
+}
+
+function normalizeAuthBaseUrlOverride(raw: string): string {
+    let url: URL
+    try {
+        url = new URL(raw)
+    } catch {
+        throw new CliError('INVALID_URL', `COMMS_AS_URL is not a valid URL: ${raw}`, [
+            'Use a URL like https://todoist.com',
+        ])
+    }
+    if (url.protocol !== 'https:') {
+        throw new CliError('INVALID_URL', 'COMMS_AS_URL must use HTTPS.', [
+            'Use a URL like https://todoist.com',
+        ])
+    }
+    const host = url.hostname.toLowerCase()
+    if (host !== 'todoist.com' && !host.endsWith('.todoist.com')) {
+        throw new CliError('INVALID_URL', 'COMMS_AS_URL must point to a Todoist host.', [
+            'Use a URL like https://todoist.com or https://staging.todoist.com',
+        ])
+    }
+    return url.origin
+}
+
+function requireHandshakeString(
+    handshake: Record<string, unknown>,
+    key: string,
+    code = 'AUTH_TOKEN_EXCHANGE_FAILED',
+): string {
+    const value = handshake[key]
+    if (typeof value !== 'string' || value.length === 0) {
+        throw new CliError(code, `Internal: OAuth handshake missing ${key}.`, [
+            'Try again: tdc auth login',
+        ])
+    }
+    return value
+}
+
+function optionalHandshakeString(
+    handshake: Record<string, unknown>,
+    key: string,
+): string | undefined {
+    const value = handshake[key]
+    return typeof value === 'string' && value.length > 0 ? value : undefined
+}
+
+function requireHandshakeReadOnly(handshake: Record<string, unknown>): boolean {
+    if (typeof handshake.readOnly !== 'boolean') {
+        throw new CliError(
+            'AUTH_FAILED',
+            'Internal: auth handshake missing the readOnly flag.',
+            AUTH_HINTS,
+        )
+    }
+    return handshake.readOnly
+}
+
+/** Read the `--full-access` flag from the runtime flags folded onto the handshake. */
+function isFullAccessHandshake(handshake: Record<string, unknown>): boolean {
+    const flags = handshake.flags
+    return (
+        typeof flags === 'object' &&
+        flags !== null &&
+        (flags as Record<string, unknown>).fullAccess === true
+    )
+}
+
+function hasErrorCode(error: unknown, code: string): boolean {
+    return (
+        typeof error === 'object' &&
+        error !== null &&
+        'code' in error &&
+        typeof error.code === 'string' &&
+        error.code === code
+    )
+}
+
+/**
+ * Operator-facing hints describing what Todoist's token endpoint actually
+ * issued — surfaced only when Comms later rejects the token during `validate`.
+ * Reconstructed from the `ExchangeResult` (cli-core's DCR exchange surfaces the
+ * access token, refresh-token presence, and granted scope).
+ */
+function describeTokenResponse(exchange: ExchangeResult<CommsAccount>): string[] {
+    const hints = [
+        `Todoist token response: refresh_token=${exchange.refreshToken ? 'yes' : 'no'}`,
+        `Todoist token response access_token: ${describeAccessTokenShape(exchange.accessToken)}`,
+    ]
+    if (exchange.scope) hints.push(`Todoist token response scope: ${exchange.scope}`)
+    if (!exchange.refreshToken) {
+        hints.push(
+            'Todoist issued a non-refresh access token; Comms intentionally rejects tokens without expiring introspection.',
+        )
+    }
+    return hints
+}
+
+function describeAccessTokenShape(accessToken: string): string {
+    const shape = /^[0-9a-f]{40}$/.test(accessToken) ? 'raw-hex-40' : 'other'
+    return `shape=${shape}, length=${accessToken.length}`
+}
+
+function getAuthModeForGrantedScope(scope: string): AuthMode {
+    return splitScopeString(scope).some((scopeCode) => WRITE_SCOPES.has(scopeCode))
+        ? 'read-write'
+        : 'read-only'
+}
+
+function normalizeScopeString(scope: string): string {
+    return splitScopeString(scope).join(' ')
+}
+
+function splitScopeString(scope: string): string[] {
+    return scope
+        .replaceAll(',', ' ')
+        .split(/\s+/)
+        .map((part) => part.trim())
+        .filter(Boolean)
 }
 
 /**
@@ -254,6 +621,13 @@ export function createCommsTokenStore(): CommsTokenStore {
         async set(account: CommsAccount, token: string) {
             return inner.set(account, token)
         },
+        async setBundle(
+            account: CommsAccount,
+            bundle: TokenBundle,
+            options?: { promoteDefault?: boolean },
+        ) {
+            return inner.setBundle(account, bundle, options)
+        },
         async clear(ref?: AccountRef) {
             return inner.clear(ref)
         },
@@ -275,6 +649,6 @@ export async function getActiveTokenSource(): Promise<'env' | 'secure-store' | '
     if (process.env[TOKEN_ENV_VAR]) return 'env'
     const config = await getConfig()
     const record = getDefaultUserRecord(config)
-    if (record?.fallbackToken) return 'config-file'
+    if (record?.fallbackToken || record?.fallbackRefreshToken) return 'config-file'
     return 'secure-store'
 }

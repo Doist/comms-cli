@@ -69,6 +69,13 @@ describe('tdc view <url> routing', () => {
         ).rejects.toThrow('ROUTED_TO_CONVERSATION')
     })
 
+    it('routes short conversation URL to conversation view', async () => {
+        const program = createProgram()
+        await expect(
+            program.parseAsync(['node', 'tdc', 'view', 'https://comms.todoist.com/1585/msg/400']),
+        ).rejects.toThrow('ROUTED_TO_CONVERSATION')
+    })
+
     it('routes message URL to msg view', async () => {
         const program = createProgram()
         await expect(

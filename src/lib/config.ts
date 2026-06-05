@@ -27,6 +27,7 @@ const KNOWN_CONFIG_KEYS: ReadonlySet<string> = new Set([
     // cli-core's update command writes the channel under `update_channel`;
     // the in-memory `Config` exposes it as `updateChannel`.
     'update_channel',
+    'oauthClients',
     'userSettings',
     'users',
     'defaultUserId',
@@ -38,9 +39,22 @@ const KNOWN_STORED_USER_KEYS: ReadonlySet<string> = new Set([
     'authMode',
     'authScope',
     'token',
+    'fallbackRefreshToken',
+    'accessTokenExpiresAt',
+    'refreshTokenExpiresAt',
+    'hasRefreshToken',
+    'oauthClientId',
+    'authBaseUrl',
+    'authResource',
 ])
 
 const KNOWN_USER_SETTINGS_KEYS: ReadonlySet<string> = new Set(['unarchiveNewThreads'])
+const KNOWN_OAUTH_CLIENT_KEYS: ReadonlySet<string> = new Set([
+    'clientId',
+    'authBaseUrl',
+    'authResource',
+    'redirectUri',
+])
 
 const AUTH_MODES: ReadonlySet<AuthMode> = new Set(['read-only', 'read-write', 'unknown'])
 export const UPDATE_CHANNELS: ReadonlySet<UpdateChannel> = new Set(['stable', 'pre-release'])
@@ -60,6 +74,20 @@ export type StoredUser = {
     authMode?: AuthMode
     authScope?: string
     token?: string
+    fallbackRefreshToken?: string
+    accessTokenExpiresAt?: number
+    refreshTokenExpiresAt?: number
+    hasRefreshToken?: boolean
+    oauthClientId?: string
+    authBaseUrl?: string
+    authResource?: string
+}
+
+export type StoredOAuthClient = {
+    clientId: string
+    authBaseUrl: string
+    authResource: string
+    redirectUri: string
 }
 
 export interface Config {
@@ -67,6 +95,7 @@ export interface Config {
     defaultUserId?: string
     currentWorkspace?: number
     updateChannel?: UpdateChannel
+    oauthClients?: StoredOAuthClient[]
     userSettings?: UserSettings
 }
 
@@ -189,6 +218,38 @@ export function validateConfigForDoctor(config: Record<string, unknown>): string
         issues.push('defaultUserId must be a string')
     }
 
+    if (config.oauthClients !== undefined) {
+        if (!Array.isArray(config.oauthClients)) {
+            issues.push('oauthClients must be an array')
+        } else {
+            for (let i = 0; i < config.oauthClients.length; i++) {
+                const client = config.oauthClients[i]
+                if (client === null || typeof client !== 'object' || Array.isArray(client)) {
+                    issues.push(`oauthClients[${i}] must be an object`)
+                    continue
+                }
+                const clientRecord = client as Record<string, unknown>
+                for (const key of Object.keys(clientRecord)) {
+                    if (!KNOWN_OAUTH_CLIENT_KEYS.has(key)) {
+                        issues.push(`oauthClients[${i}] contains unrecognized key "${key}"`)
+                    }
+                }
+                if (typeof clientRecord.clientId !== 'string') {
+                    issues.push(`oauthClients[${i}].clientId must be a string`)
+                }
+                if (typeof clientRecord.authBaseUrl !== 'string') {
+                    issues.push(`oauthClients[${i}].authBaseUrl must be a string`)
+                }
+                if (typeof clientRecord.authResource !== 'string') {
+                    issues.push(`oauthClients[${i}].authResource must be a string`)
+                }
+                if (typeof clientRecord.redirectUri !== 'string') {
+                    issues.push(`oauthClients[${i}].redirectUri must be a string`)
+                }
+            }
+        }
+    }
+
     if (config.users !== undefined) {
         if (!Array.isArray(config.users)) {
             issues.push('users must be an array')
@@ -228,6 +289,50 @@ export function validateConfigForDoctor(config: Record<string, unknown>): string
                 }
                 if (userRecord.token !== undefined && typeof userRecord.token !== 'string') {
                     issues.push(`users[${i}].token must be a string`)
+                }
+                if (
+                    userRecord.fallbackRefreshToken !== undefined &&
+                    typeof userRecord.fallbackRefreshToken !== 'string'
+                ) {
+                    issues.push(`users[${i}].fallbackRefreshToken must be a string`)
+                }
+                if (
+                    userRecord.accessTokenExpiresAt !== undefined &&
+                    (typeof userRecord.accessTokenExpiresAt !== 'number' ||
+                        !Number.isFinite(userRecord.accessTokenExpiresAt))
+                ) {
+                    issues.push(`users[${i}].accessTokenExpiresAt must be a finite number`)
+                }
+                if (
+                    userRecord.refreshTokenExpiresAt !== undefined &&
+                    (typeof userRecord.refreshTokenExpiresAt !== 'number' ||
+                        !Number.isFinite(userRecord.refreshTokenExpiresAt))
+                ) {
+                    issues.push(`users[${i}].refreshTokenExpiresAt must be a finite number`)
+                }
+                if (
+                    userRecord.hasRefreshToken !== undefined &&
+                    typeof userRecord.hasRefreshToken !== 'boolean'
+                ) {
+                    issues.push(`users[${i}].hasRefreshToken must be a boolean`)
+                }
+                if (
+                    userRecord.oauthClientId !== undefined &&
+                    typeof userRecord.oauthClientId !== 'string'
+                ) {
+                    issues.push(`users[${i}].oauthClientId must be a string`)
+                }
+                if (
+                    userRecord.authBaseUrl !== undefined &&
+                    typeof userRecord.authBaseUrl !== 'string'
+                ) {
+                    issues.push(`users[${i}].authBaseUrl must be a string`)
+                }
+                if (
+                    userRecord.authResource !== undefined &&
+                    typeof userRecord.authResource !== 'string'
+                ) {
+                    issues.push(`users[${i}].authResource must be a string`)
                 }
             }
         }

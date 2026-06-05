@@ -1,11 +1,15 @@
 import type { SearchResult } from '@doist/comms-sdk'
-import { getApiToken } from './auth.js'
+import { getApiTokenSnapshot } from './auth.js'
 import { CliError } from './errors.js'
 
-function getBaseUrl(): string {
+function getBaseUrl(authResource?: string): string {
     const override = process.env.COMMS_BASE_URL
     if (override) {
         const trimmed = override.endsWith('/') ? override.slice(0, -1) : override
+        return `${trimmed}/api/v1`
+    }
+    if (authResource && authResource !== 'https://comms.todoist.com') {
+        const trimmed = authResource.endsWith('/') ? authResource.slice(0, -1) : authResource
         return `${trimmed}/api/v1`
     }
     return 'https://api.comms.todoist.com/api/v1'
@@ -67,7 +71,7 @@ function transformSearchResult(item: Record<string, unknown>): SearchResult {
 export async function extendedSearch(
     params: ExtendedSearchParams,
 ): Promise<ExtendedSearchResponse> {
-    const token = await getApiToken()
+    const { token, account } = await getApiTokenSnapshot()
 
     const apiParams: Record<string, string | number | boolean> = {
         workspace_id: params.workspaceId,
@@ -94,7 +98,7 @@ export async function extendedSearch(
         searchParams.append(key, String(value))
     }
 
-    const url = `${getBaseUrl()}/search?${searchParams.toString()}`
+    const url = `${getBaseUrl(account.authResource)}/search?${searchParams.toString()}`
 
     const response = await fetch(url, {
         method: 'GET',

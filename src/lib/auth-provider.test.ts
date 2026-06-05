@@ -4,12 +4,12 @@ vi.mock('./api.js', () => ({ createWrappedCommsClient: vi.fn() }))
 
 const keyringMocks = vi.hoisted(() => ({
     createKeyringTokenStore: vi.fn(),
-    createDcrProvider: vi.fn(),
     inner: {
         active: vi.fn(),
         activeBundle: vi.fn(),
         activeAccount: vi.fn(),
         set: vi.fn(),
+        setBundle: vi.fn(),
         clear: vi.fn(),
         list: vi.fn(),
         setDefault: vi.fn(),
@@ -21,20 +21,15 @@ const keyringMocks = vi.hoisted(() => ({
 vi.mock('@doist/cli-core/auth', async (importOriginal) => {
     const actual = await importOriginal<typeof import('@doist/cli-core/auth')>()
     keyringMocks.createKeyringTokenStore.mockImplementation(() => keyringMocks.inner)
-    // Delegate to the real factory so the returned provider works, while
-    // capturing the options createCommsAuthProvider passes (asserted below).
-    keyringMocks.createDcrProvider.mockImplementation((options) =>
-        actual.createDcrProvider(options),
-    )
     return {
         ...actual,
         createKeyringTokenStore: keyringMocks.createKeyringTokenStore,
-        createDcrProvider: keyringMocks.createDcrProvider,
     }
 })
 
 const configMocks = vi.hoisted(() => ({
     getConfig: vi.fn(),
+    updateConfig: vi.fn(),
 }))
 
 vi.mock('./config.js', async (importOriginal) => {
@@ -43,14 +38,16 @@ vi.mock('./config.js', async (importOriginal) => {
         ...actual,
         getConfigPath: () => '/home/user/.config/comms-cli/config.json',
         getConfig: configMocks.getConfig,
+        updateConfig: configMocks.updateConfig,
     }
 })
 
 import { createWrappedCommsClient } from './api.js'
 import {
     createCommsAuthProvider,
+    FULL_ACCESS_SCOPES,
+    getScopes,
     matchCommsAccount,
-    READ_ONLY_SCOPES,
     READ_WRITE_SCOPES,
 } from './auth-provider.js'
 
@@ -64,6 +61,19 @@ const STORED_ACCOUNT = {
     authScope: 'user:read',
 }
 
+function jsonResponse(body: unknown, init: ResponseInit = {}): Response {
+    return new Response(JSON.stringify(body), {
+        status: 200,
+        headers: { 'Content-Type': 'application/json' },
+        ...init,
+    })
+}
+
+function formBody(call: unknown[]): URLSearchParams {
+    const init = call[1] as RequestInit
+    return new URLSearchParams(String(init.body))
+}
+
 async function loadCreateCommsTokenStore(): Promise<
     typeof import('./auth-provider.js').createCommsTokenStore
 > {
@@ -73,34 +83,247 @@ async function loadCreateCommsTokenStore(): Promise<
 }
 
 describe('createCommsAuthProvider', () => {
-    // clearAllMocks (not restoreAllMocks) so the createDcrProvider delegating
-    // implementation set in the module mock survives between tests.
+    beforeEach(() => {
+        configMocks.getConfig.mockReset().mockResolvedValue({})
+        configMocks.updateConfig.mockReset().mockResolvedValue(undefined)
+    })
+
     afterEach(() => {
         vi.clearAllMocks()
+        vi.unstubAllEnvs()
     })
 
-    it('registers with client_secret_post so underscore client_ids survive token-endpoint auth', () => {
-        createCommsAuthProvider()
-        const options = keyringMocks.createDcrProvider.mock.calls.at(-1)?.[0]
-        expect(options.clientMetadata.tokenEndpointAuthMethod).toBe('client_secret_post')
-    })
+    it('registers a public Todoist DCR client for the local callback URI', async () => {
+        const fetchImpl = vi
+            .fn()
+            .mockResolvedValue(
+                jsonResponse(
+                    { client_id: 'tdd_123', token_endpoint_auth_method: 'none' },
+                    { status: 201 },
+                ),
+            )
 
-    it('registers the Comms CLI client metadata, including the current repo icon', () => {
-        createCommsAuthProvider()
-        const options = keyringMocks.createDcrProvider.mock.calls.at(-1)?.[0]
+        const result = await createCommsAuthProvider(fetchImpl).prepare!({
+            redirectUri: 'http://localhost:8766/callback',
+            flags: {},
+        })
 
-        expect(options.clientMetadata).toMatchObject({
-            clientName: 'Comms CLI',
-            clientUri: 'https://github.com/doist/comms-cli',
-            logoUri: 'https://raw.githubusercontent.com/doist/comms-cli/main/icons/comms-cli.png',
+        // Registration runs through cli-core's createDcrProvider (oauth4webapi);
+        // comms-cli owns the metadata it POSTs and where it caches the result.
+        expect(fetchImpl).toHaveBeenCalledTimes(1)
+        expect(fetchImpl.mock.calls[0][0]).toBe('https://todoist.com/oauth/register')
+        expect(JSON.parse(String((fetchImpl.mock.calls[0][1] as RequestInit).body))).toMatchObject({
+            client_name: 'Comms CLI',
+            client_uri: 'https://github.com/doist/comms-cli',
+            logo_uri: 'https://raw.githubusercontent.com/doist/comms-cli/main/icons/comms-cli.png',
+            redirect_uris: ['http://localhost:8766/callback'],
+            scope: FULL_ACCESS_SCOPES.join(' '),
+            grant_types: ['authorization_code', 'refresh_token'],
+            response_types: ['code'],
+            token_endpoint_auth_method: 'none',
+        })
+        // cli-core stashes only the issued client in the handshake.
+        expect(result.handshake).toMatchObject({ clientId: 'tdd_123' })
+        // comms-cli's saveClient hook persists it keyed on auth server + resource + redirect.
+        expect(configMocks.updateConfig).toHaveBeenCalledWith({
+            oauthClients: [
+                {
+                    clientId: 'tdd_123',
+                    authBaseUrl: 'https://todoist.com',
+                    authResource: 'https://comms.todoist.com',
+                    redirectUri: 'http://localhost:8766/callback',
+                },
+            ],
         })
     })
 
-    // Registration / authorize / token-exchange mechanics now live in cli-core's
-    // createDcrProvider (covered by its own suite). The only comms-specific
-    // behaviour is `validate`: probe getSessionUser, then derive authMode +
-    // authScope from the folded `readOnly` (the scope set is a pure function of
-    // it — see resolveScopes in login.ts).
+    it('reuses a cached DCR client (loadClient hook) for the same auth server, resource, and redirect URI', async () => {
+        configMocks.getConfig.mockResolvedValue({
+            oauthClients: [
+                {
+                    clientId: 'tdd_cached',
+                    authBaseUrl: 'https://todoist.com',
+                    authResource: 'https://comms.todoist.com',
+                    redirectUri: 'http://localhost:8766/callback',
+                },
+            ],
+        })
+        const fetchImpl = vi.fn()
+
+        const result = await createCommsAuthProvider(fetchImpl).prepare!({
+            redirectUri: 'http://localhost:8766/callback',
+            flags: {},
+        })
+
+        // Cache hit: no registration round-trip, nothing re-persisted.
+        expect(fetchImpl).not.toHaveBeenCalled()
+        expect(configMocks.updateConfig).not.toHaveBeenCalled()
+        expect(result.handshake).toMatchObject({ clientId: 'tdd_cached' })
+    })
+
+    it('uses staging Todoist OAuth endpoints when COMMS_BASE_URL targets staging Comms', async () => {
+        vi.stubEnv('COMMS_BASE_URL', 'https://comms.staging.todoist.com/api/v1')
+        const fetchImpl = vi
+            .fn()
+            .mockResolvedValue(
+                jsonResponse(
+                    { client_id: 'tdd_staging', token_endpoint_auth_method: 'none' },
+                    { status: 201 },
+                ),
+            )
+
+        const prepared = await createCommsAuthProvider(fetchImpl).prepare!({
+            redirectUri: 'http://localhost:8766/callback',
+            flags: {},
+        })
+        const authorized = await createCommsAuthProvider(fetchImpl).authorize({
+            redirectUri: 'http://localhost:8766/callback',
+            state: 'state_123',
+            scopes: ['user:read', 'comms:content:read'],
+            readOnly: true,
+            flags: {},
+            handshake: prepared.handshake,
+        })
+        const url = new URL(authorized.authorizeUrl)
+
+        expect(fetchImpl.mock.calls[0][0]).toBe('https://staging.todoist.com/oauth/register')
+        expect(url.origin).toBe('https://staging.todoist.com')
+        expect(url.searchParams.get('resource')).toBe('https://comms.staging.todoist.com')
+        expect(url.searchParams.get('scope')).toBe('user:read comms:content:read')
+    })
+
+    it('exchanges authorization codes as a public client and includes the Comms resource', async () => {
+        const fetchImpl = vi.fn().mockResolvedValue(
+            jsonResponse({
+                token_type: 'bearer',
+                access_token: 'tdc_access',
+                refresh_token: 'refresh_123',
+                expires_in: 3600,
+                scope: 'user:read comms:content:read',
+            }),
+        )
+
+        const handshake = {
+            clientId: 'tdd_123',
+            codeVerifier: 'verifier_123',
+            authBaseUrl: 'https://todoist.com',
+            resource: 'https://comms.todoist.com',
+        }
+        const exchange = await createCommsAuthProvider(fetchImpl).exchangeCode({
+            code: 'code_123',
+            state: 'state_123',
+            redirectUri: 'http://localhost:8766/callback',
+            handshake,
+        })
+        const body = formBody(fetchImpl.mock.calls[0])
+
+        expect(fetchImpl.mock.calls[0][0]).toBe('https://todoist.com/oauth/access_token')
+        expect(body.get('grant_type')).toBe('authorization_code')
+        expect(body.get('client_id')).toBe('tdd_123')
+        expect(body.get('client_secret')).toBeNull()
+        expect(body.get('code_verifier')).toBe('verifier_123')
+        expect(body.get('resource')).toBe('https://comms.todoist.com')
+        expect(exchange.accessToken).toBe('tdc_access')
+        expect(exchange.refreshToken).toBe('refresh_123')
+        expect(exchange.expiresAt).toEqual(expect.any(Number))
+        expect(exchange.scope).toBe('user:read comms:content:read')
+        // The wrapper stashes the granted scope + token diagnostics on the shared
+        // handshake; cli-core threads the same object into validateToken next.
+        expect(handshake).toMatchObject({ grantedScope: 'user:read comms:content:read' })
+        expect((handshake as { tokenDiagnostics?: string[] }).tokenDiagnostics).toEqual(
+            expect.arrayContaining(['Todoist token response: refresh_token=yes']),
+        )
+    })
+
+    it('refreshes access tokens with the stored public client id and Comms resource', async () => {
+        const fetchImpl = vi.fn().mockResolvedValue(
+            jsonResponse({
+                token_type: 'bearer',
+                access_token: 'tdc_fresh',
+                refresh_token: 'refresh_rotated',
+                expires_in: 3600,
+                scope: 'user:read comms:content:read',
+            }),
+        )
+
+        const exchange = await createCommsAuthProvider(fetchImpl).refreshToken!({
+            refreshToken: 'refresh_old',
+            handshake: {
+                clientId: 'tdd_123',
+                authBaseUrl: 'https://todoist.com',
+                resource: 'https://comms.todoist.com',
+                authScope: READ_WRITE_SCOPES.join(' '),
+            },
+        })
+        const body = formBody(fetchImpl.mock.calls[0])
+
+        expect(body.get('grant_type')).toBe('refresh_token')
+        expect(body.get('client_id')).toBe('tdd_123')
+        expect(body.get('client_secret')).toBeNull()
+        expect(body.get('refresh_token')).toBe('refresh_old')
+        expect(body.get('resource')).toBe('https://comms.todoist.com')
+        expect(exchange.accessToken).toBe('tdc_fresh')
+        expect(exchange.refreshToken).toBe('refresh_rotated')
+    })
+
+    it('keeps stored account scope metadata when a refresh response omits scope', async () => {
+        const fetchImpl = vi.fn().mockResolvedValue(
+            jsonResponse({
+                token_type: 'bearer',
+                access_token: 'tdc_fresh',
+                expires_in: 3600,
+            }),
+        )
+
+        const exchange = await createCommsAuthProvider(fetchImpl).refreshToken!({
+            refreshToken: 'refresh_old',
+            handshake: {
+                clientId: 'tdd_123',
+                accountId: '42',
+                accountLabel: 'Ada',
+                authScope: READ_WRITE_SCOPES.join(' '),
+                authBaseUrl: 'https://todoist.com',
+                resource: 'https://comms.todoist.com',
+            },
+        })
+
+        expect(exchange.account).toEqual({
+            id: '42',
+            label: 'Ada',
+            authMode: 'read-write',
+            authScope: READ_WRITE_SCOPES.join(' '),
+            oauthClientId: 'tdd_123',
+            authBaseUrl: 'https://todoist.com',
+            authResource: 'https://comms.todoist.com',
+        })
+    })
+
+    it('translates invalid_grant refresh failures into AUTH_REFRESH_EXPIRED', async () => {
+        const fetchImpl = vi.fn().mockResolvedValue(
+            jsonResponse(
+                {
+                    error: 'invalid_grant',
+                    error_description: 'Refresh token expired',
+                },
+                { status: 400 },
+            ),
+        )
+
+        await expect(
+            createCommsAuthProvider(fetchImpl).refreshToken!({
+                refreshToken: 'refresh_old',
+                handshake: {
+                    clientId: 'tdd_123',
+                    authBaseUrl: 'https://todoist.com',
+                    resource: 'https://comms.todoist.com',
+                },
+            }),
+        ).rejects.toMatchObject({
+            code: 'AUTH_REFRESH_EXPIRED',
+            message: 'Refresh token rejected: invalid_grant (Refresh token expired)',
+        })
+    })
+
     it('validate builds a CommsAccount, deriving read-write mode + scopes from the handshake', async () => {
         mockCreateClient.mockReturnValue({
             users: { getSessionUser: vi.fn().mockResolvedValue({ id: 42, fullName: 'Ada' }) },
@@ -108,30 +331,59 @@ describe('createCommsAuthProvider', () => {
 
         const account = await createCommsAuthProvider().validateToken!({
             token: 'tk_new',
-            handshake: { readOnly: false },
+            handshake: {
+                readOnly: false,
+                clientId: 'tdd_123',
+                authBaseUrl: 'https://todoist.com',
+                resource: 'https://comms.todoist.com',
+                grantedScope: READ_WRITE_SCOPES.join(' '),
+            },
         })
 
-        expect(mockCreateClient).toHaveBeenCalledWith('tk_new')
+        expect(mockCreateClient).toHaveBeenCalledWith('tk_new', {
+            baseUrl: 'https://comms.todoist.com',
+        })
         expect(account).toEqual({
             id: '42',
             label: 'Ada',
             authMode: 'read-write',
             authScope: READ_WRITE_SCOPES.join(' '),
+            oauthClientId: 'tdd_123',
+            authBaseUrl: 'https://todoist.com',
+            authResource: 'https://comms.todoist.com',
         })
     })
 
-    it('validate derives read-only mode + scopes when the handshake carries readOnly', async () => {
+    it('validate surfaces the exchange token diagnostics when Comms rejects OAuth', async () => {
         mockCreateClient.mockReturnValue({
-            users: { getSessionUser: vi.fn().mockResolvedValue({ id: 7, fullName: 'Lin' }) },
+            users: { getSessionUser: vi.fn().mockRejectedValue({ code: 'FORBIDDEN' }) },
         } as unknown as ReturnType<typeof createWrappedCommsClient>)
 
-        const account = await createCommsAuthProvider().validateToken!({
-            token: 'tk_ro',
-            handshake: { readOnly: true },
+        // exchangeCode stashes these on the handshake; validate surfaces them
+        // so a Comms rejection can explain what Todoist actually issued.
+        const diagnostics = [
+            'Todoist token response: refresh_token=no',
+            'Todoist token response access_token: shape=other, length=61',
+            `Todoist token response scope: ${READ_WRITE_SCOPES.join(' ')}`,
+            'Todoist issued a non-refresh access token; Comms intentionally rejects tokens without expiring introspection.',
+        ]
+        await expect(
+            createCommsAuthProvider().validateToken!({
+                token: 'tk_forbidden',
+                handshake: {
+                    readOnly: false,
+                    clientId: 'tdd_123',
+                    authBaseUrl: 'https://todoist.com',
+                    resource: 'https://comms.todoist.com',
+                    grantedScope: READ_WRITE_SCOPES.join(' '),
+                    tokenDiagnostics: diagnostics,
+                },
+            }),
+        ).rejects.toMatchObject({
+            code: 'AUTH_FAILED',
+            message: 'Comms rejected the OAuth token during validation.',
+            hints: expect.arrayContaining(diagnostics),
         })
-
-        expect(account.authMode).toBe('read-only')
-        expect(account.authScope).toBe(READ_ONLY_SCOPES.join(' '))
     })
 
     it('validate fails closed (AUTH_FAILED) when the handshake has no boolean readOnly flag', async () => {
@@ -142,6 +394,42 @@ describe('createCommsAuthProvider', () => {
     })
 })
 
+describe('getScopes', () => {
+    it('returns the exact read-only, default write, and full-access scope sets', () => {
+        expect(getScopes({ readOnly: true })).toEqual([
+            'user:read',
+            'workspaces:read',
+            'comms:channels:read',
+            'comms:content:read',
+            'comms:messages:read',
+        ])
+        expect(getScopes({ readOnly: false })).toEqual([
+            'user:read',
+            'workspaces:read',
+            'comms:channels:read',
+            'comms:content:read',
+            'comms:messages:read',
+            'comms:content:write',
+            'comms:messages:write',
+        ])
+        expect(getScopes({ readOnly: false, fullAccess: true })).toEqual([
+            'user:read',
+            'workspaces:read',
+            'comms:channels:read',
+            'comms:content:read',
+            'comms:messages:read',
+            'comms:content:write',
+            'comms:messages:write',
+            'user:write',
+            'workspaces:write',
+            'comms:channels:write',
+            'comms:channels:delete',
+            'comms:content:delete',
+            'comms:messages:delete',
+        ])
+    })
+})
+
 describe('createCommsTokenStore', () => {
     beforeEach(() => {
         keyringMocks.createKeyringTokenStore.mockClear()
@@ -149,6 +437,7 @@ describe('createCommsTokenStore', () => {
         keyringMocks.inner.activeBundle.mockReset().mockResolvedValue(null)
         keyringMocks.inner.activeAccount.mockReset().mockResolvedValue(null)
         keyringMocks.inner.set.mockReset().mockResolvedValue(undefined)
+        keyringMocks.inner.setBundle.mockReset().mockResolvedValue(undefined)
         keyringMocks.inner.clear.mockReset().mockResolvedValue(undefined)
         keyringMocks.inner.list.mockReset().mockResolvedValue([])
         keyringMocks.inner.setDefault.mockReset().mockResolvedValue(undefined)
@@ -258,16 +547,21 @@ describe('createCommsTokenStore', () => {
         expect(keyringMocks.inner.activeAccount).toHaveBeenCalledWith('42')
     })
 
-    it('set/clear/list/setDefault delegate to the cli-core store', async () => {
+    it('set/setBundle/clear/list/setDefault delegate to the cli-core store', async () => {
         const createCommsTokenStore = await loadCreateCommsTokenStore()
         const store = createCommsTokenStore()
+        const bundle = { accessToken: 'tk_bundle', refreshToken: 'rt_bundle' }
 
         await store.set(STORED_ACCOUNT, 'tk_new')
+        await store.setBundle(STORED_ACCOUNT, bundle, { promoteDefault: true })
         await store.clear('42')
         await store.list()
         await store.setDefault('42')
 
         expect(keyringMocks.inner.set).toHaveBeenCalledWith(STORED_ACCOUNT, 'tk_new')
+        expect(keyringMocks.inner.setBundle).toHaveBeenCalledWith(STORED_ACCOUNT, bundle, {
+            promoteDefault: true,
+        })
         expect(keyringMocks.inner.clear).toHaveBeenCalledWith('42')
         expect(keyringMocks.inner.list).toHaveBeenCalledTimes(1)
         expect(keyringMocks.inner.setDefault).toHaveBeenCalledWith('42')

@@ -10,7 +10,11 @@ export type { ErrorType } from '@doist/cli-core'
  */
 export type ErrorCode =
     // Auth & permissions
+    | 'AUTH_DCR_FAILED'
     | 'AUTH_FAILED'
+    | 'AUTH_REFRESH_EXPIRED'
+    | 'AUTH_REFRESH_TRANSIENT'
+    | 'AUTH_TOKEN_EXCHANGE_FAILED'
     | 'FORBIDDEN'
     | 'INSUFFICIENT_SCOPE'
     | 'INVALID_TOKEN'

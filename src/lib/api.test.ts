@@ -4,6 +4,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 // Hoisted mocks — shared across both describe blocks.
 const getWorkspaceUsersMock = vi.hoisted(() => vi.fn().mockResolvedValue([]))
 const sdkMocks = vi.hoisted(() => ({
+    createClient: vi.fn(),
     deleteChannel: vi.fn(),
     uploadAttachment: vi.fn(),
 }))
@@ -13,7 +14,9 @@ vi.mock('@doist/comms-sdk', () => {
         channels = { deleteChannel: sdkMocks.deleteChannel }
         attachments = { upload: sdkMocks.uploadAttachment }
         workspaceUsers = { getWorkspaceUsers: getWorkspaceUsersMock }
-        constructor(_token?: string) {}
+        constructor(token?: string, options?: unknown) {
+            sdkMocks.createClient(token, options)
+        }
     }
     return {
         CommsApi,
@@ -30,7 +33,16 @@ vi.mock('@doist/comms-sdk', () => {
 })
 
 vi.mock('./auth.js', () => ({
-    getApiToken: vi.fn().mockResolvedValue('test-token'),
+    getApiTokenSnapshot: vi.fn().mockResolvedValue({
+        token: 'test-token',
+        account: {
+            id: '42',
+            label: 'Ada',
+            authMode: 'read-write',
+            authResource: 'https://comms.staging.todoist.com',
+            authScope: '',
+        },
+    }),
     getAuthMetadata: vi.fn().mockResolvedValue({ authMode: 'full' }),
 }))
 
@@ -53,12 +65,18 @@ vi.mock('./progress.js', () => ({
     getProgressTracker: () => ({ isEnabled: () => false, emitApiCall: vi.fn() }),
 }))
 
-const { clearWorkspaceUserCache, createWrappedCommsClient, getWorkspaceUsers } =
-    await import('./api.js')
+const {
+    clearApiClientCache,
+    clearWorkspaceUserCache,
+    createWrappedCommsClient,
+    getCommsClient,
+    getWorkspaceUsers,
+} = await import('./api.js')
 
 describe('getWorkspaceUsers', () => {
     beforeEach(() => {
         getWorkspaceUsersMock.mockClear()
+        clearApiClientCache()
         clearWorkspaceUserCache()
     })
 
@@ -103,9 +121,27 @@ describe('getWorkspaceUsers', () => {
 
 describe('wrapResult — central 403 translation', () => {
     beforeEach(() => {
+        clearApiClientCache()
+        sdkMocks.createClient.mockReset()
         sdkMocks.deleteChannel.mockReset()
         sdkMocks.uploadAttachment.mockReset()
         permMocks.ensureWriteAllowed.mockReset().mockResolvedValue(undefined)
+    })
+
+    it('uses the explicit base URL when creating the wrapped SDK client', () => {
+        createWrappedCommsClient('test-token', { baseUrl: 'https://comms.staging.todoist.com' })
+
+        expect(sdkMocks.createClient).toHaveBeenCalledWith('test-token', {
+            baseUrl: 'https://comms.staging.todoist.com',
+        })
+    })
+
+    it('uses the active OAuth account resource when creating the shared SDK client', async () => {
+        await getCommsClient()
+
+        expect(sdkMocks.createClient).toHaveBeenCalledWith('test-token', {
+            baseUrl: 'https://comms.staging.todoist.com',
+        })
     })
 
     it('translates a plain 403 into a FORBIDDEN CliError', async () => {
@@ -135,7 +171,10 @@ describe('wrapResult — central 403 translation', () => {
         await expect(client.channels.deleteChannel('CH500')).rejects.toMatchObject({
             code: 'INSUFFICIENT_SCOPE',
             message: 'This action requires permissions your current token does not have.',
-            hints: ['Run `tdc auth login` to re-authenticate with the required scopes'],
+            hints: [
+                'Run `tdc auth login` to re-authenticate with standard write scopes',
+                'Use `tdc auth login --full-access` when the action deletes content or manages channels/workspaces',
+            ],
         })
     })
 
@@ -153,7 +192,10 @@ describe('wrapResult — central 403 translation', () => {
         ).rejects.toMatchObject({
             code: 'INSUFFICIENT_SCOPE',
             message: 'This action requires permissions your current token does not have.',
-            hints: ['Run `tdc auth login` to re-authenticate with the required scopes'],
+            hints: [
+                'Run `tdc auth login` to re-authenticate with standard write scopes',
+                'Use `tdc auth login --full-access` when the action deletes content or manages channels/workspaces',
+            ],
         })
         // Confirms upload runs through the mutating write-guard.
         expect(permMocks.ensureWriteAllowed).toHaveBeenCalled()

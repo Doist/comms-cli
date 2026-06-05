@@ -74,7 +74,11 @@ describe('doctor command', () => {
         mockGetConfig.mockResolvedValue({})
         mockProbeApiToken.mockResolvedValue({
             token: 'test_token_123456789',
-            metadata: { authMode: 'read-write', source: 'secure-store' },
+            metadata: {
+                authMode: 'read-write',
+                authResource: 'https://comms.staging.todoist.com',
+                source: 'secure-store',
+            },
         })
         mockCreateWrappedCommsClient.mockReturnValue({
             users: {
@@ -110,6 +114,10 @@ describe('doctor command', () => {
         expect(consoleSpy).toHaveBeenCalledWith(
             expect.stringContaining('PASS Authenticated as person@example.com via secure-store'),
         )
+        expect(mockProbeApiToken).toHaveBeenCalledWith({ refresh: true })
+        expect(mockCreateWrappedCommsClient).toHaveBeenCalledWith('test_token_123456789', {
+            baseUrl: 'https://comms.staging.todoist.com',
+        })
         expect(consoleSpy).toHaveBeenCalledWith(
             expect.stringContaining('PASS CLI is up to date on stable (v1.0.0)'),
         )
@@ -229,6 +237,7 @@ describe('doctor command', () => {
         const program = createProgram()
         await program.parseAsync(['node', 'tdc', 'doctor', '--offline'])
 
+        expect(mockProbeApiToken).toHaveBeenCalledWith({ refresh: false })
         expect(consoleSpy).toHaveBeenCalledWith(
             expect.stringContaining(
                 'SKIP Auth validation skipped (--offline); credentials found via secure-store',

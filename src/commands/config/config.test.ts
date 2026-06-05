@@ -317,7 +317,14 @@ describe('config view', () => {
 
     it('masks per-user fallback tokens in --json output', async () => {
         presentConfig({
-            users: [{ ...STORED_ALAN, token: 'tw_userA_plaintext_fallback_123' }, STORED_ELLIE],
+            users: [
+                {
+                    ...STORED_ALAN,
+                    token: 'tw_userA_plaintext_fallback_123',
+                    fallbackRefreshToken: 'rt_userA_plaintext_refresh_456',
+                },
+                STORED_ELLIE,
+            ],
             defaultUserId: '1',
         })
         const consoleSpy = captureConsole('log')
@@ -327,11 +334,21 @@ describe('config view', () => {
         const parsed = JSON.parse(consoleSpy.mock.calls[0][0] as string)
         expect(parsed.users[0].token).toBe('****…_123')
         expect(parsed.users[0].token).not.toContain('plaintext')
+        expect(parsed.users[0].fallbackRefreshToken).toBe('****…_456')
+        expect(parsed.users[0].fallbackRefreshToken).not.toContain('plaintext')
         expect(parsed.users[1]).not.toHaveProperty('token')
     })
 
     it('--show-token reveals per-user fallback tokens', async () => {
-        presentConfig({ users: [{ ...STORED_ALAN, token: 'tw_userA_plaintext_fallback_123' }] })
+        presentConfig({
+            users: [
+                {
+                    ...STORED_ALAN,
+                    token: 'tw_userA_plaintext_fallback_123',
+                    fallbackRefreshToken: 'rt_userA_plaintext_refresh_456',
+                },
+            ],
+        })
         const consoleSpy = captureConsole('log')
 
         await createProgram().parseAsync([
@@ -345,6 +362,7 @@ describe('config view', () => {
 
         const parsed = JSON.parse(consoleSpy.mock.calls[0][0] as string)
         expect(parsed.users[0].token).toBe('tw_userA_plaintext_fallback_123')
+        expect(parsed.users[0].fallbackRefreshToken).toBe('rt_userA_plaintext_refresh_456')
     })
 
     it('shows the user settings section', async () => {

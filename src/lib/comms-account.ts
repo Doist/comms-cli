@@ -7,12 +7,18 @@ export function makeCommsAccount(input: {
     label: string
     authMode?: AuthMode
     authScope?: string
+    oauthClientId?: string
+    authBaseUrl?: string
+    authResource?: string
 }): CommsAccount {
     return {
         id: input.id,
         label: input.label,
         authMode: input.authMode ?? 'unknown',
         authScope: input.authScope ?? '',
+        ...(input.oauthClientId ? { oauthClientId: input.oauthClientId } : {}),
+        ...(input.authBaseUrl ? { authBaseUrl: input.authBaseUrl } : {}),
+        ...(input.authResource ? { authResource: input.authResource } : {}),
     }
 }
 
@@ -23,12 +29,21 @@ export function makeCommsAccount(input: {
  */
 export function toCommsAccount(
     sessionUser: { id: number; fullName: string },
-    metadata: { authMode?: AuthMode; authScope?: string } = {},
+    metadata: {
+        authMode?: AuthMode
+        authScope?: string
+        oauthClientId?: string
+        authBaseUrl?: string
+        authResource?: string
+    } = {},
 ): CommsAccount {
     return makeCommsAccount({
         id: String(sessionUser.id),
         label: sessionUser.fullName,
         authMode: metadata.authMode,
         authScope: metadata.authScope,
+        oauthClientId: metadata.oauthClientId,
+        authBaseUrl: metadata.authBaseUrl,
+        authResource: metadata.authResource,
     })
 }

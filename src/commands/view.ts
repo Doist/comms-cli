@@ -2,10 +2,6 @@ import { Command } from 'commander'
 import { CliError } from '../lib/errors.js'
 import { classifyCommsUrl } from '../lib/refs.js'
 
-function looksLikeCommsAppUrl(token: string): boolean {
-    return /^https?:\/\/comms\.todoist\.com\/a\/\S+/.test(token)
-}
-
 function extractViewInvocation(parsedUrl: string): {
     url: string
     passthroughArgs: string[]
@@ -43,6 +39,7 @@ Route mapping:
   Thread URL       → tdc thread view <url>
 
 Examples:
+  tdc view https://comms.todoist.com/1585/ch/100/t/200
   tdc view https://comms.todoist.com/a/1585/ch/100/t/200
   tdc view https://comms.todoist.com/a/1585/ch/100/t/200/c/300
   tdc view https://comms.todoist.com/a/1585/msg/400
@@ -51,12 +48,9 @@ Examples:
         )
         .action(async (url: string) => {
             const urlHints = [
-                'Expected: https://comms.todoist.com/a/{workspaceId}/...',
+                'Expected: https://comms.todoist.com/{workspaceId}/... or https://comms.todoist.com/a/{workspaceId}/...',
                 'Run: tdc view --help for examples',
             ]
-            if (!looksLikeCommsAppUrl(url)) {
-                throw new CliError('INVALID_URL', `Not a recognized Comms URL: ${url}`, urlHints)
-            }
 
             const { url: resolvedUrl, passthroughArgs } = extractViewInvocation(url)
 

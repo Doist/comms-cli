@@ -9,7 +9,7 @@ vi.mock('../../lib/auth.js', async (importOriginal) => {
     const actual = await importOriginal<typeof import('../../lib/auth.js')>()
     return {
         ...actual,
-        getAuthMetadata: vi.fn(),
+        getApiTokenSnapshot: vi.fn(),
         probeApiToken: vi.fn(),
     }
 })
@@ -40,6 +40,15 @@ vi.mock('../../lib/api.js', async (importOriginal) => {
     return {
         ...actual,
         createWrappedCommsClient: vi.fn(),
+    }
+})
+
+vi.mock('../../lib/config.js', async (importOriginal) => {
+    const actual = await importOriginal<typeof import('../../lib/config.js')>()
+    return {
+        ...actual,
+        getConfig: vi.fn(),
+        updateConfig: vi.fn(),
     }
 })
 
@@ -79,16 +88,19 @@ import { attachLoginCommand } from '@doist/cli-core/auth'
 import { CommsRequestError, type User } from '@doist/comms-sdk'
 import { createWrappedCommsClient } from '../../lib/api.js'
 import { type CommsAccount, type CommsTokenStore } from '../../lib/auth-provider.js'
-import { getAuthMetadata, TOKEN_ENV_VAR } from '../../lib/auth.js'
+import { getApiTokenSnapshot, TOKEN_ENV_VAR } from '../../lib/auth.js'
+import { getConfig, updateConfig } from '../../lib/config.js'
 import { resetGlobalArgs } from '../../lib/global-args.js'
 import { registerAuthCommand } from './index.js'
 import { attachCommsStatusCommand } from './status.js'
 
 const mockCreateInterface = vi.mocked(createInterface)
 
-const mockGetAuthMetadata = vi.mocked(getAuthMetadata)
+const mockGetApiTokenSnapshot = vi.mocked(getApiTokenSnapshot)
 const mockCreateWrappedCommsClient = vi.mocked(createWrappedCommsClient)
 const mockAttachLoginCommand = vi.mocked(attachLoginCommand)
+const mockGetConfig = vi.mocked(getConfig)
+const mockUpdateConfig = vi.mocked(updateConfig)
 
 const createProgram = () => createTestProgram(registerAuthCommand)
 
@@ -123,6 +135,27 @@ describe('auth command', () => {
 
     const STORED_SNAPSHOT = { token: 'tk_stored_1234567890', account: STORED_ACCOUNT }
     const STORED_RECORDS = [{ account: STORED_ACCOUNT, isDefault: true }]
+    const COMMS_SCOPE =
+        'user:read comms:content:read comms:content:write comms:messages:read comms:messages:write'
+
+    function workspace(id: number, name = `Workspace ${id}`) {
+        return {
+            id,
+            name,
+            creator: 1,
+            created: new Date('2026-01-01T00:00:00Z'),
+            plan: 'business',
+        }
+    }
+
+    function mockWorkspaceClient(workspaces: ReturnType<typeof workspace>[]) {
+        const getWorkspaces = vi.fn().mockResolvedValue(workspaces)
+        mockCreateWrappedCommsClient.mockReturnValue({
+            workspaces: { getWorkspaces },
+            // biome-ignore lint/suspicious/noExplicitAny: only the method used by these tests matters
+        } as any)
+        return getWorkspaces
+    }
 
     describe('token subcommand', () => {
         let originalIsTTY: boolean | undefined
@@ -359,22 +392,27 @@ describe('auth command', () => {
             vi.stubEnv(TOKEN_ENV_VAR, '')
             storeMocks.list.mockResolvedValue(STORED_RECORDS)
             storeMocks.active.mockResolvedValue(STORED_SNAPSHOT)
+            mockGetApiTokenSnapshot.mockResolvedValue({
+                token: 'tk_refreshed_1234567890',
+                account: {
+                    ...STORED_ACCOUNT,
+                    authResource: 'https://comms.staging.todoist.com',
+                },
+            })
             mockCreateWrappedCommsClient.mockReturnValue({
                 users: { getSessionUser: vi.fn().mockResolvedValue(TEST_USER) },
                 // biome-ignore lint/suspicious/noExplicitAny: only the methods used in this test matter
             } as any)
-            mockGetAuthMetadata.mockResolvedValue({
-                authMode: 'read-write',
-                authScope: 'user:read',
-                source: 'config',
-            })
             process.argv = ['node', 'tdc', '--user', '1', 'auth', 'status']
             resetGlobalArgs()
 
             await createProgram().parseAsync(['node', 'tdc', 'auth', 'status'])
 
             expect(storeMocks.active).toHaveBeenCalledWith('1')
-            expect(mockCreateWrappedCommsClient).toHaveBeenCalledWith('tk_stored_1234567890')
+            expect(mockGetApiTokenSnapshot).toHaveBeenCalledWith('1')
+            expect(mockCreateWrappedCommsClient).toHaveBeenCalledWith('tk_refreshed_1234567890', {
+                baseUrl: 'https://comms.staging.todoist.com',
+            })
             expect(consoleSpy).toHaveBeenCalledWith('✓ Authenticated')
         })
 
@@ -415,7 +453,8 @@ describe('auth command', () => {
             id: String(TEST_USER.id),
             label: TEST_USER.fullName,
             authMode: 'read-write',
-            authScope: 'user:read threads:read',
+            authScope: COMMS_SCOPE,
+            authResource: 'https://comms.staging.todoist.com',
         }
 
         function programWithSnapshot(): Command {
@@ -449,21 +488,22 @@ describe('auth command', () => {
         }
 
         beforeEach(() => {
+            mockGetApiTokenSnapshot.mockResolvedValue({
+                token: 'snapshot_token',
+                account: SNAPSHOT_ACCOUNT,
+            })
             mockCreateWrappedCommsClient.mockReturnValue({
                 users: { getSessionUser: vi.fn().mockResolvedValue(TEST_USER) },
                 // biome-ignore lint/suspicious/noExplicitAny: only the methods used in this test matter
             } as any)
-            mockGetAuthMetadata.mockResolvedValue({
-                authMode: 'read-write',
-                authScope: 'user:read threads:read',
-                source: 'config',
-            })
         })
 
         it('renders text status from the snapshot', async () => {
             await programWithSnapshot().parseAsync(['node', 'tdc', 'auth', 'status'])
 
-            expect(mockCreateWrappedCommsClient).toHaveBeenCalledWith('snapshot_token')
+            expect(mockCreateWrappedCommsClient).toHaveBeenCalledWith('snapshot_token', {
+                baseUrl: 'https://comms.staging.todoist.com',
+            })
             expect(consoleSpy).toHaveBeenCalledWith('✓ Authenticated')
             expect(consoleSpy).toHaveBeenCalledWith('  Email: test@example.com')
             expect(consoleSpy).toHaveBeenCalledWith('  Name:  Test User')
@@ -479,7 +519,7 @@ describe('auth command', () => {
                 email: 'test@example.com',
                 name: 'Test User',
                 authMode: 'read-write',
-                authScope: 'user:read threads:read',
+                authScope: COMMS_SCOPE,
                 source: 'config',
             })
         })
@@ -498,7 +538,7 @@ describe('auth command', () => {
                 email: 'test@example.com',
                 name: 'Test User',
                 authMode: 'read-write',
-                authScope: 'user:read threads:read',
+                authScope: COMMS_SCOPE,
                 source: 'config',
             })
         })
@@ -560,6 +600,19 @@ describe('auth command', () => {
     })
 
     describe('login subcommand wiring', () => {
+        const OAUTH_ACCOUNT: CommsAccount = {
+            ...STORED_ACCOUNT,
+            authResource: 'https://comms.todoist.com',
+        }
+
+        beforeEach(() => {
+            storeMocks.active.mockReset().mockResolvedValue(null)
+            storeMocks.getLastStorageResult.mockReset().mockReturnValue(undefined)
+            mockCreateWrappedCommsClient.mockReset()
+            mockGetConfig.mockReset().mockResolvedValue({})
+            mockUpdateConfig.mockReset().mockResolvedValue(undefined)
+        })
+
         it('passes the comms provider, store, port, and renderers to cli-core attachLoginCommand', async () => {
             createProgram()
 
@@ -579,15 +632,79 @@ describe('auth command', () => {
             expect(options.renderError('boom')).toContain('Authentication failed')
         })
 
-        it('resolveScopes returns the read-write scope list by default and read-only when --read-only is set', () => {
+        it('resolveScopes returns standard, read-only, or full-access OAuth scopes', () => {
             createProgram()
 
             const [, options] = mockAttachLoginCommand.mock.calls[0]
             const writeScopes = options.resolveScopes({ readOnly: false, flags: {} })
+            const fullScopes = options.resolveScopes({
+                readOnly: false,
+                flags: { fullAccess: true },
+            })
             const readScopes = options.resolveScopes({ readOnly: true, flags: {} })
-            expect(writeScopes).toContain('threads:write')
-            expect(readScopes).not.toContain('threads:write')
-            expect(readScopes).toContain('threads:read')
+            expect(writeScopes).toContain('comms:content:write')
+            expect(writeScopes).toContain('comms:messages:write')
+            expect(writeScopes).not.toContain('comms:content:delete')
+            expect(writeScopes).not.toContain('user:write')
+            expect(fullScopes).toContain('comms:content:delete')
+            expect(fullScopes).toContain('user:write')
+            expect(readScopes).not.toContain('comms:content:write')
+            expect(readScopes).toContain('comms:content:read')
+        })
+
+        it('registers --full-access and rejects combining it with --read-only', () => {
+            const program = createProgram()
+            const authCommand = program.commands.find((command) => command.name() === 'auth')
+            const loginCommand = authCommand?.commands.find((command) => command.name() === 'login')
+
+            expect(loginCommand?.options.some((option) => option.long === '--full-access')).toBe(
+                true,
+            )
+
+            const [, options] = mockAttachLoginCommand.mock.calls[0]
+            expect(() =>
+                options.resolveScopes({ readOnly: true, flags: { fullAccess: true } }),
+            ).toThrow('Choose either --read-only or --full-access, not both.')
+        })
+
+        it('sets the only available workspace as current after successful OAuth login', async () => {
+            mockGetConfig.mockResolvedValue({ currentWorkspace: 48121 })
+            storeMocks.active.mockResolvedValue({
+                token: 'oauth-token',
+                account: OAUTH_ACCOUNT,
+            })
+            mockWorkspaceClient([workspace(69, 'Doist')])
+            createProgram()
+
+            const [, options] = mockAttachLoginCommand.mock.calls[0]
+            await options.onSuccess({
+                account: OAUTH_ACCOUNT,
+                view: { json: true, ndjson: false },
+                flags: {},
+            })
+
+            expect(mockUpdateConfig).toHaveBeenCalledTimes(1)
+            expect(mockUpdateConfig).toHaveBeenCalledWith({ currentWorkspace: 69 })
+        })
+
+        it('clears the current workspace when it no longer belongs to the logged-in account', async () => {
+            mockGetConfig.mockResolvedValue({ currentWorkspace: 48121 })
+            storeMocks.active.mockResolvedValue({
+                token: 'oauth-token',
+                account: OAUTH_ACCOUNT,
+            })
+            mockWorkspaceClient([workspace(69, 'Doist'), workspace(70)])
+            createProgram()
+
+            const [, options] = mockAttachLoginCommand.mock.calls[0]
+            await options.onSuccess({
+                account: OAUTH_ACCOUNT,
+                view: { json: true, ndjson: false },
+                flags: {},
+            })
+
+            expect(mockUpdateConfig).toHaveBeenCalledTimes(1)
+            expect(mockUpdateConfig).toHaveBeenCalledWith({ currentWorkspace: undefined })
         })
     })
 

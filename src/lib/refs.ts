@@ -6,6 +6,18 @@ function normalizeRef(ref: string): string {
     return ref.trim()
 }
 
+export const SUPPORTED_COMMS_HOSTS = [
+    'comms.todoist.com',
+    'comms.staging.todoist.com',
+    'comms.local.todoist.com',
+] as const
+
+export function isSupportedCommsHost(hostname: string): boolean {
+    return SUPPORTED_COMMS_HOSTS.includes(
+        hostname.toLowerCase() as (typeof SUPPORTED_COMMS_HOSTS)[number],
+    )
+}
+
 export function isIdRef(ref: string): boolean {
     return normalizeRef(ref).startsWith('id:')
 }
@@ -56,7 +68,16 @@ export function parseNumericIdRefs(refs: string, label = 'reference'): number[] 
 export function looksLikeRawId(ref: string): boolean {
     const normalized = normalizeRef(ref)
     if (!normalized || normalized.includes(' ')) return false
-    return /^[A-Za-z0-9_-]+$/.test(normalized) && /\d/.test(normalized)
+    if (!/^[A-Za-z0-9_-]+$/.test(normalized)) return false
+    return /\d/.test(normalized)
+}
+
+function looksLikeOpaqueCommsId(ref: string): boolean {
+    return /^Cb[A-Za-z0-9_-]{18,}$/.test(ref)
+}
+
+function getOpaqueNameId(parsed: ParsedRef): string | null {
+    return parsed.type === 'name' && looksLikeOpaqueCommsId(parsed.name) ? parsed.name : null
 }
 
 export interface ParsedCommsUrl {
@@ -71,43 +92,45 @@ export interface ParsedCommsUrl {
 export function parseCommsUrl(url: string): ParsedCommsUrl | null {
     try {
         const parsed = new URL(url)
-        if (!parsed.hostname.includes('comms.todoist.com')) {
+        if (
+            (parsed.protocol !== 'http:' && parsed.protocol !== 'https:') ||
+            !isSupportedCommsHost(parsed.hostname)
+        ) {
             return null
         }
 
-        const path = parsed.pathname
+        const segments = parsed.pathname.split('/').filter(Boolean)
         const result: ParsedCommsUrl = {}
 
-        // Pattern: /a/{workspaceId}/ch/{channelId}/t/{threadId}/c/{commentId}
-        // Pattern: /a/{workspaceId}/msg/{conversationId}/m/{messageId}
-        const workspaceMatch = path.match(/\/a\/(\d+)/)
-        if (workspaceMatch) {
-            result.workspaceId = parseInt(workspaceMatch[1], 10)
+        // Pattern: /a/{workspaceId}/... or /{workspaceId}/...
+        let routeStart = 0
+        if (segments[0] === 'a' && /^\d+$/.test(segments[1] ?? '')) {
+            result.workspaceId = Number(segments[1])
+            routeStart = 2
+        } else if (/^\d+$/.test(segments[0] ?? '')) {
+            result.workspaceId = Number(segments[0])
+            routeStart = 1
         }
 
-        const channelMatch = path.match(/\/ch\/([A-Za-z0-9_-]+)/)
-        if (channelMatch) {
-            result.channelId = channelMatch[1]
-        }
-
-        const threadMatch = path.match(/\/t\/([A-Za-z0-9_-]+)/)
-        if (threadMatch) {
-            result.threadId = threadMatch[1]
-        }
-
-        const commentMatch = path.match(/\/c\/([A-Za-z0-9_-]+)/)
-        if (commentMatch) {
-            result.commentId = commentMatch[1]
-        }
-
-        const conversationMatch = path.match(/\/msg\/([A-Za-z0-9_-]+)/)
-        if (conversationMatch) {
-            result.conversationId = conversationMatch[1]
-        }
-
-        const messageMatch = path.match(/\/m\/([A-Za-z0-9_-]+)/)
-        if (messageMatch) {
-            result.messageId = messageMatch[1]
+        for (let index = routeStart; index < segments.length - 1; index += 2) {
+            const value = segments[index + 1]
+            switch (segments[index]) {
+                case 'ch':
+                    result.channelId = value
+                    break
+                case 't':
+                    result.threadId = value
+                    break
+                case 'c':
+                    result.commentId = value
+                    break
+                case 'msg':
+                    result.conversationId = value
+                    break
+                case 'm':
+                    result.messageId = value
+                    break
+            }
         }
 
         return Object.keys(result).length > 0 ? result : null
@@ -231,6 +254,9 @@ export function resolveThreadId(ref: string): string {
         return parsed.parsed.threadId
     }
 
+    const opaqueId = getOpaqueNameId(parsed)
+    if (opaqueId) return opaqueId
+
     throw new CliError(
         'INVALID_REF',
         `Invalid thread reference: ${ref}. Use an id, id:<id>, or a Comms URL.`,
@@ -329,6 +355,9 @@ export function getDirectChannelId(ref: string): string | null {
         )
     }
 
+    const opaqueId = getOpaqueNameId(parsed)
+    if (opaqueId) return opaqueId
+
     return null
 }
 
@@ -342,6 +371,9 @@ export function resolveCommentId(ref: string): string {
     if (parsed.type === 'url' && parsed.parsed.commentId) {
         return parsed.parsed.commentId
     }
+
+    const opaqueId = getOpaqueNameId(parsed)
+    if (opaqueId) return opaqueId
 
     throw new CliError(
         'INVALID_REF',
@@ -360,6 +392,9 @@ export function resolveConversationId(ref: string): string {
         return parsed.parsed.conversationId
     }
 
+    const opaqueId = getOpaqueNameId(parsed)
+    if (opaqueId) return opaqueId
+
     throw new CliError(
         'INVALID_REF',
         `Invalid conversation reference: ${ref}. Use an id, id:<id>, or a Comms URL.`,
@@ -376,6 +411,9 @@ export function resolveMessageId(ref: string): string {
     if (parsed.type === 'url' && parsed.parsed.messageId) {
         return parsed.parsed.messageId
     }
+
+    const opaqueId = getOpaqueNameId(parsed)
+    if (opaqueId) return opaqueId
 
     throw new CliError(
         'INVALID_REF',

@@ -141,9 +141,13 @@ export async function viewConfig(options: ViewConfigOptions): Promise<void> {
     if (options.json) {
         const output: Config = { ...config }
         if (output.users && !options.showToken) {
-            output.users = output.users.map((user) =>
-                user.token ? { ...user, token: maskToken(user.token) } : user,
-            )
+            output.users = output.users.map((user) => ({
+                ...user,
+                ...(user.token ? { token: maskToken(user.token) } : {}),
+                ...(user.fallbackRefreshToken
+                    ? { fallbackRefreshToken: maskToken(user.fallbackRefreshToken) }
+                    : {}),
+            }))
         }
         console.log(JSON.stringify(output, null, 2))
         return

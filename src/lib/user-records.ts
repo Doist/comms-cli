@@ -63,10 +63,20 @@ function toRecord(user: StoredUser): UserRecord<CommsAccount> {
         label: user.name,
         authMode: user.authMode,
         authScope: user.authScope,
+        oauthClientId: user.oauthClientId,
+        authBaseUrl: user.authBaseUrl,
+        authResource: user.authResource,
     })
     const trimmed = user.token?.trim()
+    const refreshTrimmed = user.fallbackRefreshToken?.trim()
     const record: UserRecord<CommsAccount> = { account }
     if (trimmed) record.fallbackToken = trimmed
+    if (refreshTrimmed) record.fallbackRefreshToken = refreshTrimmed
+    if (user.accessTokenExpiresAt !== undefined)
+        record.accessTokenExpiresAt = user.accessTokenExpiresAt
+    if (user.refreshTokenExpiresAt !== undefined)
+        record.refreshTokenExpiresAt = user.refreshTokenExpiresAt
+    if (user.hasRefreshToken !== undefined) record.hasRefreshToken = user.hasRefreshToken
     return record
 }
 
@@ -80,6 +90,16 @@ function fromRecord(record: UserRecord<CommsAccount>): StoredUser {
         authMode: record.account.authMode,
         authScope: record.account.authScope,
     }
+    if (record.account.oauthClientId) next.oauthClientId = record.account.oauthClientId
+    if (record.account.authBaseUrl) next.authBaseUrl = record.account.authBaseUrl
+    if (record.account.authResource) next.authResource = record.account.authResource
     if (trimmed && trimmed.length > 0) next.token = trimmed
+    const refreshTrimmed = record.fallbackRefreshToken?.trim()
+    if (refreshTrimmed && refreshTrimmed.length > 0) next.fallbackRefreshToken = refreshTrimmed
+    if (record.accessTokenExpiresAt !== undefined)
+        next.accessTokenExpiresAt = record.accessTokenExpiresAt
+    if (record.refreshTokenExpiresAt !== undefined)
+        next.refreshTokenExpiresAt = record.refreshTokenExpiresAt
+    if (record.hasRefreshToken !== undefined) next.hasRefreshToken = record.hasRefreshToken
     return next
 }

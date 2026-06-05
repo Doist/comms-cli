@@ -80,6 +80,42 @@ describe('createCommsUserRecordStore', () => {
         expect(mocks.updateConfig).toHaveBeenCalledWith({ users: [ADA] })
     })
 
+    it('round-trips refresh bundle metadata and OAuth client metadata', async () => {
+        const stored: StoredUser = {
+            ...ADA,
+            fallbackRefreshToken: 'rt_fallback',
+            accessTokenExpiresAt: 1770000000000,
+            refreshTokenExpiresAt: 1780000000000,
+            hasRefreshToken: true,
+            oauthClientId: 'tdd_123',
+            authBaseUrl: 'https://todoist.com',
+            authResource: 'https://comms.todoist.com',
+        }
+        mocks.getConfig.mockResolvedValue({ users: [stored] } satisfies Config)
+
+        const [record] = await createCommsUserRecordStore().list()
+
+        expect(record).toEqual({
+            account: {
+                id: '42',
+                label: 'Ada',
+                authMode: 'read-write',
+                authScope: 'user:read',
+                oauthClientId: 'tdd_123',
+                authBaseUrl: 'https://todoist.com',
+                authResource: 'https://comms.todoist.com',
+            },
+            fallbackRefreshToken: 'rt_fallback',
+            accessTokenExpiresAt: 1770000000000,
+            refreshTokenExpiresAt: 1780000000000,
+            hasRefreshToken: true,
+        })
+
+        await createCommsUserRecordStore().upsert(record)
+
+        expect(mocks.updateConfig).toHaveBeenCalledWith({ users: [stored] })
+    })
+
     it('upsert preserves order of other users when replacing in the middle', async () => {
         const carl: StoredUser = { id: '7', name: 'Carl', authMode: 'unknown', authScope: '' }
         mocks.getConfig.mockResolvedValue({ users: [ADA, carl, BOB] } satisfies Config)
