@@ -1,3 +1,9 @@
+## [1.6.0](https://github.com/Doist/comms-cli/compare/v1.5.0...v1.6.0) (2026-06-15)
+
+### Features
+
+- Add thread mark-read command ([#21](https://github.com/Doist/comms-cli/issues/21)) ([5072bdd](https://github.com/Doist/comms-cli/commit/5072bdd928ee330d22591548beb541090463a495))
+
 ## [1.5.0](https://github.com/Doist/comms-cli/compare/v1.4.0...v1.5.0) (2026-06-05)
 
 ### Features
