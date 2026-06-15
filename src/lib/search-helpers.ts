@@ -211,6 +211,7 @@ export async function runSearch(
 function buildSearchResultUrl(
     workspaceId: number,
     result: {
+        id: string
         type: string
         threadId?: string | null
         channelId?: string | null
@@ -233,10 +234,17 @@ function buildSearchResultUrl(
             commentId: result.commentId,
         })
     }
-    if (result.type === 'message' && result.conversationId) {
-        return getFullCommsURL({ workspaceId, conversationId: result.conversationId })
+    if (result.type === 'conversation') {
+        return getFullCommsURL({ workspaceId, conversationId: result.id })
     }
-    return `https://comms.todoist.com/a/${workspaceId}`
+    if (result.type === 'message' && result.conversationId) {
+        return getFullCommsURL({
+            workspaceId,
+            conversationId: result.conversationId,
+            messageId: result.id,
+        })
+    }
+    return `https://comms.todoist.com/${workspaceId}`
 }
 
 type SearchOutputOptions = Pick<SharedSearchOptions, 'all' | 'json' | 'ndjson' | 'full'>
