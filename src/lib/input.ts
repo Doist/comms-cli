@@ -51,6 +51,37 @@ export async function readStdin(): Promise<string | null> {
     })
 }
 
+export async function readStdinToEnd(): Promise<string | null> {
+    if (process.stdin.isTTY) {
+        return null
+    }
+
+    return new Promise((resolve) => {
+        let data = ''
+        let settled = false
+
+        const settle = (value: string | null) => {
+            if (settled) return
+            settled = true
+            process.stdin.removeListener('data', onData)
+            process.stdin.removeListener('end', onEnd)
+            process.stdin.removeListener('error', onError)
+            resolve(value)
+        }
+
+        const onData = (chunk: string) => {
+            data += chunk
+        }
+        const onEnd = () => settle(data.trim() || null)
+        const onError = () => settle(null)
+
+        process.stdin.setEncoding('utf8')
+        process.stdin.on('data', onData)
+        process.stdin.on('end', onEnd)
+        process.stdin.on('error', onError)
+    })
+}
+
 export async function openEditor(): Promise<string | null> {
     if (isNonInteractive()) {
         return null

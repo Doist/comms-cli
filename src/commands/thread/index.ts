@@ -5,6 +5,7 @@ import { createThread } from './create.js'
 import { deleteThread } from './delete.js'
 import { markThreadDone } from './mutate.js'
 import { muteThread, unmuteThread } from './mute.js'
+import { markThreadRead } from './read.js'
 import { renameThread } from './rename.js'
 import { replyToThread } from './reply.js'
 import { updateThread } from './update.js'
@@ -112,6 +113,28 @@ Examples:
   tdc thread done 12345 --json --yes`,
         )
         .action(markThreadDone)
+
+    const markReadCmd = thread
+        .command('mark-read [thread-refs...]')
+        .description('Mark a thread read for the current user')
+        .option('--yes', 'Skip confirmation for bulk operations')
+        .option('--dry-run', 'Show what would happen without executing')
+        .option('--json', 'Output result as JSON')
+        .addHelpText(
+            'after',
+            `
+Examples:
+  tdc thread mark-read 12345
+  tdc thread mark-read 12345 67890 --yes
+  printf "12345\\n67890\\n" | tdc thread mark-read --yes`,
+        )
+        .action((refs, options) => {
+            if (refs.length === 0 && process.stdin.isTTY) {
+                markReadCmd.help()
+                return
+            }
+            return markThreadRead(refs, options)
+        })
 
     thread
         .command('delete <thread-ref>')

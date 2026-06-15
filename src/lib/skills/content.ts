@@ -110,6 +110,9 @@ tdc thread reply <ref> "content" --file ./a.png  # Attach a file (repeatable; co
 tdc thread done <ref>                 # Preview thread archive (requires --yes to execute)
 tdc thread done <ref> --yes           # Archive thread (mark done)
 tdc thread done <ref> --yes --json    # Archive and return status as JSON
+tdc thread mark-read <ref>        # Mark a thread read
+tdc thread mark-read <ref> <ref> --yes # Mark multiple threads read
+printf "123\\n456\\n" | tdc thread mark-read --dry-run # Preview bulk mark-read from stdin
 tdc thread mute <ref>             # Mute thread for 60 minutes (default)
 tdc thread mute <ref> --minutes 480  # Mute for custom duration
 tdc thread mute <ref> --json      # Mute and return { id, mutedUntil } as JSON
@@ -383,7 +386,7 @@ Commands accept flexible references:
 - **Comms URLs**: Full \`https://comms.todoist.com/...\` URLs (parsed automatically)
 - **Fuzzy names**: For workspaces/users - \`"My Workspace"\` or partial matches
 
-## Piping Content
+## Piping Input
 
 Commands that accept content (\`thread create\`, \`thread reply\`, \`comment update\`, \`conversation reply\`, \`msg update\`) auto-detect piped stdin:
 
@@ -394,6 +397,12 @@ echo "Quick reply" | tdc conversation reply <ref>
 \`\`\`
 
 If no content argument is provided and no stdin is piped, the CLI opens \`$EDITOR\` for interactive input. In non-TTY environments (e.g. when called by an agent or in a pipeline), the editor is automatically skipped and the command fails fast with an actionable error message. Use \`--non-interactive\` to force this behavior even in a TTY, or \`--interactive\` to override auto-detection.
+
+\`tdc thread mark-read\` also accepts thread refs from stdin, one per line:
+
+\`\`\`bash
+printf "123\\n456\\n" | tdc thread mark-read --yes
+\`\`\`
 
 ## Common Workflows
 
