@@ -117,7 +117,6 @@ Examples:
     const markReadCmd = thread
         .command('mark-read [thread-refs...]')
         .description('Mark a thread read for the current user')
-        .option('--from-file <path>', 'Read thread refs from a file (one per line)')
         .option('--yes', 'Skip confirmation for bulk operations')
         .option('--dry-run', 'Show what would happen without executing')
         .option('--json', 'Output result as JSON')
@@ -127,10 +126,10 @@ Examples:
 Examples:
   tdc thread mark-read 12345
   tdc thread mark-read 12345 67890 --yes
-  tdc thread mark-read --from-file ids.txt --json`,
+  printf "12345\\n67890\\n" | tdc thread mark-read --yes`,
         )
         .action((refs, options) => {
-            if (refs.length === 0 && !options.fromFile) {
+            if (refs.length === 0 && process.stdin.isTTY) {
                 markReadCmd.help()
                 return
             }

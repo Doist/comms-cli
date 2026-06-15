@@ -1,15 +1,13 @@
-import { readFile } from 'node:fs/promises'
 import type { CommsApi, Thread } from '@doist/comms-sdk'
 import { getCommsClient } from '../../lib/api.js'
 import { CliError } from '../../lib/errors.js'
+import { readStdinToEnd } from '../../lib/input.js'
 import type { MutationOptions } from '../../lib/options.js'
 import { formatJson, pluralize } from '../../lib/output.js'
 import { assertChannelIsPublic } from '../../lib/public-channels.js'
 import { resolveThreadId } from '../../lib/refs.js'
 
-export type MarkThreadReadOptions = MutationOptions & {
-    fromFile?: string
-}
+export type MarkThreadReadOptions = MutationOptions
 
 type LoadedThread = {
     thread: Thread
@@ -27,11 +25,11 @@ export async function markThreadRead(
     refs: string[],
     options: MarkThreadReadOptions,
 ): Promise<void> {
-    const rawRefs = await collectThreadRefs(refs, options.fromFile)
+    const rawRefs = await collectThreadRefs(refs)
     if (rawRefs.length === 0) {
         throw new CliError(
             'INVALID_REF',
-            'No thread references provided. Pass refs as arguments or via --from-file.',
+            'No thread references provided. Pass refs as arguments or pipe them via stdin.',
         )
     }
 
@@ -98,26 +96,18 @@ export async function markThreadRead(
     }
 }
 
-async function collectThreadRefs(refs: string[], fromFile: string | undefined): Promise<string[]> {
+async function collectThreadRefs(refs: string[]): Promise<string[]> {
     const inlineRefs = refs.map((ref) => ref.trim()).filter(Boolean)
-    if (!fromFile) {
-        return inlineRefs
-    }
 
-    let content: string
-    try {
-        content = await readFile(fromFile, 'utf8')
-    } catch (error) {
-        const message = error instanceof Error ? error.message : String(error)
-        throw new CliError('FILE_READ_ERROR', `Could not read refs file: ${fromFile}`, [message])
-    }
+    const stdinContent = await readStdinToEnd()
+    if (!stdinContent) return inlineRefs
 
-    const fileRefs = content
+    const stdinRefs = stdinContent
         .split(/\r?\n/)
         .map((line) => line.trim())
         .filter((line) => line !== '' && !line.startsWith('#'))
 
-    return [...inlineRefs, ...fileRefs]
+    return [...inlineRefs, ...stdinRefs]
 }
 
 async function loadThread(
