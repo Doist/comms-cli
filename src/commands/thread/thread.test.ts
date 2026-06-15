@@ -58,7 +58,10 @@ function createThreadFixture(id: number | string) {
         channelId: 'CH100',
         workspaceId: 10,
         posted: new Date('2026-03-01T00:00:00.000Z'),
+        lastUpdated: new Date('2026-03-02T00:00:00.000Z'),
         commentCount: 3,
+        lastObjIndex: 3 as number | null,
+        lastComment: null as ReturnType<typeof createComment> | null,
         isArchived: false,
         reactions: [],
         url: `https://comms.todoist.com/a/10/ch/CH100/t/${sid}`,
@@ -94,10 +97,12 @@ function createClient({
     channel = { id: 'CH100', name: 'General', workspaceId: 10 },
     sessionUser = { id: 1, fullName: 'Test User' },
 } = {}) {
+    let unreadState = [...unreadThreads]
+
     return {
         threads: {
             getThread: vi.fn(async (_id: string) => thread),
-            getUnread: vi.fn(async () => ({ data: unreadThreads, version: 1 })),
+            getUnread: vi.fn(async () => ({ data: unreadState, version: 1 })),
             createThread: vi.fn(
                 async (_args: {
                     channelId: string
@@ -112,6 +117,9 @@ function createClient({
             reopenThread: vi.fn(async (_args: { id: string; content: string }) =>
                 createComment(11, 11),
             ),
+            markRead: vi.fn(async ({ id }: { id: string; objIndex: number }) => {
+                unreadState = unreadState.filter((unread) => unread.threadId !== id)
+            }),
             muteThread: vi.fn(async (_args: { id: string; minutes: number }) => ({
                 ...thread,
                 mutedUntil: new Date(Date.now() + _args.minutes * 60000),
@@ -975,6 +983,219 @@ describe('thread unmute', () => {
             program.parseAsync(['node', 'tdc', 'thread', 'unmute', '500', '--dry-run']),
         ).rejects.toThrow('thread not found')
         expect(client.threads.unmuteThread).not.toHaveBeenCalled()
+    })
+})
+
+describe('thread read', () => {
+    beforeEach(() => {
+        clearWorkspaceUserCache()
+        vi.clearAllMocks()
+    })
+
+    it('marks a single unread thread read without requiring --yes', async () => {
+        const client = createClient({
+            unreadThreads: [
+                { threadId: '500', channelId: 'CH100', objIndex: 1, directMention: false },
+            ],
+        })
+        apiMocks.getCommsClient.mockResolvedValue(client)
+
+        const program = createProgram()
+        const consoleSpy = captureConsole('log')
+
+        await program.parseAsync(['node', 'tdc', 'thread', 'mark-read', '500'])
+
+        expect(client.threads.markRead).toHaveBeenCalledWith({ id: '500', objIndex: 3 })
+        expect(consoleSpy).toHaveBeenCalledWith('Thread Test Thread (500) marked read.')
+    })
+
+    it('uses the highest available object index', async () => {
+        const client = createClient({
+            thread: {
+                ...createThreadFixture(500),
+                lastComment: createComment(10, 9),
+                lastObjIndex: 12,
+                commentCount: 7,
+            },
+            unreadThreads: [
+                { threadId: '500', channelId: 'CH100', objIndex: 1, directMention: false },
+            ],
+        })
+        apiMocks.getCommsClient.mockResolvedValue(client)
+
+        const program = createProgram()
+        captureConsole('log')
+
+        await program.parseAsync(['node', 'tdc', 'thread', 'mark-read', '500'])
+
+        expect(client.threads.markRead).toHaveBeenCalledWith({ id: '500', objIndex: 12 })
+    })
+
+    it('leaves already-read threads unchanged', async () => {
+        const client = createClient()
+        apiMocks.getCommsClient.mockResolvedValue(client)
+
+        const program = createProgram()
+        const consoleSpy = captureConsole('log')
+
+        await program.parseAsync(['node', 'tdc', 'thread', 'mark-read', '500'])
+
+        expect(client.threads.markRead).not.toHaveBeenCalled()
+        expect(consoleSpy).toHaveBeenCalledWith('Thread Test Thread (500) is already read.')
+    })
+
+    it('shows dry run output', async () => {
+        const client = createClient({
+            unreadThreads: [
+                { threadId: '500', channelId: 'CH100', objIndex: 1, directMention: false },
+            ],
+        })
+        apiMocks.getCommsClient.mockResolvedValue(client)
+
+        const program = createProgram()
+        const consoleSpy = captureConsole('log')
+
+        await program.parseAsync(['node', 'tdc', 'thread', 'mark-read', '500', '--dry-run'])
+
+        expect(consoleSpy).toHaveBeenCalledWith(
+            'Dry run: would mark read thread Test Thread (500).',
+        )
+        expect(client.threads.markRead).not.toHaveBeenCalled()
+    })
+
+    it('outputs JSON with --json', async () => {
+        const client = createClient({
+            unreadThreads: [
+                { threadId: '500', channelId: 'CH100', objIndex: 1, directMention: false },
+            ],
+        })
+        apiMocks.getCommsClient.mockResolvedValue(client)
+
+        const program = createProgram()
+        const consoleSpy = captureConsole('log')
+
+        await program.parseAsync(['node', 'tdc', 'thread', 'mark-read', '500', '--json'])
+
+        const jsonOutput = JSON.parse(consoleSpy.mock.calls[0][0])
+        expect(jsonOutput).toEqual([{ id: '500', isRead: true }])
+    })
+
+    it('runs validation in dry-run mode', async () => {
+        const client = createClient()
+        apiMocks.getCommsClient.mockResolvedValue(client)
+        client.threads.getThread.mockRejectedValueOnce(new Error('thread not found'))
+
+        const program = createProgram()
+
+        await expect(
+            program.parseAsync(['node', 'tdc', 'thread', 'mark-read', '500', '--dry-run']),
+        ).rejects.toThrow('thread not found')
+        expect(client.threads.markRead).not.toHaveBeenCalled()
+    })
+
+    it('surfaces markRead failures through the shared error path', async () => {
+        const client = createClient({
+            unreadThreads: [
+                { threadId: '500', channelId: 'CH100', objIndex: 1, directMention: false },
+            ],
+        })
+        client.threads.markRead.mockRejectedValueOnce(new Error('mark failed'))
+        apiMocks.getCommsClient.mockResolvedValue(client)
+
+        const program = createProgram()
+
+        await expect(
+            program.parseAsync(['node', 'tdc', 'thread', 'mark-read', '500']),
+        ).rejects.toThrow('mark failed')
+    })
+
+    it('previews bulk mark-read unless --yes is passed', async () => {
+        const client = createClient({
+            unreadThreads: [
+                { threadId: '500', channelId: 'CH100', objIndex: 1, directMention: false },
+            ],
+        })
+        apiMocks.getCommsClient.mockResolvedValue(client)
+
+        const program = createProgram()
+        const consoleSpy = captureConsole('log')
+
+        await program.parseAsync(['node', 'tdc', 'thread', 'mark-read', '500', '501'])
+
+        expect(client.threads.markRead).not.toHaveBeenCalled()
+        expect(consoleSpy).toHaveBeenCalledWith('Would mark read thread Test Thread (500).')
+        expect(consoleSpy).toHaveBeenCalledWith('Use --yes to confirm.')
+    })
+
+    it('marks every unread thread in bulk when --yes is passed', async () => {
+        const thread500 = createThreadFixture(500)
+        const thread501 = { ...createThreadFixture(501), title: 'Second Thread' }
+        const client = createClient({
+            unreadThreads: [
+                { threadId: '500', channelId: 'CH100', objIndex: 1, directMention: false },
+                { threadId: '501', channelId: 'CH100', objIndex: 1, directMention: false },
+            ],
+        })
+        client.threads.getThread.mockImplementation(async (id: string) =>
+            id === '501' ? thread501 : thread500,
+        )
+        apiMocks.getCommsClient.mockResolvedValue(client)
+
+        const program = createProgram()
+        captureConsole('log')
+
+        await program.parseAsync(['node', 'tdc', 'thread', 'mark-read', '500', '501', '--yes'])
+
+        expect(client.threads.markRead).toHaveBeenCalledWith({ id: '500', objIndex: 3 })
+        expect(client.threads.markRead).toHaveBeenCalledWith({ id: '501', objIndex: 3 })
+        expect(client.threads.markRead).toHaveBeenCalledTimes(2)
+    })
+
+    it('requires --yes for bulk mark-read in --json mode', async () => {
+        const client = createClient({
+            unreadThreads: [
+                { threadId: '500', channelId: 'CH100', objIndex: 1, directMention: false },
+            ],
+        })
+        apiMocks.getCommsClient.mockResolvedValue(client)
+
+        const program = createProgram()
+
+        await expect(
+            program.parseAsync(['node', 'tdc', 'thread', 'mark-read', '500', '501', '--json']),
+        ).rejects.toHaveProperty('code', 'MISSING_YES_FLAG')
+        expect(client.threads.markRead).not.toHaveBeenCalled()
+    })
+
+    it('reads thread refs from --from-file', async () => {
+        const dir = await mkdtemp(join(tmpdir(), 'tdc-mark-read-'))
+        const refsPath = join(dir, 'ids.txt')
+        await writeFile(refsPath, '# comment\n500\n\n')
+
+        try {
+            const client = createClient({
+                unreadThreads: [
+                    { threadId: '500', channelId: 'CH100', objIndex: 1, directMention: false },
+                ],
+            })
+            apiMocks.getCommsClient.mockResolvedValue(client)
+
+            const program = createProgram()
+            captureConsole('log')
+
+            await program.parseAsync([
+                'node',
+                'tdc',
+                'thread',
+                'mark-read',
+                '--from-file',
+                refsPath,
+            ])
+
+            expect(client.threads.markRead).toHaveBeenCalledWith({ id: '500', objIndex: 3 })
+        } finally {
+            await rm(dir, { recursive: true, force: true })
+        }
     })
 })
 

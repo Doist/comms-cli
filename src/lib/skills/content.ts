@@ -110,6 +110,9 @@ tdc thread reply <ref> "content" --file ./a.png  # Attach a file (repeatable; co
 tdc thread done <ref>                 # Preview thread archive (requires --yes to execute)
 tdc thread done <ref> --yes           # Archive thread (mark done)
 tdc thread done <ref> --yes --json    # Archive and return status as JSON
+tdc thread mark-read <ref>        # Mark a thread read
+tdc thread mark-read <ref> <ref> --yes # Mark multiple threads read
+tdc thread mark-read --from-file ids.txt --dry-run # Preview bulk mark-read from file
 tdc thread mute <ref>             # Mute thread for 60 minutes (default)
 tdc thread mute <ref> --minutes 480  # Mute for custom duration
 tdc thread mute <ref> --json      # Mute and return { id, mutedUntil } as JSON
