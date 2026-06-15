@@ -1,3 +1,9 @@
+## [1.6.1](https://github.com/Doist/comms-cli/compare/v1.6.0...v1.6.1) (2026-06-15)
+
+### Bug Fixes
+
+- **deps:** bump @doist/comms-sdk to 0.4.5 ([#24](https://github.com/Doist/comms-cli/issues/24)) ([a859976](https://github.com/Doist/comms-cli/commit/a8599769b8e105891ce22025144da4bcf2c6d07d))
+
 ## [1.6.0](https://github.com/Doist/comms-cli/compare/v1.5.0...v1.6.0) (2026-06-15)
 
 ### Features
