@@ -1,3 +1,9 @@
+## [1.6.3](https://github.com/Doist/comms-cli/compare/v1.6.2...v1.6.3) (2026-06-15)
+
+### Bug Fixes
+
+- generate canonical Comms search URLs ([#26](https://github.com/Doist/comms-cli/issues/26)) ([b4bcc77](https://github.com/Doist/comms-cli/commit/b4bcc779d5285acc77145c1474421d23fb80c1c0))
+
 ## [1.6.2](https://github.com/Doist/comms-cli/compare/v1.6.1...v1.6.2) (2026-06-15)
 
 ### Bug Fixes
