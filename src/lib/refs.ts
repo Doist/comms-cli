@@ -89,6 +89,26 @@ export interface ParsedCommsUrl {
     messageId?: string
 }
 
+function parseInboxOrSavedThreadRoute(
+    routeSegments: readonly string[],
+): Pick<ParsedCommsUrl, 'threadId' | 'commentId'> | null {
+    const [threadMarker, threadId, commentMarker, commentId, ...extraSegments] = routeSegments
+
+    if (threadMarker !== 't' || !threadId || extraSegments.length > 0) {
+        return null
+    }
+
+    if (routeSegments.length === 2) {
+        return { threadId }
+    }
+
+    if (routeSegments.length === 4 && commentMarker === 'c' && commentId) {
+        return { threadId, commentId }
+    }
+
+    return null
+}
+
 export function parseCommsUrl(url: string): ParsedCommsUrl | null {
     try {
         const parsed = new URL(url)
@@ -135,12 +155,21 @@ export function parseCommsUrl(url: string): ParsedCommsUrl | null {
             }
         }
 
-        if (
-            (segments[routeStart] === 'inbox' || segments[routeStart] === 'saved') &&
-            segments[routeStart + 1] === 't'
-        ) {
-            parseRoutePairs(routeStart + 1)
-        } else if (segments[routeStart] !== 'inbox' && segments[routeStart] !== 'saved') {
+        const route = segments[routeStart]
+        if (route === 'inbox' || route === 'saved') {
+            // Inbox/saved routes only accept:
+            //   t/{thread}
+            //   t/{thread}/c/{comment}
+            // Other inbox/saved paths stay workspace-only so malformed URLs don't get
+            // misrouted as thread, comment, or conversation refs.
+            const threadRoute = parseInboxOrSavedThreadRoute(segments.slice(routeStart + 1))
+            if (threadRoute) {
+                result.threadId = threadRoute.threadId
+                if (threadRoute.commentId) {
+                    result.commentId = threadRoute.commentId
+                }
+            }
+        } else {
             parseRoutePairs(routeStart)
         }
 

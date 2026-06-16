@@ -95,6 +95,18 @@ describe('tdc view <url> routing', () => {
         ).rejects.toThrow('Not a recognized Comms URL')
     })
 
+    it('throws for malformed inbox thread URL with message-like suffix', async () => {
+        const program = createProgram()
+        await expect(
+            program.parseAsync([
+                'node',
+                'tdc',
+                'view',
+                'https://comms.todoist.com/20/inbox/t/TH1/msg/CV1',
+            ]),
+        ).rejects.toThrow('Not a recognized Comms URL')
+    })
+
     it('throws for non-Comms URL', async () => {
         const program = createProgram()
         await expect(

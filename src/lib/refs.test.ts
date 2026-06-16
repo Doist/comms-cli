@@ -146,6 +146,16 @@ describe('parseCommsUrl', () => {
             { workspaceId: 12345, channelId: 'CH1', threadId: 'TH1', commentId: 'CM1' },
         ],
         [
+            'people URL as workspace-only',
+            'https://comms.todoist.com/12345/people/u/678',
+            { workspaceId: 12345 },
+        ],
+    ])('parses %s', (_description, url, expected) => {
+        expect(parseCommsUrl(url)).toEqual(expected)
+    })
+
+    it.each([
+        [
             'inbox thread URL',
             'https://comms.todoist.com/12345/inbox/t/TH1/',
             { workspaceId: 12345, threadId: 'TH1' },
@@ -161,12 +171,31 @@ describe('parseCommsUrl', () => {
             { workspaceId: 12345, threadId: 'TH1' },
         ],
         [
-            'people URL as workspace-only',
-            'https://comms.todoist.com/12345/people/u/678',
-            { workspaceId: 12345 },
+            'saved thread with comment URL',
+            'https://comms.todoist.com/12345/saved/t/TH1/c/CM1',
+            { workspaceId: 12345, threadId: 'TH1', commentId: 'CM1' },
         ],
     ])('parses %s', (_description, url, expected) => {
         expect(parseCommsUrl(url)).toEqual(expected)
+    })
+
+    it.each([
+        ['inbox root URL', 'https://comms.todoist.com/12345/inbox'],
+        ['inbox done URL', 'https://comms.todoist.com/12345/inbox/done'],
+        ['inbox done thread-like URL', 'https://comms.todoist.com/12345/inbox/done/t/TH1'],
+        ['missing thread id', 'https://comms.todoist.com/12345/inbox/t'],
+        ['missing comment id', 'https://comms.todoist.com/12345/inbox/t/TH1/c'],
+        ['comment-only path', 'https://comms.todoist.com/12345/inbox/c/CM1'],
+        ['wrong marker after thread id', 'https://comms.todoist.com/12345/inbox/t/TH1/x/CM1'],
+        ['extra segment after thread id', 'https://comms.todoist.com/12345/inbox/t/TH1/extra'],
+        [
+            'extra segment after comment id',
+            'https://comms.todoist.com/12345/inbox/t/TH1/c/CM1/extra',
+        ],
+        ['msg suffix after thread id', 'https://comms.todoist.com/12345/inbox/t/TH1/msg/CV1'],
+        ['saved URL with extra segment', 'https://comms.todoist.com/12345/saved/t/TH1/extra'],
+    ])('leaves %s workspace-only', (_description, url) => {
+        expect(parseCommsUrl(url)).toEqual({ workspaceId: 12345 })
     })
 
     it('parses conversation URL', () => {
@@ -292,6 +321,11 @@ describe('resolveThreadId', () => {
         [
             'inbox thread URL with comment suffix',
             'https://comms.todoist.com/12345/inbox/t/TH1/c/CM1',
+        ],
+        ['saved thread URL', 'https://comms.todoist.com/12345/saved/t/TH1'],
+        [
+            'saved thread URL with comment suffix',
+            'https://comms.todoist.com/12345/saved/t/TH1/c/CM1',
         ],
     ])('resolves %s', (_description, url) => {
         expect(resolveThreadId(url)).toBe('TH1')
@@ -550,6 +584,8 @@ describe('classifyCommsUrl', () => {
         ['thread+comment URL', 'https://comms.todoist.com/a/20/ch/CH1/t/TH1/c/CM1', 'comment'],
         ['inbox thread URL', 'https://comms.todoist.com/20/inbox/t/TH1/', 'thread'],
         ['inbox thread+comment URL', 'https://comms.todoist.com/20/inbox/t/TH1/c/CM1', 'comment'],
+        ['saved thread URL', 'https://comms.todoist.com/20/saved/t/TH1', 'thread'],
+        ['saved thread+comment URL', 'https://comms.todoist.com/20/saved/t/TH1/c/CM1', 'comment'],
         ['conversation URL', 'https://comms.todoist.com/a/20/msg/CV1', 'conversation'],
         ['short conversation URL', 'https://comms.todoist.com/20/msg/CV1', 'conversation'],
         ['message URL', 'https://comms.todoist.com/a/20/msg/CV1/m/MS1', 'message'],
@@ -561,6 +597,9 @@ describe('classifyCommsUrl', () => {
         ['inbox root URL', 'https://comms.todoist.com/20/inbox'],
         ['inbox done URL', 'https://comms.todoist.com/20/inbox/done'],
         ['inbox done thread-like URL', 'https://comms.todoist.com/20/inbox/done/t/TH1'],
+        ['inbox thread with extra segment', 'https://comms.todoist.com/20/inbox/t/TH1/extra'],
+        ['inbox thread with msg suffix', 'https://comms.todoist.com/20/inbox/t/TH1/msg/CV1'],
+        ['saved thread with extra segment', 'https://comms.todoist.com/20/saved/t/TH1/extra'],
         ['workspace-only URL', 'https://comms.todoist.com/a/20'],
         ['channel-only URL', 'https://comms.todoist.com/a/20/ch/CH1'],
         ['malformed account URL', 'https://comms.todoist.com/a/ch/CH1/t/TH1'],
