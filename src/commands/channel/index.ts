@@ -1,5 +1,6 @@
 import { Command, Option } from 'commander'
 import { withCaseInsensitiveChoices } from '../../lib/completion.js'
+import { showChannelActivity } from './activity.js'
 import { addChannelMembers } from './add.js'
 import { archiveChannel, unarchiveChannel } from './archive.js'
 import { createChannel } from './create.js'
@@ -194,6 +195,42 @@ Notes:
   and --unread are applied client-side; --archive-filter is applied server-side.`,
         )
         .action(showChannelThreads)
+
+    channel
+        .command('activity [workspace-ref]')
+        .description("Report each channel's last activity (newest thread update)")
+        .option('--workspace <ref>', 'Workspace ID or name')
+        .option(
+            '--scope <scope>',
+            'Channel set to report: joined, public, or discoverable (default: public)',
+        )
+        .option(
+            '--state <state>',
+            'Channel state to report: active, all, or archived (default: active)',
+        )
+        .option(
+            '--inactive-since <date>',
+            'Only show channels with no activity on/after this date (ISO format)',
+        )
+        .option('--concurrency <n>', 'Max parallel thread probes (default: 8, max: 16)')
+        .option('--json', 'Output as JSON')
+        .option('--ndjson', 'Output as newline-delimited JSON')
+        .option('--full', 'Include all fields in JSON output')
+        .addHelpText(
+            'after',
+            `
+Examples:
+  tdc channel activity
+  tdc channel activity --scope public --json
+  tdc channel activity --inactive-since 2026-04-16 --json
+  tdc channel activity "Doist" --state all --concurrency 12
+
+Notes:
+  Last activity is the newest thread "lastUpdated" in the channel, counting
+  active and done threads. Channels with no threads report "never" and fall
+  back to their creation date for --inactive-since filtering.`,
+        )
+        .action(showChannelActivity)
 
     const members = channel
         .command('members')
