@@ -1,3 +1,9 @@
+## [1.6.4](https://github.com/Doist/comms-cli/compare/v1.6.3...v1.6.4) (2026-06-16)
+
+### Bug Fixes
+
+- accept inbox thread URLs ([#30](https://github.com/Doist/comms-cli/issues/30)) ([af8573e](https://github.com/Doist/comms-cli/commit/af8573ed0ae2009b57834e3a3bd6e537e7476003))
+
 ## [1.6.3](https://github.com/Doist/comms-cli/compare/v1.6.2...v1.6.3) (2026-06-15)
 
 ### Bug Fixes
