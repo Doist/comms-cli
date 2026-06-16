@@ -124,34 +124,49 @@ describe('parseCommsUrl', () => {
         expect(result).toEqual({ workspaceId: 12345, channelId: '7YpL3oZ4kZ9vP7Q1tR2sX3z' })
     })
 
-    it('parses short thread URL', () => {
-        const result = parseCommsUrl('https://comms.todoist.com/12345/ch/CH1/t/TH1')
-        expect(result).toEqual({ workspaceId: 12345, channelId: 'CH1', threadId: 'TH1' })
-    })
-
-    it('parses thread URL', () => {
-        const result = parseCommsUrl('https://comms.todoist.com/a/12345/ch/CH1/t/TH1')
-        expect(result).toEqual({ workspaceId: 12345, channelId: 'CH1', threadId: 'TH1' })
-    })
-
-    it('parses short thread with comment URL', () => {
-        const result = parseCommsUrl('https://comms.todoist.com/12345/ch/CH1/t/TH1/c/CM1')
-        expect(result).toEqual({
-            workspaceId: 12345,
-            channelId: 'CH1',
-            threadId: 'TH1',
-            commentId: 'CM1',
-        })
-    })
-
-    it('parses thread with comment URL', () => {
-        const result = parseCommsUrl('https://comms.todoist.com/a/12345/ch/CH1/t/TH1/c/CM1')
-        expect(result).toEqual({
-            workspaceId: 12345,
-            channelId: 'CH1',
-            threadId: 'TH1',
-            commentId: 'CM1',
-        })
+    it.each([
+        [
+            'short thread URL',
+            'https://comms.todoist.com/12345/ch/CH1/t/TH1',
+            { workspaceId: 12345, channelId: 'CH1', threadId: 'TH1' },
+        ],
+        [
+            'thread URL',
+            'https://comms.todoist.com/a/12345/ch/CH1/t/TH1',
+            { workspaceId: 12345, channelId: 'CH1', threadId: 'TH1' },
+        ],
+        [
+            'short thread with comment URL',
+            'https://comms.todoist.com/12345/ch/CH1/t/TH1/c/CM1',
+            { workspaceId: 12345, channelId: 'CH1', threadId: 'TH1', commentId: 'CM1' },
+        ],
+        [
+            'thread with comment URL',
+            'https://comms.todoist.com/a/12345/ch/CH1/t/TH1/c/CM1',
+            { workspaceId: 12345, channelId: 'CH1', threadId: 'TH1', commentId: 'CM1' },
+        ],
+        [
+            'inbox thread URL',
+            'https://comms.todoist.com/12345/inbox/t/TH1/',
+            { workspaceId: 12345, threadId: 'TH1' },
+        ],
+        [
+            'inbox thread with comment URL',
+            'https://comms.todoist.com/12345/inbox/t/TH1/c/CM1',
+            { workspaceId: 12345, threadId: 'TH1', commentId: 'CM1' },
+        ],
+        [
+            'saved thread URL',
+            'https://comms.todoist.com/12345/saved/t/TH1',
+            { workspaceId: 12345, threadId: 'TH1' },
+        ],
+        [
+            'people URL as workspace-only',
+            'https://comms.todoist.com/12345/people/u/678',
+            { workspaceId: 12345 },
+        ],
+    ])('parses %s', (_description, url, expected) => {
+        expect(parseCommsUrl(url)).toEqual(expected)
     })
 
     it('parses conversation URL', () => {
@@ -270,12 +285,16 @@ describe('resolveThreadId', () => {
         expect(resolveThreadId('CbjxNkWHJBwcaVkoTCRgM')).toBe('CbjxNkWHJBwcaVkoTCRgM')
     })
 
-    it('resolves thread URLs', () => {
-        expect(resolveThreadId('https://comms.todoist.com/a/12345/ch/CH1/t/TH1')).toBe('TH1')
-    })
-
-    it('resolves thread URLs with comment suffix', () => {
-        expect(resolveThreadId('https://comms.todoist.com/a/12345/ch/CH1/t/TH1/c/CM1')).toBe('TH1')
+    it.each([
+        ['thread URL', 'https://comms.todoist.com/a/12345/ch/CH1/t/TH1'],
+        ['thread URL with comment suffix', 'https://comms.todoist.com/a/12345/ch/CH1/t/TH1/c/CM1'],
+        ['inbox thread URL', 'https://comms.todoist.com/12345/inbox/t/TH1/'],
+        [
+            'inbox thread URL with comment suffix',
+            'https://comms.todoist.com/12345/inbox/t/TH1/c/CM1',
+        ],
+    ])('resolves %s', (_description, url) => {
+        expect(resolveThreadId(url)).toBe('TH1')
     })
 
     it('throws on invalid refs', () => {
@@ -526,55 +545,29 @@ describe('partitionNotifyIds', () => {
 })
 
 describe('classifyCommsUrl', () => {
-    it('classifies thread URL', () => {
-        expect(classifyCommsUrl('https://comms.todoist.com/a/20/ch/CH1/t/TH1')).toEqual({
-            entityType: 'thread',
-            url: 'https://comms.todoist.com/a/20/ch/CH1/t/TH1',
-        })
+    it.each([
+        ['thread URL', 'https://comms.todoist.com/a/20/ch/CH1/t/TH1', 'thread'],
+        ['thread+comment URL', 'https://comms.todoist.com/a/20/ch/CH1/t/TH1/c/CM1', 'comment'],
+        ['inbox thread URL', 'https://comms.todoist.com/20/inbox/t/TH1/', 'thread'],
+        ['inbox thread+comment URL', 'https://comms.todoist.com/20/inbox/t/TH1/c/CM1', 'comment'],
+        ['conversation URL', 'https://comms.todoist.com/a/20/msg/CV1', 'conversation'],
+        ['short conversation URL', 'https://comms.todoist.com/20/msg/CV1', 'conversation'],
+        ['message URL', 'https://comms.todoist.com/a/20/msg/CV1/m/MS1', 'message'],
+    ] as const)('classifies %s', (_description, url, entityType) => {
+        expect(classifyCommsUrl(url)).toEqual({ entityType, url })
     })
 
-    it('classifies thread+comment URL as comment', () => {
-        expect(classifyCommsUrl('https://comms.todoist.com/a/20/ch/CH1/t/TH1/c/CM1')).toEqual({
-            entityType: 'comment',
-            url: 'https://comms.todoist.com/a/20/ch/CH1/t/TH1/c/CM1',
-        })
-    })
-
-    it('classifies conversation URL', () => {
-        expect(classifyCommsUrl('https://comms.todoist.com/a/20/msg/CV1')).toEqual({
-            entityType: 'conversation',
-            url: 'https://comms.todoist.com/a/20/msg/CV1',
-        })
-    })
-
-    it('classifies short conversation URL', () => {
-        expect(classifyCommsUrl('https://comms.todoist.com/20/msg/CV1')).toEqual({
-            entityType: 'conversation',
-            url: 'https://comms.todoist.com/20/msg/CV1',
-        })
-    })
-
-    it('classifies message URL', () => {
-        expect(classifyCommsUrl('https://comms.todoist.com/a/20/msg/CV1/m/MS1')).toEqual({
-            entityType: 'message',
-            url: 'https://comms.todoist.com/a/20/msg/CV1/m/MS1',
-        })
-    })
-
-    it('returns null for workspace-only URL', () => {
-        expect(classifyCommsUrl('https://comms.todoist.com/a/20')).toBeNull()
-    })
-
-    it('returns null for channel-only URL', () => {
-        expect(classifyCommsUrl('https://comms.todoist.com/a/20/ch/CH1')).toBeNull()
-    })
-
-    it('returns null for non-Comms URL', () => {
-        expect(classifyCommsUrl('https://google.com/a/20/t/200')).toBeNull()
-    })
-
-    it('returns null for invalid string', () => {
-        expect(classifyCommsUrl('not-a-url')).toBeNull()
+    it.each([
+        ['inbox root URL', 'https://comms.todoist.com/20/inbox'],
+        ['inbox done URL', 'https://comms.todoist.com/20/inbox/done'],
+        ['inbox done thread-like URL', 'https://comms.todoist.com/20/inbox/done/t/TH1'],
+        ['workspace-only URL', 'https://comms.todoist.com/a/20'],
+        ['channel-only URL', 'https://comms.todoist.com/a/20/ch/CH1'],
+        ['malformed account URL', 'https://comms.todoist.com/a/ch/CH1/t/TH1'],
+        ['non-Comms URL', 'https://google.com/a/20/t/200'],
+        ['invalid string', 'not-a-url'],
+    ])('returns null for %s', (_description, url) => {
+        expect(classifyCommsUrl(url)).toBeNull()
     })
 })
 
