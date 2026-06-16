@@ -112,25 +112,36 @@ export function parseCommsUrl(url: string): ParsedCommsUrl | null {
             routeStart = 1
         }
 
-        for (let index = routeStart; index < segments.length - 1; index += 2) {
-            const value = segments[index + 1]
-            switch (segments[index]) {
-                case 'ch':
-                    result.channelId = value
-                    break
-                case 't':
-                    result.threadId = value
-                    break
-                case 'c':
-                    result.commentId = value
-                    break
-                case 'msg':
-                    result.conversationId = value
-                    break
-                case 'm':
-                    result.messageId = value
-                    break
+        const parseRoutePairs = (start: number) => {
+            for (let index = start; index < segments.length - 1; index += 2) {
+                const value = segments[index + 1]
+                switch (segments[index]) {
+                    case 'ch':
+                        result.channelId = value
+                        break
+                    case 't':
+                        result.threadId = value
+                        break
+                    case 'c':
+                        result.commentId = value
+                        break
+                    case 'msg':
+                        result.conversationId = value
+                        break
+                    case 'm':
+                        result.messageId = value
+                        break
+                }
             }
+        }
+
+        if (
+            (segments[routeStart] === 'inbox' || segments[routeStart] === 'saved') &&
+            segments[routeStart + 1] === 't'
+        ) {
+            parseRoutePairs(routeStart + 1)
+        } else if (segments[routeStart] !== 'inbox' && segments[routeStart] !== 'saved') {
+            parseRoutePairs(routeStart)
         }
 
         return Object.keys(result).length > 0 ? result : null
