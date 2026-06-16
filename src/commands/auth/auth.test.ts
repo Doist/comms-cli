@@ -88,7 +88,7 @@ import { attachLoginCommand } from '@doist/cli-core/auth'
 import { CommsRequestError, type User } from '@doist/comms-sdk'
 import { createWrappedCommsClient } from '../../lib/api.js'
 import { type CommsAccount, type CommsTokenStore } from '../../lib/auth-provider.js'
-import { getApiTokenSnapshot, TOKEN_ENV_VAR } from '../../lib/auth.js'
+import { getApiTokenSnapshot, NoTokenError, TOKEN_ENV_VAR } from '../../lib/auth.js'
 import { getConfig, updateConfig } from '../../lib/config.js'
 import { resetGlobalArgs } from '../../lib/global-args.js'
 import { registerAuthCommand } from './index.js'
@@ -284,14 +284,65 @@ describe('auth command', () => {
             vi.unstubAllEnvs()
         })
 
-        it('prints exactly the stored token to stdout with no envelope (pipe-safe)', async () => {
+        it('prints exactly the current token snapshot to stdout with no envelope (pipe-safe)', async () => {
             vi.stubEnv(TOKEN_ENV_VAR, '')
-            storeMocks.active.mockResolvedValue(STORED_SNAPSHOT)
+            mockGetApiTokenSnapshot.mockResolvedValue(STORED_SNAPSHOT)
 
             await createProgram().parseAsync(['node', 'tdc', 'auth', 'token', 'view'])
 
+            expect(mockGetApiTokenSnapshot).toHaveBeenCalledWith(undefined)
             expect(stdoutPayload()).toBe('tk_stored_1234567890')
             expect(consoleSpy).not.toHaveBeenCalled()
+        })
+
+        it('adds a trailing newline only when stdout is a TTY', async () => {
+            vi.stubEnv(TOKEN_ENV_VAR, '')
+            mockGetApiTokenSnapshot.mockResolvedValue(STORED_SNAPSHOT)
+            const originalIsTTY = process.stdout.isTTY
+            Object.defineProperty(process.stdout, 'isTTY', { value: true, configurable: true })
+
+            try {
+                await createProgram().parseAsync(['node', 'tdc', 'auth', 'token', 'view'])
+            } finally {
+                Object.defineProperty(process.stdout, 'isTTY', {
+                    value: originalIsTTY,
+                    configurable: true,
+                })
+            }
+
+            expect(stdoutPayload()).toBe('tk_stored_1234567890\n')
+        })
+
+        it('refreshes an expired OAuth token before printing', async () => {
+            vi.stubEnv(TOKEN_ENV_VAR, '')
+            const oauthAccount: CommsAccount = {
+                ...STORED_ACCOUNT,
+                oauthClientId: 'tdd_123',
+                authBaseUrl: 'https://todoist.com',
+                authResource: 'https://comms.todoist.com',
+            }
+            mockGetApiTokenSnapshot.mockResolvedValue({
+                token: 'tk_refreshed_1234567890',
+                account: oauthAccount,
+            })
+
+            await createProgram().parseAsync(['node', 'tdc', 'auth', 'token', 'view'])
+
+            expect(mockGetApiTokenSnapshot).toHaveBeenCalledWith(undefined)
+            expect(stdoutPayload()).toBe('tk_refreshed_1234567890')
+        })
+
+        it('prints manual tokens returned by the token snapshot path', async () => {
+            vi.stubEnv(TOKEN_ENV_VAR, '')
+            mockGetApiTokenSnapshot.mockResolvedValue({
+                token: 'manual_token_1234567890',
+                account: { id: '', label: '', authMode: 'unknown', authScope: '' },
+            })
+
+            await createProgram().parseAsync(['node', 'tdc', 'auth', 'token', 'view'])
+
+            expect(mockGetApiTokenSnapshot).toHaveBeenCalledWith(undefined)
+            expect(stdoutPayload()).toBe('manual_token_1234567890')
         })
 
         it('refuses to print when the env var is set so the CLI does not disclose an unmanaged token', async () => {
@@ -301,13 +352,13 @@ describe('auth command', () => {
                 createProgram().parseAsync(['node', 'tdc', 'auth', 'token', 'view']),
             ).rejects.toHaveProperty('code', 'TOKEN_FROM_ENV')
 
-            expect(storeMocks.active).not.toHaveBeenCalled()
+            expect(mockGetApiTokenSnapshot).not.toHaveBeenCalled()
             expect(stdoutPayload()).toBe('')
         })
 
         it('throws NOT_AUTHENTICATED when no token is stored', async () => {
             vi.stubEnv(TOKEN_ENV_VAR, '')
-            storeMocks.active.mockResolvedValue(null)
+            mockGetApiTokenSnapshot.mockRejectedValue(new NoTokenError())
 
             await expect(
                 createProgram().parseAsync(['node', 'tdc', 'auth', 'token', 'view']),
@@ -316,9 +367,9 @@ describe('auth command', () => {
             expect(stdoutPayload()).toBe('')
         })
 
-        it('matches per-command --user against the stored account by id', async () => {
+        it('passes per-command --user through to the token snapshot path', async () => {
             vi.stubEnv(TOKEN_ENV_VAR, '')
-            storeMocks.active.mockResolvedValue(STORED_SNAPSHOT)
+            mockGetApiTokenSnapshot.mockResolvedValue(STORED_SNAPSHOT)
 
             await createProgram().parseAsync([
                 'node',
@@ -330,13 +381,13 @@ describe('auth command', () => {
                 '1',
             ])
 
-            expect(storeMocks.active).toHaveBeenCalledWith('1')
+            expect(mockGetApiTokenSnapshot).toHaveBeenCalledWith('1')
             expect(stdoutPayload()).toBe('tk_stored_1234567890')
         })
 
         it('rejects per-command --user with ACCOUNT_NOT_FOUND when the ref does not match', async () => {
             vi.stubEnv(TOKEN_ENV_VAR, '')
-            storeMocks.active.mockResolvedValue(null)
+            mockGetApiTokenSnapshot.mockRejectedValue(new NoTokenError())
 
             await expect(
                 createProgram().parseAsync([
@@ -350,6 +401,7 @@ describe('auth command', () => {
                 ]),
             ).rejects.toHaveProperty('code', 'ACCOUNT_NOT_FOUND')
 
+            expect(mockGetApiTokenSnapshot).toHaveBeenCalledWith('999')
             expect(stdoutPayload()).toBe('')
         })
     })
@@ -373,16 +425,15 @@ describe('auth command', () => {
             vi.unstubAllEnvs()
         })
 
-        it('threads `tdc --user <ref> auth token view` into store.active', async () => {
+        it('threads `tdc --user <ref> auth token view` into token refresh', async () => {
             vi.stubEnv(TOKEN_ENV_VAR, '')
-            storeMocks.list.mockResolvedValue(STORED_RECORDS)
-            storeMocks.active.mockResolvedValue(STORED_SNAPSHOT)
+            mockGetApiTokenSnapshot.mockResolvedValue(STORED_SNAPSHOT)
             process.argv = ['node', 'tdc', '--user', '1', 'auth', 'token', 'view']
             resetGlobalArgs()
 
             await createProgram().parseAsync(['node', 'tdc', 'auth', 'token', 'view'])
 
-            expect(storeMocks.active).toHaveBeenCalledWith('1')
+            expect(mockGetApiTokenSnapshot).toHaveBeenCalledWith('1')
             expect(writeSpy.mock.calls.map((c: unknown[]) => String(c[0])).join('')).toBe(
                 'tk_stored_1234567890',
             )
