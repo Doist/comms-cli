@@ -1,3 +1,9 @@
+## [1.6.5](https://github.com/Doist/comms-cli/compare/v1.6.4...v1.6.5) (2026-06-17)
+
+### Bug Fixes
+
+- **refs:** tighten inbox/saved thread URL routing ([#32](https://github.com/Doist/comms-cli/issues/32)) ([8a0090e](https://github.com/Doist/comms-cli/commit/8a0090e637072e2c0b76a95d44f4e784a496ba64))
+
 ## [1.6.4](https://github.com/Doist/comms-cli/compare/v1.6.3...v1.6.4) (2026-06-16)
 
 ### Bug Fixes
