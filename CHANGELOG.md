@@ -1,3 +1,9 @@
+## [1.8.0](https://github.com/Doist/comms-cli/compare/v1.7.0...v1.8.0) (2026-06-18)
+
+### Features
+
+- **auth:** Add auth refresh-token view command ([#36](https://github.com/Doist/comms-cli/issues/36)) ([04877b7](https://github.com/Doist/comms-cli/commit/04877b77ee64533f7e7df1fde760acfe38bedc1f))
+
 ## [1.7.0](https://github.com/Doist/comms-cli/compare/v1.6.5...v1.7.0) (2026-06-18)
 
 ### Features
