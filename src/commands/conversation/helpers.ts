@@ -168,6 +168,17 @@ export async function renderConversationList(
         return
     }
 
+    // Machine output without --full filters `participantNames` back out, so skip
+    // the workspace-wide user-map fetch whose names would never be emitted.
+    if ((options.json || options.ndjson) && !options.full) {
+        if (options.json) {
+            console.log(formatJson(conversations, 'conversation', false))
+        } else {
+            console.log(formatNdjson(conversations, 'conversation', false))
+        }
+        return
+    }
+
     const client = await getCommsClient()
     const userMap = await buildUserNameMap(workspaceId, client)
 

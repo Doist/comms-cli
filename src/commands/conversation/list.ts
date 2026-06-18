@@ -57,10 +57,20 @@ export async function listConversations(
         workspaceId = await getCurrentWorkspaceId()
     }
 
-    let conversations = await getConversationsByState(workspaceId, state)
+    // Resolve participants and fetch conversations concurrently — they're
+    // independent once the workspace is known. `includeRemoved` so a participant
+    // who has since left the workspace still resolves (the renderer already
+    // shows removed participants, and archived DMs often include them).
+    const [participantIds, fetched] = await Promise.all([
+        options.participant
+            ? resolveUserRefs(options.participant, workspaceId, { includeRemoved: true })
+            : Promise.resolve(null),
+        getConversationsByState(workspaceId, state),
+    ])
 
-    if (options.participant) {
-        const participantIds = await resolveUserRefs(options.participant, workspaceId)
+    let conversations = fetched
+
+    if (participantIds) {
         // Keep conversations that include every requested participant.
         conversations = conversations.filter((conversation) =>
             participantIds.every((id) => conversation.userIds.includes(id)),

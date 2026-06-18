@@ -453,7 +453,9 @@ describe('conversation list', () => {
             '--json',
         ])
 
-        expect(refsMocks.resolveUserRefs).toHaveBeenCalledWith('Alice', 1)
+        // Resolve against the full roster so a participant who has left the
+        // workspace still matches (renderer shows removed participants).
+        expect(refsMocks.resolveUserRefs).toHaveBeenCalledWith('Alice', 1, { includeRemoved: true })
         expect(JSON.parse(consoleSpy.mock.calls[0][0]).map((c: { id: string }) => c.id)).toEqual([
             '42',
         ])
@@ -703,6 +705,8 @@ describe('conversation list', () => {
         ])
         expect(item.participantNames).toBeUndefined()
         expect(item.snippet).toBeUndefined()
+        // Machine output without --full must not pay for the workspace user map.
+        expect(client.workspaceUsers.getWorkspaceUsers).not.toHaveBeenCalled()
 
         consoleSpy.mockClear()
 
@@ -712,6 +716,8 @@ describe('conversation list', () => {
         expect(fullItem.participantNames).toEqual(['Me', 'Alice Example'])
         expect(fullItem.snippet).toBe('Snippet 42')
         expect(fullItem.url).toBeTruthy()
+        // --full needs names, so the map fetch happens here.
+        expect(client.workspaceUsers.getWorkspaceUsers).toHaveBeenCalled()
     })
 
     it('prints the empty message when nothing matches', async () => {
