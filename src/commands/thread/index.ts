@@ -50,7 +50,7 @@ Examples:
             withUnvalidatedChoices(
                 new Option(
                     '--notify <recipients>',
-                    'Notification recipients: EVERYONE, EVERYONE_IN_THREAD, or comma-separated user IDs (default: EVERYONE_IN_THREAD)',
+                    'Notification recipients: EVERYONE, EVERYONE_IN_THREAD, or comma-separated user and/or group IDs (default: EVERYONE_IN_THREAD)',
                 ),
                 ['EVERYONE', 'EVERYONE_IN_THREAD'],
             ),
@@ -68,6 +68,7 @@ Examples:
   tdc thread reply 12345 "Sounds good!"
   echo "Long reply" | tdc thread reply 12345
   tdc thread reply 12345 "Done" --close --json
+  tdc thread reply 12345 "Heads up" --notify 67890,Cbzzm11ZeYZoJYD4a6rti
   tdc thread reply 12345 "See attached" --file ./diagram.png
   tdc thread reply 12345 --file ./a.png --file ./b.pdf`,
         )
@@ -76,7 +77,7 @@ Examples:
     thread
         .command('create <channel-ref> <title> [content]')
         .description('Create a new thread in a channel')
-        .option('--notify <recipients>', 'Comma-separated user IDs to notify')
+        .option('--notify <recipients>', 'Comma-separated user and/or group IDs to notify')
         .option(
             '--unarchive',
             'Unarchive after creation so the thread appears in your Inbox (overrides userSettings.unarchiveNewThreads when false)',

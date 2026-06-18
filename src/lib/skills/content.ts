@@ -94,14 +94,15 @@ tdc thread view <ref> --raw       # Show raw markdown
 tdc thread create <channel-ref> "Title" "content"    # Create a new thread
 tdc thread create <channel-ref> "Title" "content" --json       # Create and return as JSON
 tdc thread create <channel-ref> "Title" "content" --json --full # Include all thread fields
-tdc thread create <channel-ref> "Title" "content" --notify 123,456  # Notify specific users
+tdc thread create <channel-ref> "Title" "content" --notify 123,456  # Notify specific users and/or groups by ID
 tdc thread create <channel-ref> "Title" "content" --unarchive  # Land thread in author's Inbox (overrides default Comms auto-archive)
 tdc thread create <channel-ref> "Title" "content" --no-unarchive  # Force archive even when userSettings.unarchiveNewThreads=true
 tdc thread create <channel-ref> "Title" "content" --dry-run  # Preview without posting
 tdc thread create <channel-ref> "Title" --file ./a.png  # Attach a file (repeatable; content optional)
 tdc thread reply <ref> "content"  # Post a comment (notifies EVERYONE_IN_THREAD by default)
 tdc thread reply <ref> "content" --notify EVERYONE  # Notify all workspace members
-tdc thread reply <ref> "content" --notify 123,id:456   # Notify specific user IDs
+tdc thread reply <ref> "content" --notify 123,id:456   # Notify specific users by ID
+tdc thread reply <ref> "content" --notify 123,Cbzzm11ZeYZoJYD4a6rti   # Notify a user and a group (group IDs are base58, not numeric)
 tdc thread reply <ref> "content" --json  # Post and return comment as JSON
 tdc thread reply <ref> "content" --json --full  # Include all comment fields
 tdc thread reply <ref> "content" --close       # Reply and close the thread
@@ -132,7 +133,7 @@ tdc thread update <ref> "New body" --json  # Update and return { id, content } a
 tdc thread update <ref> "New body" --json --full  # Update and return full thread as JSON
 \`\`\`
 
-Default \`--notify\` for reply is EVERYONE_IN_THREAD, which may notify more people than intended. Before posting, confirm with the user whether specific people should be notified instead (via \`--notify <user-ids>\`). Options: EVERYONE, EVERYONE_IN_THREAD, or comma-separated ID refs.
+Default \`--notify\` for reply is EVERYONE_IN_THREAD, which may notify more people than intended. Before posting, confirm with the user whether specific people should be notified instead (via \`--notify <ids>\`). Options: EVERYONE, EVERYONE_IN_THREAD, or comma-separated user and/or group IDs.
 
 \`--notify\` automatically resolves IDs: group IDs are routed to the \`groups\` API field, user IDs to \`recipients\`. No special syntax needed.
 
