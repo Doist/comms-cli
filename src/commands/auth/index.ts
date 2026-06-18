@@ -1,4 +1,4 @@
-import { attachTokenViewCommand } from '@doist/cli-core/auth'
+import { attachRefreshTokenViewCommand, attachTokenViewCommand } from '@doist/cli-core/auth'
 import { Command } from 'commander'
 import { createCommsTokenStore } from '../../lib/auth-provider.js'
 import { TOKEN_ENV_VAR } from '../../lib/auth.js'
@@ -34,5 +34,11 @@ export function registerAuthCommand(program: Command): void {
         envVarName: TOKEN_ENV_VAR,
         description:
             'Print the stored API token for the active user (or --user <ref>) to stdout for use in scripts',
+    })
+
+    attachRefreshTokenViewCommand(auth, {
+        store: refAware,
+        description:
+            'Print the stored OAuth refresh token for the active user (or --user <ref>) to stdout for use in scripts',
     })
 }
