@@ -1,3 +1,9 @@
+## [1.7.0](https://github.com/Doist/comms-cli/compare/v1.6.5...v1.7.0) (2026-06-18)
+
+### Features
+
+- **conversation:** add conversation list command ([#35](https://github.com/Doist/comms-cli/issues/35)) ([46a000e](https://github.com/Doist/comms-cli/commit/46a000e3ab77d6bef127388987c040fc441af1a0))
+
 ## [1.6.5](https://github.com/Doist/comms-cli/compare/v1.6.4...v1.6.5) (2026-06-17)
 
 ### Bug Fixes
