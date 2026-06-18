@@ -18,6 +18,26 @@ export type ConversationWithOptions = PaginatedViewOptions & {
     snippet?: boolean
 }
 
+export type ConversationListOptions = ViewOptions & {
+    workspace?: string
+    participant?: string
+    name?: string
+    kind?: string
+    state?: string
+    snippet?: boolean
+    limit?: string
+}
+
+/** Fields the conversation renderer reads — satisfied by both `with` and `list` options. */
+export type ConversationRenderOptions = {
+    json?: boolean
+    ndjson?: boolean
+    full?: boolean
+    snippet?: boolean
+}
+
+export type ConversationState = 'active' | 'all' | 'archived'
+
 export type ReplyOptions = MutationOptions & { file?: string[] }
 
 export type MuteOptions = MutationOptions & { minutes?: string }
@@ -49,8 +69,31 @@ export function sortByLastActiveDescending(a: Conversation, b: Conversation): nu
     return new Date(b.lastActive).getTime() - new Date(a.lastActive).getTime()
 }
 
-export async function getAllConversations(workspaceId: number): Promise<Conversation[]> {
+/**
+ * Fetch a workspace's conversations for the requested {@link ConversationState},
+ * sorted by last activity (newest first). `active` and `archived` are single
+ * calls; `all` fetches both and dedupes by id (the SDK's `getConversations` is
+ * not paginated, so each state returns the full set in one call).
+ */
+export async function getConversationsByState(
+    workspaceId: number,
+    state: ConversationState = 'all',
+): Promise<Conversation[]> {
     const client = await getCommsClient()
+
+    if (state === 'active') {
+        const active = await client.conversations.getConversations({ workspaceId })
+        return [...active].sort(sortByLastActiveDescending)
+    }
+
+    if (state === 'archived') {
+        const archived = await client.conversations.getConversations({
+            workspaceId,
+            archived: true,
+        })
+        return [...archived].sort(sortByLastActiveDescending)
+    }
+
     const [active, archived] = await Promise.all([
         client.conversations.getConversations({ workspaceId }),
         client.conversations.getConversations({ workspaceId, archived: true }),
@@ -111,10 +154,10 @@ export async function findDirectConversation(
     }
 }
 
-export async function listConversationsWithUser(
+export async function renderConversationList(
     conversations: Conversation[],
     workspaceId: number,
-    options: ConversationWithOptions,
+    options: ConversationRenderOptions,
 ): Promise<void> {
     if (conversations.length === 0) {
         printEmpty({
@@ -122,6 +165,17 @@ export async function listConversationsWithUser(
             type: 'conversation',
             message: 'No matching conversations found.',
         })
+        return
+    }
+
+    // Machine output without --full filters `participantNames` back out, so skip
+    // the workspace-wide user-map fetch whose names would never be emitted.
+    if ((options.json || options.ndjson) && !options.full) {
+        if (options.json) {
+            console.log(formatJson(conversations, 'conversation', false))
+        } else {
+            console.log(formatNdjson(conversations, 'conversation', false))
+        }
         return
     }
 

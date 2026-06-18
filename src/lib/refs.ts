@@ -679,12 +679,16 @@ export async function resolveChannelMemberRefs(
     return { userIds, expandedFrom }
 }
 
-export async function resolveUserRefs(refs: string, workspaceId: number): Promise<number[]> {
+export async function resolveUserRefs(
+    refs: string,
+    workspaceId: number,
+    options: { includeRemoved?: boolean } = {},
+): Promise<number[]> {
     const numericIds = parseNumericIdRefs(refs, 'user')
     if (numericIds) return numericIds
 
     const { getWorkspaceUsers } = await import('./api.js')
-    const users = await getWorkspaceUsers(workspaceId)
+    const users = await getWorkspaceUsers(workspaceId, { includeRemoved: options.includeRemoved })
 
     const parts = refs.split(',').map((r) => r.trim())
     const ids: number[] = []

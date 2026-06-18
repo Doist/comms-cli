@@ -381,6 +381,374 @@ describe('conversation with', () => {
     })
 })
 
+describe('conversation list', () => {
+    beforeEach(() => {
+        vi.clearAllMocks()
+        refsMocks.resolveUserRefs.mockResolvedValue([2])
+    })
+
+    const standardUsers = {
+        1: { id: 1, fullName: 'Me' },
+        2: { id: 2, fullName: 'Alice Example' },
+        3: { id: 3, fullName: 'Bob Example' },
+    }
+
+    function titled(
+        id: number,
+        userIds: number[],
+        lastActive: string,
+        title: string,
+    ): TestConversation {
+        return { ...createConversation(id, userIds, lastActive), title }
+    }
+
+    it('lists active conversations sorted by last activity', async () => {
+        const client = createClient({
+            activeConversations: [
+                titled(42, [1, 2], '2026-03-08T10:00:00.000Z', 'Older direct'),
+                titled(43, [1, 2, 3], '2026-03-09T10:00:00.000Z', 'Newer group'),
+            ],
+            users: standardUsers,
+        })
+        apiMocks.getCommsClient.mockResolvedValue(client)
+
+        const program = createProgram()
+        const consoleSpy = captureConsole('log')
+
+        await program.parseAsync(['node', 'tdc', 'conversation', 'list'])
+
+        const output = consoleSpy.mock.calls.map((c) => c[0]).join('\n')
+        // Newest first.
+        expect(output.indexOf('Newer group')).toBeLessThan(output.indexOf('Older direct'))
+        expect(output).toContain('id:43')
+        expect(output).toContain('id:42')
+        // Active-only default never touches the archived fetch.
+        expect(client.conversations.getConversations).toHaveBeenCalledWith({ workspaceId: 1 })
+        expect(client.conversations.getConversations).not.toHaveBeenCalledWith({
+            workspaceId: 1,
+            archived: true,
+        })
+    })
+
+    it('filters to conversations that include a given participant', async () => {
+        const client = createClient({
+            activeConversations: [
+                titled(42, [1, 2], '2026-03-08T10:00:00.000Z', 'With Alice'),
+                titled(43, [1, 3], '2026-03-09T10:00:00.000Z', 'With Bob'),
+            ],
+            users: standardUsers,
+        })
+        apiMocks.getCommsClient.mockResolvedValue(client)
+
+        const program = createProgram()
+        const consoleSpy = captureConsole('log')
+
+        await program.parseAsync([
+            'node',
+            'tdc',
+            'conversation',
+            'list',
+            '--participant',
+            'Alice',
+            '--json',
+        ])
+
+        // Resolve against the full roster so a participant who has left the
+        // workspace still matches (renderer shows removed participants).
+        expect(refsMocks.resolveUserRefs).toHaveBeenCalledWith('Alice', 1, { includeRemoved: true })
+        expect(JSON.parse(consoleSpy.mock.calls[0][0]).map((c: { id: string }) => c.id)).toEqual([
+            '42',
+        ])
+    })
+
+    it('requires ALL given participants to be present', async () => {
+        refsMocks.resolveUserRefs.mockResolvedValue([2, 3])
+        const client = createClient({
+            activeConversations: [
+                titled(42, [1, 2], '2026-03-08T10:00:00.000Z', 'Just Alice'),
+                titled(43, [1, 2, 3], '2026-03-09T10:00:00.000Z', 'Alice and Bob'),
+            ],
+            users: standardUsers,
+        })
+        apiMocks.getCommsClient.mockResolvedValue(client)
+
+        const program = createProgram()
+        const consoleSpy = captureConsole('log')
+
+        await program.parseAsync([
+            'node',
+            'tdc',
+            'conversation',
+            'list',
+            '--participant',
+            'Alice,Bob',
+            '--json',
+        ])
+
+        expect(JSON.parse(consoleSpy.mock.calls[0][0]).map((c: { id: string }) => c.id)).toEqual([
+            '43',
+        ])
+    })
+
+    it('filters by case-insensitive title substring with --name', async () => {
+        const client = createClient({
+            activeConversations: [
+                titled(42, [1, 2], '2026-03-08T10:00:00.000Z', 'Release planning'),
+                titled(43, [1, 3], '2026-03-09T10:00:00.000Z', 'Lunch plans'),
+            ],
+            users: standardUsers,
+        })
+        apiMocks.getCommsClient.mockResolvedValue(client)
+
+        const program = createProgram()
+        const consoleSpy = captureConsole('log')
+
+        await program.parseAsync([
+            'node',
+            'tdc',
+            'conversation',
+            'list',
+            '--name',
+            'release',
+            '--json',
+        ])
+
+        expect(JSON.parse(consoleSpy.mock.calls[0][0]).map((c: { id: string }) => c.id)).toEqual([
+            '42',
+        ])
+    })
+
+    it('lists only group conversations with --kind group', async () => {
+        const client = createClient({
+            activeConversations: [
+                titled(42, [1, 2], '2026-03-08T10:00:00.000Z', 'Direct'),
+                titled(43, [1, 2, 3], '2026-03-09T10:00:00.000Z', 'Group'),
+            ],
+            users: standardUsers,
+        })
+        apiMocks.getCommsClient.mockResolvedValue(client)
+
+        const program = createProgram()
+        const consoleSpy = captureConsole('log')
+
+        await program.parseAsync([
+            'node',
+            'tdc',
+            'conversation',
+            'list',
+            '--kind',
+            'group',
+            '--json',
+        ])
+
+        expect(JSON.parse(consoleSpy.mock.calls[0][0]).map((c: { id: string }) => c.id)).toEqual([
+            '43',
+        ])
+    })
+
+    it('lists only 1:1s (and the self-conversation) with --kind direct', async () => {
+        const client = createClient({
+            activeConversations: [
+                titled(10, [1], '2026-03-10T10:00:00.000Z', 'Self'),
+                titled(42, [1, 2], '2026-03-08T10:00:00.000Z', 'Direct'),
+                titled(43, [1, 2, 3], '2026-03-09T10:00:00.000Z', 'Group'),
+            ],
+            users: standardUsers,
+        })
+        apiMocks.getCommsClient.mockResolvedValue(client)
+
+        const program = createProgram()
+        const consoleSpy = captureConsole('log')
+
+        await program.parseAsync([
+            'node',
+            'tdc',
+            'conversation',
+            'list',
+            '--kind',
+            'direct',
+            '--json',
+        ])
+
+        expect(
+            JSON.parse(consoleSpy.mock.calls[0][0])
+                .map((c: { id: string }) => c.id)
+                .sort(),
+        ).toEqual(['10', '42'])
+    })
+
+    it('rejects an invalid --kind value via Commander choices', async () => {
+        const client = createClient({ activeConversations: [], users: standardUsers })
+        apiMocks.getCommsClient.mockResolvedValue(client)
+
+        const program = createProgram()
+
+        await expect(
+            program.parseAsync(['node', 'tdc', 'conversation', 'list', '--kind', 'nope']),
+        ).rejects.toThrow(/Allowed choices are group, direct/)
+    })
+
+    it('fetches only archived conversations with --state archived', async () => {
+        const client = createClient({
+            activeConversations: [titled(42, [1, 2], '2026-03-08T10:00:00.000Z', 'Active')],
+            archivedConversations: [titled(43, [1, 3], '2026-03-09T10:00:00.000Z', 'Archived')],
+            users: standardUsers,
+        })
+        apiMocks.getCommsClient.mockResolvedValue(client)
+
+        const program = createProgram()
+        const consoleSpy = captureConsole('log')
+
+        await program.parseAsync([
+            'node',
+            'tdc',
+            'conversation',
+            'list',
+            '--state',
+            'archived',
+            '--json',
+        ])
+
+        expect(client.conversations.getConversations).toHaveBeenCalledWith({
+            workspaceId: 1,
+            archived: true,
+        })
+        expect(client.conversations.getConversations).not.toHaveBeenCalledWith({ workspaceId: 1 })
+        expect(JSON.parse(consoleSpy.mock.calls[0][0]).map((c: { id: string }) => c.id)).toEqual([
+            '43',
+        ])
+    })
+
+    it('includes archived conversations with --state all', async () => {
+        const client = createClient({
+            activeConversations: [titled(42, [1, 2], '2026-03-08T10:00:00.000Z', 'Active')],
+            archivedConversations: [titled(43, [1, 3], '2026-03-09T10:00:00.000Z', 'Archived')],
+            users: standardUsers,
+        })
+        apiMocks.getCommsClient.mockResolvedValue(client)
+
+        const program = createProgram()
+        const consoleSpy = captureConsole('log')
+
+        await program.parseAsync([
+            'node',
+            'tdc',
+            'conversation',
+            'list',
+            '--state',
+            'all',
+            '--json',
+        ])
+
+        expect(
+            JSON.parse(consoleSpy.mock.calls[0][0])
+                .map((c: { id: string }) => c.id)
+                .sort(),
+        ).toEqual(['42', '43'])
+    })
+
+    it('caps the number of rows with --limit', async () => {
+        const client = createClient({
+            activeConversations: [
+                titled(42, [1, 2], '2026-03-08T10:00:00.000Z', 'One'),
+                titled(43, [1, 3], '2026-03-09T10:00:00.000Z', 'Two'),
+                titled(44, [1, 2, 3], '2026-03-10T10:00:00.000Z', 'Three'),
+            ],
+            users: standardUsers,
+        })
+        apiMocks.getCommsClient.mockResolvedValue(client)
+
+        const program = createProgram()
+        const consoleSpy = captureConsole('log')
+
+        await program.parseAsync(['node', 'tdc', 'conversation', 'list', '--limit', '2', '--json'])
+
+        // Newest-first, capped at 2.
+        expect(JSON.parse(consoleSpy.mock.calls[0][0]).map((c: { id: string }) => c.id)).toEqual([
+            '44',
+            '43',
+        ])
+    })
+
+    it('rejects a non-positive --limit value', async () => {
+        const client = createClient({ activeConversations: [], users: standardUsers })
+        apiMocks.getCommsClient.mockResolvedValue(client)
+
+        const program = createProgram()
+
+        await expect(
+            program.parseAsync(['node', 'tdc', 'conversation', 'list', '--limit', '0']),
+        ).rejects.toHaveProperty('code', 'INVALID_LIMIT')
+    })
+
+    it('filters JSON fields unless --full is set', async () => {
+        const client = createClient({
+            activeConversations: [titled(42, [1, 2], '2026-03-08T10:00:00.000Z', 'Release')],
+            users: standardUsers,
+        })
+        apiMocks.getCommsClient.mockResolvedValue(client)
+
+        const program = createProgram()
+        const consoleSpy = captureConsole('log')
+
+        await program.parseAsync(['node', 'tdc', 'conversation', 'list', '--json'])
+
+        const item = JSON.parse(consoleSpy.mock.calls[0][0])[0]
+        expect(Object.keys(item).sort()).toEqual([
+            'archived',
+            'id',
+            'lastActive',
+            'messageCount',
+            'title',
+            'userIds',
+            'workspaceId',
+        ])
+        expect(item.participantNames).toBeUndefined()
+        expect(item.snippet).toBeUndefined()
+        // Machine output without --full must not pay for the workspace user map.
+        expect(client.workspaceUsers.getWorkspaceUsers).not.toHaveBeenCalled()
+
+        consoleSpy.mockClear()
+
+        await program.parseAsync(['node', 'tdc', 'conversation', 'list', '--json', '--full'])
+
+        const fullItem = JSON.parse(consoleSpy.mock.calls[0][0])[0]
+        expect(fullItem.participantNames).toEqual(['Me', 'Alice Example'])
+        expect(fullItem.snippet).toBe('Snippet 42')
+        expect(fullItem.url).toBeTruthy()
+        // --full needs names, so the map fetch happens here.
+        expect(client.workspaceUsers.getWorkspaceUsers).toHaveBeenCalled()
+    })
+
+    it('prints the empty message when nothing matches', async () => {
+        const client = createClient({ activeConversations: [], users: standardUsers })
+        apiMocks.getCommsClient.mockResolvedValue(client)
+
+        const program = createProgram()
+        const consoleSpy = captureConsole('log')
+
+        await program.parseAsync(['node', 'tdc', 'conversation', 'list'])
+
+        expect(consoleSpy).toHaveBeenCalledWith('No matching conversations found.')
+    })
+
+    it('errors when both positional and --workspace are provided', async () => {
+        const program = createProgram()
+
+        await expect(
+            program.parseAsync([
+                'node',
+                'tdc',
+                'conversation',
+                'list',
+                'Doist',
+                '--workspace',
+                'Other',
+            ]),
+        ).rejects.toThrow('Cannot specify workspace both as argument and --workspace flag')
+    })
+})
+
 describe('conversation view machine output', () => {
     beforeEach(() => {
         vi.clearAllMocks()

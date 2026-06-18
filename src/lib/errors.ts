@@ -25,6 +25,7 @@ export type ErrorCode =
     | 'INVALID_CURSOR'
     | 'INVALID_DATE'
     | 'INVALID_ID'
+    | 'INVALID_LIMIT'
     | 'INVALID_MINUTES'
     | 'INVALID_REF'
     | 'INVALID_SCOPE'
