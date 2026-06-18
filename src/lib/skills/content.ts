@@ -158,6 +158,14 @@ tdc comment delete <comment-ref> --yes --json        # Delete and return status 
 
 \`\`\`bash
 tdc conversation unread                    # List unread conversations
+tdc conversation list                      # List active conversations (DMs and groups)
+tdc conversation list --kind group         # Only group conversations (3+ people)
+tdc conversation list --kind direct        # Only 1:1 conversations (and your self-DM)
+tdc conversation list --participant "Jane" # Only conversations including these users (comma-separated)
+tdc conversation list --name "release"     # Filter by title substring (case-insensitive)
+tdc conversation list --state archived     # Archived conversations only (active|all|archived; default active)
+tdc conversation list --snippet            # Include the latest message snippet
+tdc conversation list --limit 20 --json    # Cap rows and output as JSON
 tdc conversation <conversation-ref>        # View conversation (shorthand for view)
 tdc conversation view <conversation-ref>   # View conversation messages
 tdc conversation with <user-ref>           # Find your 1:1 DM with a user
@@ -434,6 +442,7 @@ tdc thread view <thread-id>
 **Check DMs:**
 \`\`\`bash
 tdc conversation unread --json
+tdc conversation list --kind group --json     # find a group DM by participants/name
 tdc conversation view <conversation-id>
 tdc conversation with "Alice Example"
 tdc conversation reply <id> "Got it, thanks!"

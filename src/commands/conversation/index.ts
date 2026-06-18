@@ -1,6 +1,8 @@
-import { Command } from 'commander'
+import { Command, Option } from 'commander'
+import { withCaseInsensitiveChoices } from '../../lib/completion.js'
 import { collect } from '../../lib/options.js'
 import { markConversationDone } from './done.js'
+import { listConversations } from './list.js'
 import { muteConversation } from './mute.js'
 import { replyToConversation } from './reply.js'
 import { unmuteConversation } from './unmute.js'
@@ -29,6 +31,54 @@ Examples:
   tdc conversation unread --json`,
         )
         .action(showUnread)
+
+    conversation
+        .command('list [workspace-ref]')
+        .description('List conversations, filtered by participant, name, or kind')
+        .option('--workspace <ref>', 'Workspace ID or name')
+        .option(
+            '--participant <user-refs>',
+            'Only conversations including these users (comma-separated: id:N, email, or name)',
+        )
+        .option('--name <substr>', 'Filter by conversation title (case-insensitive substring)')
+        .addOption(
+            withCaseInsensitiveChoices(
+                new Option('--kind <kind>', 'Filter by kind: group (3+ people) or direct (1:1)'),
+                ['group', 'direct'],
+            ),
+        )
+        .addOption(
+            withCaseInsensitiveChoices(
+                new Option(
+                    '--state <state>',
+                    'Conversation state: active, all, or archived (default: active)',
+                ),
+                ['active', 'all', 'archived'],
+            ),
+        )
+        .option('--snippet', 'Include the latest message snippet in text output')
+        .option('--limit <n>', 'Maximum conversations to show (default: all)')
+        .option('--json', 'Output as JSON')
+        .option('--ndjson', 'Output as newline-delimited JSON')
+        .option('--full', 'Include all fields in JSON output')
+        .addHelpText(
+            'after',
+            `
+Examples:
+  tdc conversation list
+  tdc conversation list --kind group
+  tdc conversation list --participant "Jane Smith"
+  tdc conversation list --participant alice@doist.com,bob@doist.com --kind group
+  tdc conversation list --name "release" --snippet
+  tdc conversation list --state archived --json
+  tdc conversation list --kind direct --limit 20
+
+Notes:
+  Defaults to active conversations. --participant keeps conversations that
+  include ALL of the given users. --kind group lists conversations with 3+
+  people; --kind direct lists 1:1s (and your self-conversation).`,
+        )
+        .action(listConversations)
 
     conversation
         .command('view [conversation-ref]', { isDefault: true })

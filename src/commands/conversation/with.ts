@@ -4,8 +4,8 @@ import { resolveUserRefs, resolveWorkspaceRef } from '../../lib/refs.js'
 import {
     type ConversationWithOptions,
     findDirectConversation,
-    getAllConversations,
-    listConversationsWithUser,
+    getConversationsByState,
+    renderConversationList,
 } from './helpers.js'
 
 export async function findConversationWithUser(
@@ -43,12 +43,12 @@ export async function findConversationWithUser(
     ])
 
     if (options.includeGroups) {
-        const conversations = await getAllConversations(workspaceId)
+        const conversations = await getConversationsByState(workspaceId)
         const matchingConversations = conversations.filter((conversation) =>
             conversation.userIds.includes(targetUser.id),
         )
 
-        await listConversationsWithUser(matchingConversations, workspaceId, options)
+        await renderConversationList(matchingConversations, workspaceId, options)
         return
     }
 
@@ -60,7 +60,7 @@ export async function findConversationWithUser(
 
     if (!directConversation) {
         if (options.json || options.ndjson) {
-            await listConversationsWithUser([], workspaceId, options)
+            await renderConversationList([], workspaceId, options)
             return
         }
 
@@ -73,5 +73,5 @@ export async function findConversationWithUser(
         return
     }
 
-    await listConversationsWithUser([directConversation], workspaceId, options)
+    await renderConversationList([directConversation], workspaceId, options)
 }

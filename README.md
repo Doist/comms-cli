@@ -124,6 +124,7 @@ tdc thread reply <ref>              # reply to a thread
 tdc thread rename <ref> "New title" # rename a thread
 tdc thread update <ref> "New body"  # edit a thread's body (first post)
 tdc conversation unread             # list unread conversations
+tdc conversation list               # list conversations (--kind, --participant, --name, --state)
 tdc conversation view <ref>         # view conversation messages
 tdc msg view <ref>                  # view a conversation message
 tdc search "keyword"                # search across workspace
