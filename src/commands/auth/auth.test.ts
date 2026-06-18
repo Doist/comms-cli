@@ -20,6 +20,7 @@ const storeMocks = vi.hoisted(() => ({
     set: vi.fn(),
     clear: vi.fn(),
     active: vi.fn(),
+    activeBundle: vi.fn(),
     list: vi.fn(),
     setDefault: vi.fn(),
     getLastStorageResult: vi.fn(),
@@ -354,6 +355,94 @@ describe('auth command', () => {
         })
     })
 
+    describe('refresh-token view subcommand', () => {
+        let writeSpy: ReturnType<typeof vi.spyOn>
+
+        function stdoutPayload(): string {
+            return writeSpy.mock.calls.map((call: unknown[]) => String(call[0])).join('')
+        }
+
+        beforeEach(() => {
+            writeSpy = vi.spyOn(process.stdout, 'write').mockImplementation(() => true)
+            storeMocks.activeBundle.mockReset()
+            storeMocks.list.mockReset()
+        })
+
+        afterEach(() => {
+            writeSpy.mockRestore()
+            vi.unstubAllEnvs()
+        })
+
+        it('prints exactly the stored OAuth refresh token to stdout with no envelope', async () => {
+            storeMocks.activeBundle.mockResolvedValue({
+                account: STORED_ACCOUNT,
+                bundle: {
+                    accessToken: 'tk_stored_1234567890',
+                    refreshToken: 'rt_stored_1234567890',
+                },
+            })
+
+            await createProgram().parseAsync(['node', 'tdc', 'auth', 'refresh-token', 'view'])
+
+            expect(stdoutPayload()).toBe('rt_stored_1234567890')
+            expect(consoleSpy).not.toHaveBeenCalled()
+        })
+
+        it('throws AUTH_REFRESH_UNAVAILABLE when the active credential has no refresh token', async () => {
+            storeMocks.activeBundle.mockResolvedValue({
+                account: STORED_ACCOUNT,
+                bundle: { accessToken: 'tk_stored_1234567890' },
+            })
+
+            await expect(
+                createProgram().parseAsync(['node', 'tdc', 'auth', 'refresh-token', 'view']),
+            ).rejects.toHaveProperty('code', 'AUTH_REFRESH_UNAVAILABLE')
+
+            expect(stdoutPayload()).toBe('')
+        })
+
+        it('matches per-command --user against the stored account by id', async () => {
+            storeMocks.activeBundle.mockResolvedValue({
+                account: STORED_ACCOUNT,
+                bundle: {
+                    accessToken: 'tk_stored_1234567890',
+                    refreshToken: 'rt_stored_1234567890',
+                },
+            })
+
+            await createProgram().parseAsync([
+                'node',
+                'tdc',
+                'auth',
+                'refresh-token',
+                'view',
+                '--user',
+                '1',
+            ])
+
+            expect(storeMocks.activeBundle).toHaveBeenCalledWith('1')
+            expect(stdoutPayload()).toBe('rt_stored_1234567890')
+        })
+
+        it('rejects per-command --user with ACCOUNT_NOT_FOUND when the ref does not match', async () => {
+            storeMocks.activeBundle.mockResolvedValue(null)
+
+            await expect(
+                createProgram().parseAsync([
+                    'node',
+                    'tdc',
+                    'auth',
+                    'refresh-token',
+                    'view',
+                    '--user',
+                    '999',
+                ]),
+            ).rejects.toHaveProperty('code', 'ACCOUNT_NOT_FOUND')
+
+            expect(stdoutPayload()).toBe('')
+        })
+    })
+
     describe('global --user flag', () => {
         // Tests simulate `src/index.ts`'s startup: mutate `process.argv` +
         // `resetGlobalArgs()` to rebuild the parser cache, then hand
@@ -364,6 +453,9 @@ describe('auth command', () => {
         beforeEach(() => {
             originalArgv = process.argv
             writeSpy = vi.spyOn(process.stdout, 'write').mockImplementation(() => true)
+            storeMocks.active.mockReset()
+            storeMocks.activeBundle.mockReset()
+            storeMocks.list.mockReset()
         })
 
         afterEach(() => {
@@ -388,10 +480,33 @@ describe('auth command', () => {
             )
         })
 
+        it('threads `tdc --user <ref> auth refresh-token view` into store.activeBundle', async () => {
+            storeMocks.list.mockResolvedValue(STORED_RECORDS)
+            storeMocks.activeBundle.mockResolvedValue({
+                account: STORED_ACCOUNT,
+                bundle: {
+                    accessToken: 'tk_stored_1234567890',
+                    refreshToken: 'rt_stored_1234567890',
+                },
+            })
+            process.argv = ['node', 'tdc', '--user', '1', 'auth', 'refresh-token', 'view']
+            resetGlobalArgs()
+
+            await createProgram().parseAsync(['node', 'tdc', 'auth', 'refresh-token', 'view'])
+
+            expect(storeMocks.activeBundle).toHaveBeenCalledWith('1')
+            expect(writeSpy.mock.calls.map((c: unknown[]) => String(c[0])).join('')).toBe(
+                'rt_stored_1234567890',
+            )
+        })
+
         it('threads `tdc --user <ref> auth status` into the snapshot used by fetchLive', async () => {
             vi.stubEnv(TOKEN_ENV_VAR, '')
             storeMocks.list.mockResolvedValue(STORED_RECORDS)
-            storeMocks.active.mockResolvedValue(STORED_SNAPSHOT)
+            storeMocks.activeBundle.mockResolvedValue({
+                account: STORED_ACCOUNT,
+                bundle: { accessToken: 'tk_stored_1234567890' },
+            })
             mockGetApiTokenSnapshot.mockResolvedValue({
                 token: 'tk_refreshed_1234567890',
                 account: {
@@ -408,7 +523,7 @@ describe('auth command', () => {
 
             await createProgram().parseAsync(['node', 'tdc', 'auth', 'status'])
 
-            expect(storeMocks.active).toHaveBeenCalledWith('1')
+            expect(storeMocks.activeBundle).toHaveBeenCalledWith('1')
             expect(mockGetApiTokenSnapshot).toHaveBeenCalledWith('1')
             expect(mockCreateWrappedCommsClient).toHaveBeenCalledWith('tk_refreshed_1234567890', {
                 baseUrl: 'https://comms.staging.todoist.com',

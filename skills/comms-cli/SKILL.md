@@ -24,12 +24,14 @@ tdc auth token                    # Save API token manually (prompts securely; s
 tdc auth status                   # Verify authentication + show mode
 tdc auth status --json            # Full status payload as JSON (--ndjson also supported)
 tdc auth status --user <ref>      # Target a specific stored account (id, id:<n>, or display name)
-tdc --user <ref> auth <status|logout|token view>  # Equivalent to passing --user after the subcommand; other commands accept the flag but ignore it
+tdc --user <ref> auth <status|logout|token view|refresh-token view>  # Equivalent to passing --user after the subcommand; other commands accept the flag but ignore it
 tdc auth logout                   # Remove saved token and auth metadata
 tdc auth logout --json            # Emits `{"ok": true}` (--ndjson is silent)
 tdc auth logout --user <ref>      # Target a specific stored account; mismatched ref errors with ACCOUNT_NOT_FOUND
 tdc auth token view               # Print the saved token to stdout (pipe-safe; refuses if COMMS_API_TOKEN is set)
 tdc auth token view --user <ref>  # Print the saved token for a specific stored account
+tdc auth refresh-token view       # Print the saved OAuth refresh token to stdout (pipe-safe; OAuth logins only)
+tdc auth refresh-token view --user <ref>  # Print the saved OAuth refresh token for a specific stored account
 tdc account [list|current|use <ref>|remove <ref>]  # Manage stored accounts; all support --json/--ndjson
                                  # current's payload is {id, label, authMode, authScope, source:"config"} | {source:"env"} | {source:"token-only"}
 tdc auth login                    # Re-running auth login with a different OAuth grant adds a NEW account; default stays pinned unless none was set

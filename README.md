@@ -109,6 +109,8 @@ The base URL is used for OAuth, the SDK, and search. OAuth login supports `comms
 ```bash
 tdc auth status   # check if authenticated
 tdc auth logout   # remove saved token
+tdc auth token view           # print the stored access token
+tdc auth refresh-token view   # print the stored OAuth refresh token
 ```
 
 ## Usage
