@@ -43,6 +43,7 @@ tdc config set <key> <value>      # Set a user preference (e.g. unarchive-new-th
 tdc doctor                        # Diagnose CLI setup and environment issues
 tdc update                        # Update CLI to latest version
 tdc changelog                     # Show recent changelog entries
+tdc migrate urls <urls>           # Translate old twist.com URLs to Comms URLs (needs a Twist token)
 ```
 
 OAuth login uses Todoist OAuth for Comms access. The default grant can read Comms data and create/update content or messages. It does not include delete, channel management, or user/workspace write scopes; use `tdc auth login --full-access` only when needed. Stored auth uses the system credential manager when available. If secure storage is unavailable, `tdc` warns and falls back to `~/.config/comms-cli/config.json`. `COMMS_API_TOKEN` always takes priority over the stored token.
@@ -352,6 +353,26 @@ tdc changelog                     # Show last 5 versions
 tdc changelog -n 3                # Show last 3 versions
 tdc changelog --count 10          # Show last 10 versions
 ```
+
+## Migration
+
+Translate old `twist.com` URLs to their Comms equivalents (e.g. for rewriting bookmarks or history). The migration endpoint authenticates with a **Twist** token (not a Comms one). Prefer the `TWIST_AUTH_TOKEN` environment variable — a CLI flag exposes the token in process listings. `--twist-token` is supported for ad-hoc use and overrides the env var. If the Twist CLI (`tw`) is installed, populate the env var inline with `TWIST_AUTH_TOKEN="$(tw auth token view)"`.
+
+```bash
+# Comma-separated list as an argument (token from the environment)
+TWIST_AUTH_TOKEN="$(tw auth token view)" tdc migrate urls "https://twist.com/a/1/ch/2/t/3,https://twist.com/a/1/ch/2/t/4"
+
+# Or pipe URLs via stdin (comma- or newline-separated)
+cat old-urls.txt | TWIST_AUTH_TOKEN="$(tw auth token view)" tdc migrate urls
+
+# --twist-token overrides the env var (visible in process lists — prefer the env var)
+tdc migrate urls "https://twist.com/a/1/ch/2/t/3" --twist-token <token>
+
+tdc migrate urls "<urls>" --json    # Structured output ({ oldUrl, newUrl } / { oldUrl, error })
+tdc migrate urls "<urls>" --ndjson  # Newline-delimited JSON
+```
+
+Output is one line per URL in input order: `old -> new` on success, `old  ✗ <code>` on failure (`invalid_url` / `not_imported`, or `API_ERROR` when the endpoint gives no code). Per-URL failures don't abort the run; the command exits non-zero if any URL fails to migrate.
 
 ## Global Options
 

@@ -43,6 +43,8 @@ const loadConfigCommand = async () =>
     (await import('./commands/config/index.js')).registerConfigCommand
 const loadAccountCommand = async () =>
     (await import('./commands/account/index.js')).registerAccountCommand
+const loadMigrateCommand = async () =>
+    (await import('./commands/migrate/index.js')).registerMigrateCommand
 
 const commands: Record<string, [string, () => Promise<(p: Command) => void>]> = {
     workspaces: ['List all workspaces', loadWorkspaceCommand],
@@ -72,6 +74,7 @@ const commands: Record<string, [string, () => Promise<(p: Command) => void>]> = 
         loadGroupsCommand,
     ],
     config: ['Manage CLI configuration', loadConfigCommand],
+    migrate: ['Twist→Comms migration helpers (urls)', loadMigrateCommand],
 }
 
 const commandAliases: Record<string, string> = {
@@ -185,6 +188,7 @@ if (process.argv[2] === 'completion-server') {
             'account',
             'config',
             'skill',
+            'migrate',
         ])
         const wantsRaw = process.argv.slice(2).includes('--raw')
         const needsMarkdown =
