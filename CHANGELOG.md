@@ -1,3 +1,9 @@
+## [1.9.0](https://github.com/Doist/comms-cli/compare/v1.8.0...v1.9.0) (2026-06-26)
+
+### Features
+
+- add migrate urls command ([#38](https://github.com/Doist/comms-cli/issues/38)) ([99697c0](https://github.com/Doist/comms-cli/commit/99697c007eb686d1370af4636c03a0325b26aba1))
+
 ## [1.8.0](https://github.com/Doist/comms-cli/compare/v1.7.0...v1.8.0) (2026-06-18)
 
 ### Features
