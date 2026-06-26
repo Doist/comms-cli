@@ -7,19 +7,20 @@ export function registerMigrateCommand(program: Command): void {
     migrate
         .command('urls [urls]')
         .description('Translate twist.com URLs to their Comms equivalents')
-        .option('--twist-token <token>', 'Twist auth token (defaults to $TWIST_AUTH_TOKEN)')
+        .option('--twist-token <token>', 'Twist auth token (overrides $TWIST_AUTH_TOKEN)')
         .option('--json', 'Output as JSON')
         .option('--ndjson', 'Output as newline-delimited JSON')
         .addHelpText(
             'after',
             `
-The migration endpoint needs a Twist (not Comms) token. The recommended way to
-supply it is via the Twist CLI, if installed:
+The migration endpoint needs a Twist (not Comms) token. Prefer the TWIST_AUTH_TOKEN
+environment variable — a CLI flag exposes the token in process listings. If the
+Twist CLI (tw) is installed, you can populate it inline:
 
 Examples:
-  tdc migrate urls "https://twist.com/a/1/ch/2/t/3,https://twist.com/a/1/ch/2/t/4" --twist-token "$(tw auth token view)"
-  cat old-urls.txt | tdc migrate urls --twist-token "$(tw auth token view)"
-  TWIST_AUTH_TOKEN=... tdc migrate urls "https://twist.com/a/1/ch/2/t/3" --json`,
+  TWIST_AUTH_TOKEN="$(tw auth token view)" tdc migrate urls "https://twist.com/a/1/ch/2/t/3,https://twist.com/a/1/ch/2/t/4"
+  cat old-urls.txt | TWIST_AUTH_TOKEN="$(tw auth token view)" tdc migrate urls
+  tdc migrate urls "https://twist.com/a/1/ch/2/t/3" --json   # token from $TWIST_AUTH_TOKEN`,
         )
         .action(migrateUrls)
 }
