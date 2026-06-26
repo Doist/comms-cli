@@ -357,6 +357,26 @@ tdc changelog -n 3                # Show last 3 versions
 tdc changelog --count 10          # Show last 10 versions
 \`\`\`
 
+## Migration
+
+Translate old \`twist.com\` URLs to their Comms equivalents (e.g. for rewriting bookmarks or history). The migration endpoint authenticates with a **Twist** token (not a Comms one), supplied via \`--twist-token\` or the \`TWIST_AUTH_TOKEN\` environment variable (the flag wins). If the Twist CLI (\`tw\`) is installed, the recommended way to pass it is \`--twist-token "$(tw auth token view)"\`.
+
+\`\`\`bash
+# Comma-separated list as an argument
+tdc migrate urls "https://twist.com/a/1/ch/2/t/3,https://twist.com/a/1/ch/2/t/4" --twist-token "$(tw auth token view)"
+
+# Or pipe URLs via stdin (comma- or newline-separated)
+cat old-urls.txt | tdc migrate urls --twist-token "$(tw auth token view)"
+
+# Token from the environment instead of the flag
+TWIST_AUTH_TOKEN=... tdc migrate urls "https://twist.com/a/1/ch/2/t/3"
+
+tdc migrate urls "<urls>" --twist-token <token> --json    # Structured output ({ oldUrl, newUrl } / { oldUrl, error })
+tdc migrate urls "<urls>" --twist-token <token> --ndjson  # Newline-delimited JSON
+\`\`\`
+
+Output is one line per URL in input order: \`old -> new\` on success, \`old  ✗ <code>\` on failure (\`invalid_url\` / \`not_imported\`). Per-URL failures don't abort the run; the command exits non-zero if any URL fails to migrate.
+
 ## Global Options
 
 \`\`\`bash

@@ -51,7 +51,7 @@ src/
 │  ├─ inbox.ts, mentions.ts, search.ts, react.ts, view.ts,
 │  │  user.ts, workspace.ts, doctor.ts, changelog.ts
 │  ├─ thread/, conversation/, msg/, comment/, channel/, groups/,
-│  │  account/, auth/, config/, skill/, completion/, update/
+│  │  account/, auth/, config/, skill/, completion/, update/, migrate/
 │  └─ <group>/index.ts    # registerXxxCommand(program) + sibling files per subcommand
 ├─ lib/                   # Shared utilities. See catalog — don't reimplement.
 │  ├─ skills/             # content.ts (SKILL_CONTENT) + installer plumbing
@@ -113,6 +113,8 @@ don't duplicate it here.
 - **Identity & infra** — `user`/`users`, `workspace`/`workspaces`,
   `auth` (login/logout/token/status), `account` (list/current/use/remove),
   `config`, `skill`, `completion`, `update`, `changelog`, `doctor`
+- **Migration** (`migrate/`) — `urls` (translate twist.com URLs to Comms; uses a
+  Twist token via `--twist-token` / `TWIST_AUTH_TOKEN`)
 
 ## `src/lib/` catalog — don't reimplement
 
