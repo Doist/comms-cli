@@ -1,3 +1,9 @@
+## [1.9.1](https://github.com/Doist/comms-cli/compare/v1.9.0...v1.9.1) (2026-07-02)
+
+### Bug Fixes
+
+- **deps:** release comms-sdk 0.7.1 for Node 26 terminated fix ([587b17b](https://github.com/Doist/comms-cli/commit/587b17b3a2df4e2060c6452f5a9d2d6dbda12a5b)), closes [#39](https://github.com/Doist/comms-cli/issues/39)
+
 ## [1.9.0](https://github.com/Doist/comms-cli/compare/v1.8.0...v1.9.0) (2026-06-26)
 
 ### Features
