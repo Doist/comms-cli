@@ -487,7 +487,7 @@ describe('thread view --unread', () => {
     })
 })
 
-describe('thread view --since', () => {
+describe('thread view date filters', () => {
     beforeEach(() => {
         clearWorkspaceUserCache()
         vi.clearAllMocks()
@@ -525,6 +525,35 @@ describe('thread view --since', () => {
         )
         const [args] = client.comments.getComments.mock.calls[0] as [Record<string, unknown>]
         expect(args).not.toHaveProperty('from')
+    })
+
+    it('maps --until to olderThan for getComments', async () => {
+        const client = createClient({
+            comments: [createComment(1, 1)],
+            users: { 1: { id: 1, fullName: 'Alice' }, 2: { id: 2, fullName: 'Bob' } },
+        })
+        apiMocks.getCommsClient.mockResolvedValue(client)
+
+        const program = createProgram()
+        captureConsole('log')
+
+        await program.parseAsync([
+            'node',
+            'tdc',
+            'thread',
+            'view',
+            '500',
+            '--until',
+            '2026-01-31',
+            '--json',
+        ])
+
+        expect(client.comments.getComments).toHaveBeenCalledWith(
+            expect.objectContaining({
+                threadId: '500',
+                olderThan: new Date('2026-01-31'),
+            }),
+        )
     })
 })
 

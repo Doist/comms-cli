@@ -37,7 +37,12 @@ export async function viewConversation(
 
     const [conversation, messages] = await Promise.all([
         client.conversations.getConversation(conversationId),
-        client.conversationMessages.getMessages({ conversationId, limit }),
+        client.conversationMessages.getMessages({
+            conversationId,
+            newerThan: options.since ? new Date(options.since) : undefined,
+            olderThan: options.until ? new Date(options.until) : undefined,
+            limit,
+        }),
     ])
 
     const userMap = await fetchUserNamesByIds(client, conversation.workspaceId, [

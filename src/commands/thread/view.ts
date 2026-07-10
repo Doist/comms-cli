@@ -82,6 +82,7 @@ export async function viewThread(ref: string, options: ViewOptions): Promise<voi
         client.comments.getComments({
             threadId,
             newerThan: options.since ? new Date(options.since) : undefined,
+            olderThan: options.until ? new Date(options.until) : undefined,
             limit,
         }),
     ])
