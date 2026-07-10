@@ -72,12 +72,13 @@ export function sortByLastActiveDescending(a: Conversation, b: Conversation): nu
 const CONVERSATION_PAGE_LIMIT = 500
 
 /**
- * Stream every conversations/get page for one archived state
- * (undefined = the server's unfiltered active+archived stream). Pages
- * advance by the strict compound (lastActive, id) cursor taken from the
- * last raw row, so quiet conversations beyond the first page are reached.
- * Only rows unseen on earlier pages are yielded: legacy inclusive servers
- * repeat the boundary row, and consumers must not process it twice.
+ * Stream a workspace's conversations page by page for one archived state
+ * (undefined = active and archived in a single stream). Each request
+ * continues from the previous page's last row via the strict compound
+ * (lastActive, id) cursor, so quiet conversations far down the list are
+ * still reached. Only rows unseen on earlier pages are yielded: older
+ * servers repeat the boundary row, and consumers must not process it
+ * twice.
  */
 async function* iterateConversationPages(
     workspaceId: number,
