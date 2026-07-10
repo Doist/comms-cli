@@ -3,6 +3,7 @@ import chalk from 'chalk'
 import { getCommsClient } from '../../lib/api.js'
 import { formatRelativeDate } from '../../lib/dates.js'
 import { renderMarkdown } from '../../lib/markdown.js'
+import { toDate } from '../../lib/options.js'
 import { colors, filterEntityFields } from '../../lib/output.js'
 import { resolveConversationId } from '../../lib/refs.js'
 import { buildConversationTitle, type ConversationViewOptions } from './helpers.js'
@@ -39,8 +40,8 @@ export async function viewConversation(
         client.conversations.getConversation(conversationId),
         client.conversationMessages.getMessages({
             conversationId,
-            newerThan: options.since ? new Date(options.since) : undefined,
-            olderThan: options.until ? new Date(options.until) : undefined,
+            newerThan: toDate(options.since),
+            olderThan: toDate(options.until),
             limit,
         }),
     ])

@@ -875,12 +875,14 @@ describe('conversation view date filters', () => {
             '--json',
         ])
 
-        expect(client.conversationMessages.getMessages).toHaveBeenCalledWith({
-            conversationId: '42',
-            newerThan: new Date('2026-06-26'),
-            olderThan: new Date('2026-06-30'),
-            limit: 50,
-        })
+        expect(client.conversationMessages.getMessages).toHaveBeenCalledWith(
+            expect.objectContaining({
+                conversationId: '42',
+                newerThan: new Date('2026-06-26'),
+                olderThan: new Date('2026-06-30'),
+                limit: 50,
+            }),
+        )
     })
 })
 

@@ -3,7 +3,7 @@ import chalk from 'chalk'
 import { buildUserNameMap, getCommsClient } from '../../lib/api.js'
 import { formatRelativeDate } from '../../lib/dates.js'
 import { renderMarkdown } from '../../lib/markdown.js'
-import type { PaginatedViewOptions } from '../../lib/options.js'
+import { toDate, type PaginatedViewOptions } from '../../lib/options.js'
 import { colors, formatJson, pluralize } from '../../lib/output.js'
 import { assertChannelIsPublic } from '../../lib/public-channels.js'
 import { extractId, parseRef, resolveThreadId } from '../../lib/refs.js'
@@ -81,8 +81,8 @@ export async function viewThread(ref: string, options: ViewOptions): Promise<voi
         client.threads.getThread(threadId),
         client.comments.getComments({
             threadId,
-            newerThan: options.since ? new Date(options.since) : undefined,
-            olderThan: options.until ? new Date(options.until) : undefined,
+            newerThan: toDate(options.since),
+            olderThan: toDate(options.until),
             limit,
         }),
     ])
