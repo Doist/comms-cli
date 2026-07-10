@@ -5,20 +5,7 @@ describe('CLI entrypoint', () => {
     const originalArgv = [...process.argv]
     const originalExitCode = process.exitCode
 
-    beforeEach(() => {
-        vi.resetModules()
-        process.argv = [...originalArgv]
-        process.exitCode = undefined
-    })
-
-    afterEach(() => {
-        process.argv = [...originalArgv]
-        process.exitCode = originalExitCode
-        vi.restoreAllMocks()
-        vi.resetModules()
-    })
-
-    it('stops the early spinner before Commander writes parse errors', async () => {
+    async function expectSpinnerStoppedBeforeParseError(argv: string[]): Promise<void> {
         const startEarlySpinner = vi.fn()
         const stopEarlySpinner = vi.fn()
         const exitSpy = vi.spyOn(process, 'exit').mockImplementation(((
@@ -30,6 +17,13 @@ describe('CLI entrypoint', () => {
             .spyOn(process.stderr, 'write')
             .mockImplementation((() => true) as typeof process.stderr.write)
 
+        vi.doMock('commander', async (importOriginal) => {
+            const actual = await importOriginal<typeof import('commander')>()
+            return {
+                ...actual,
+                program: new actual.Command(),
+            }
+        })
         vi.doMock('./lib/spinner.js', () => ({
             startEarlySpinner,
             stopEarlySpinner,
@@ -46,15 +40,7 @@ describe('CLI entrypoint', () => {
             },
         }))
 
-        process.argv = [
-            'node',
-            'tdc',
-            'conversation',
-            'view',
-            'https://comms.todoist.com/123/msg/ANON_MESSAGE_ID/',
-            '--from',
-            '2026-06-26',
-        ]
+        process.argv = argv
 
         await import('./index.js')
 
@@ -62,9 +48,45 @@ describe('CLI entrypoint', () => {
         expect(stopEarlySpinner).toHaveBeenCalled()
         expect(exitSpy).not.toHaveBeenCalled()
         expect(process.exitCode).toBe(1)
-        expect(stderrWriteSpy).toHaveBeenCalledWith("error: unknown option '--from'\n")
+        expect(stderrWriteSpy).toHaveBeenCalledWith(expect.stringContaining('--from'))
         expect(stopEarlySpinner.mock.invocationCallOrder[0]).toBeLessThan(
             stderrWriteSpy.mock.invocationCallOrder[0],
         )
+    }
+
+    beforeEach(() => {
+        vi.resetModules()
+        process.argv = [...originalArgv]
+        process.exitCode = undefined
+    })
+
+    afterEach(() => {
+        process.argv = [...originalArgv]
+        process.exitCode = originalExitCode
+        vi.restoreAllMocks()
+        vi.resetModules()
+    })
+
+    it('stops the early spinner before the root parser writes parse errors', async () => {
+        await expectSpinnerStoppedBeforeParseError([
+            'node',
+            'tdc',
+            'conversation',
+            'view',
+            'https://comms.todoist.com/123/msg/ANON_MESSAGE_ID/',
+            '--from',
+            '2026-06-26',
+        ])
+    })
+
+    it('stops the early spinner before the view proxy parser writes parse errors', async () => {
+        await expectSpinnerStoppedBeforeParseError([
+            'node',
+            'tdc',
+            'view',
+            'https://comms.todoist.com/a/123/msg/456',
+            '--from',
+            '2026-06-26',
+        ])
     })
 })

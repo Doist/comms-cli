@@ -1,4 +1,5 @@
 import { Command } from 'commander'
+import { configureCommandOutput } from '../lib/command-output.js'
 import { CliError } from '../lib/errors.js'
 import { classifyCommsUrl } from '../lib/refs.js'
 
@@ -17,8 +18,7 @@ async function runRoutedCommand(
     loadRegister: () => Promise<(p: Command) => void>,
     argv: string[],
 ): Promise<void> {
-    const proxy = new Command()
-    proxy.exitOverride()
+    const proxy = configureCommandOutput(new Command())
     const register = await loadRegister()
     register(proxy)
     await proxy.parseAsync(['node', 'tdc', ...argv])
