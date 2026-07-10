@@ -45,14 +45,14 @@ This is a TypeScript CLI (`tdc`) for Comms messaging, built with Commander.js.
 **Lib** (`src/lib/`):
 
 - `api.ts` - Singleton CommsApi client from `@doist/comms-sdk`, workspace/user caching
-- `refs.ts` - Reference parsing: accepts IDs (`id:123` or bare `123`), Comms URLs, or fuzzy names for workspaces/users
+- `refs.ts` - Reference parsing: accepts IDs (`id:<id>` or bare IDs when unambiguous), Comms URLs, or fuzzy names for workspaces/users/channels/groups
 - `output.ts` - JSON/NDJSON formatting with essential field filtering per entity type
 - `config.ts` - Persists config to `~/.config/comms-cli/config.json`
 - `auth.ts` - Token loading/saving/clearing (env var or config file)
 - `markdown.ts` - Terminal markdown rendering via `marked` + `marked-terminal`
 - `completion.ts` - Commander tree-walker + completion helpers for shell tab completion
 
-**Reference system**: The CLI accepts flexible references throughout - numeric IDs, `id:` prefixed IDs, full Comms URLs (parsed via `parseCommsUrl`), or fuzzy name matching for workspaces/users.
+**Reference system**: The CLI accepts flexible references throughout - `id:` prefixed IDs, bare IDs when unambiguous, full Comms URLs (parsed via `parseCommsUrl`), or fuzzy name matching for workspaces/users/channels/groups. Workspace and user IDs are numeric; most Comms entity IDs (threads, channels, comments, messages, conversations, groups) are opaque strings.
 
 ## Key Patterns
 

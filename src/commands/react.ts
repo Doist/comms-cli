@@ -159,10 +159,10 @@ export function registerReactCommand(program: Command): void {
             'after',
             `
 Examples:
-  tdc react thread 12345 +1
-  tdc react comment 67890 heart
-  tdc react message 11111 tada --dry-run
-  tdc react thread 12345 +1 --json`,
+  tdc react thread id:CbT8n2Kp4Qx6Rz9Lm3Va +1
+  tdc react comment id:CbM8n2Kp4Qx6Rz9Lm3Va heart
+  tdc react message id:CbS8n2Kp4Qx6Rz9Lm3Va tada --dry-run
+  tdc react thread id:CbT8n2Kp4Qx6Rz9Lm3Va +1 --json`,
         )
         .action((targetType: string, targetRef: string, emoji: string, options: ReactOptions) => {
             if (!['thread', 'comment', 'message'].includes(targetType)) {
@@ -183,9 +183,9 @@ Examples:
             'after',
             `
 Examples:
-  tdc unreact thread 12345 +1
-  tdc unreact comment 67890 heart
-  tdc unreact thread 12345 +1 --json`,
+  tdc unreact thread id:CbT8n2Kp4Qx6Rz9Lm3Va +1
+  tdc unreact comment id:CbM8n2Kp4Qx6Rz9Lm3Va heart
+  tdc unreact thread id:CbT8n2Kp4Qx6Rz9Lm3Va +1 --json`,
         )
         .action((targetType: string, targetRef: string, emoji: string, options: ReactOptions) => {
             if (!['thread', 'comment', 'message'].includes(targetType)) {

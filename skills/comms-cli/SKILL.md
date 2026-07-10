@@ -93,7 +93,7 @@ tdc thread view <ref> --raw       # Show raw markdown
 tdc thread create <channel-ref> "Title" "content"    # Create a new thread
 tdc thread create <channel-ref> "Title" "content" --json       # Create and return as JSON
 tdc thread create <channel-ref> "Title" "content" --json --full # Include all thread fields
-tdc thread create <channel-ref> "Title" "content" --notify 123,456  # Notify specific users and/or groups by ID
+tdc thread create <channel-ref> "Title" "content" --notify 123,Cbzzm11ZeYZoJYD4a6rti  # Notify user and/or group IDs
 tdc thread create <channel-ref> "Title" "content" --unarchive  # Land thread in author's Inbox (overrides default Comms auto-archive)
 tdc thread create <channel-ref> "Title" "content" --no-unarchive  # Force archive even when userSettings.unarchiveNewThreads=true
 tdc thread create <channel-ref> "Title" "content" --dry-run  # Preview without posting
@@ -112,7 +112,7 @@ tdc thread done <ref> --yes           # Archive thread (mark done)
 tdc thread done <ref> --yes --json    # Archive and return status as JSON
 tdc thread mark-read <ref>        # Mark a thread read
 tdc thread mark-read <ref> <ref> --yes # Mark multiple threads read
-printf "123\n456\n" | tdc thread mark-read --dry-run # Preview bulk mark-read from stdin
+printf "id:CbT8n2Kp4Qx6Rz9Lm3Va\nid:CbT9m4Qr7Vz2Nx8Lp5Sa\n" | tdc thread mark-read --dry-run # Preview bulk mark-read from stdin
 tdc thread mute <ref>             # Mute thread for 60 minutes (default)
 tdc thread mute <ref> --minutes 480  # Mute for custom duration
 tdc thread mute <ref> --json      # Mute and return { id, mutedUntil } as JSON
@@ -248,8 +248,8 @@ tdc channel update <ref> --description "Team discussions" --json --full # Update
 tdc channel delete <channel-ref> --yes # Permanently delete a channel (requires --yes; usually admin-only)
 tdc channel delete <ref> --dry-run # Preview deletion
 tdc channel archive <channel-ref> # Archive a channel (no-op if already archived)
-tdc channel unarchive id:<id> # Unarchive a channel (pass id:/numeric ref for archived channels)
-tdc channel threads <channel-ref>  # List threads in a channel (fuzzy name, id:, numeric ID, or URL)
+tdc channel unarchive id:<id> # Unarchive a channel (pass id: for archived channels)
+tdc channel threads <channel-ref>  # List threads in a channel (fuzzy name, id:, or URL)
 tdc channel threads "general" --unread       # Only unread threads
 tdc channel threads <ref> --archive-filter all  # Include archived threads (active|archived|all)
 tdc channel threads <ref> --since 2026-01-01 # Filter by last-updated date (ISO)
@@ -410,9 +410,9 @@ Run without --dry-run to execute.
 ## Reference System
 
 Commands accept flexible references:
-- **Numeric IDs**: `123` or `id:123`
+- **IDs**: `id:<id>` (or a bare ID when unambiguous). Workspace/user IDs are numeric; most Comms entity IDs are opaque strings.
 - **Comms URLs**: Full `https://comms.todoist.com/...` URLs (parsed automatically)
-- **Fuzzy names**: For workspaces/users - `"My Workspace"` or partial matches
+- **Fuzzy names**: For workspaces/users/channels/groups - `"My Workspace"` or partial matches
 
 ## Piping Input
 
@@ -429,26 +429,26 @@ If no content argument is provided and no stdin is piped, the CLI opens `$EDITOR
 `tdc thread mark-read` also accepts thread refs from stdin, one per line:
 
 ```bash
-printf "123\n456\n" | tdc thread mark-read --yes
+printf "id:CbT8n2Kp4Qx6Rz9Lm3Va\nid:CbT9m4Qr7Vz2Nx8Lp5Sa\n" | tdc thread mark-read --yes
 ```
 
 ## Common Workflows
 
 **View by URL (auto-routes to the right command):**
 ```bash
-tdc view https://comms.todoist.com/1585/ch/100/t/200            # View thread
-tdc view https://comms.todoist.com/a/1585/ch/100/t/200          # View thread
-tdc view https://comms.todoist.com/a/1585/ch/100/t/200/c/300     # View comment
-tdc view https://comms.todoist.com/a/1585/msg/400                 # View conversation
-tdc view https://comms.todoist.com/a/1585/msg/400/m/500 --json    # View message as JSON
+tdc view https://comms.todoist.com/1585/ch/CbC8n2Kp4Qx6Rz9Lm3Va/t/CbT8n2Kp4Qx6Rz9Lm3Va            # View thread
+tdc view https://comms.todoist.com/a/1585/ch/CbC8n2Kp4Qx6Rz9Lm3Va/t/CbT8n2Kp4Qx6Rz9Lm3Va          # View thread
+tdc view https://comms.todoist.com/a/1585/ch/CbC8n2Kp4Qx6Rz9Lm3Va/t/CbT8n2Kp4Qx6Rz9Lm3Va/c/CbM8n2Kp4Qx6Rz9Lm3Va     # View comment
+tdc view https://comms.todoist.com/a/1585/msg/CbV8n2Kp4Qx6Rz9Lm3Va                 # View conversation
+tdc view https://comms.todoist.com/a/1585/msg/CbV8n2Kp4Qx6Rz9Lm3Va/m/CbS8n2Kp4Qx6Rz9Lm3Va --json    # View message as JSON
 ```
 
 **Check inbox and respond:**
 ```bash
 tdc inbox --unread --json
-tdc thread view <id> --unread
-tdc thread reply <id> "Thanks, I'll look into this."
-tdc thread done <id> --yes
+tdc thread view <thread-ref> --unread
+tdc thread reply <thread-ref> "Thanks, I'll look into this."
+tdc thread done <thread-ref> --yes
 ```
 
 **Search and review:**
@@ -464,5 +464,5 @@ tdc conversation unread --json
 tdc conversation list --kind group --json     # find a group DM by participants/name
 tdc conversation view <conversation-id>
 tdc conversation with "Alice Example"
-tdc conversation reply <id> "Got it, thanks!"
+tdc conversation reply <conversation-ref> "Got it, thanks!"
 ```

@@ -121,7 +121,7 @@ tdc inbox --unread                  # unread threads only
 tdc mentions                        # content mentioning you
 tdc mentions --since 2026-04-01 --all --json
 tdc thread view <ref>               # view thread with comments
-tdc thread view <ref> --comment 123 # view a specific comment
+tdc thread view <ref> --comment id:CbM8n2Kp4Qx6Rz9Lm3Va # view a specific comment
 tdc thread reply <ref>              # reply to a thread
 tdc thread rename <ref> "New title" # rename a thread
 tdc thread update <ref> "New body"  # edit a thread's body (first post)
@@ -145,7 +145,7 @@ tdc groups add-user <ref> alice@doist.com bob@doist.com
 tdc groups remove-user <ref> id:123,id:456
 ```
 
-References accept IDs (`123` or `id:123`), Comms URLs, or fuzzy names (for workspaces/users).
+References accept IDs (`id:<id>`; bare IDs when unambiguous), Comms URLs, or fuzzy names (for workspaces/users/channels/groups). Workspace and user IDs are numeric; threads, channels, comments, messages, conversations, and groups use opaque string IDs.
 
 Run `tdc --help` or `tdc <command> --help` for more options.
 
