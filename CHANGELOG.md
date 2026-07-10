@@ -1,3 +1,9 @@
+## [1.9.2](https://github.com/Doist/comms-cli/compare/v1.9.1...v1.9.2) (2026-07-10)
+
+### Bug Fixes
+
+- Paginate conversation fetches to exhaustion ([#43](https://github.com/Doist/comms-cli/issues/43)) ([0e1ee31](https://github.com/Doist/comms-cli/commit/0e1ee31b9b3ea9db996eae418e78ee943a47a615))
+
 ## [1.9.1](https://github.com/Doist/comms-cli/compare/v1.9.0...v1.9.1) (2026-07-02)
 
 ### Bug Fixes
