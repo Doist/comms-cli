@@ -105,7 +105,11 @@ function createClient({
     return {
         conversations: {
             getConversations: vi.fn(async ({ archived }: { archived?: boolean }) =>
-                archived ? archivedConversations : activeConversations,
+                archived === undefined
+                    ? [...activeConversations, ...archivedConversations]
+                    : archived
+                      ? archivedConversations
+                      : activeConversations,
             ),
             getUnread: vi.fn().mockResolvedValue({ data: [], version: 1 }),
             getConversation: vi.fn(async (id: string) => conversationsById.get(id)),
@@ -263,7 +267,11 @@ describe('conversation with', () => {
         expect(refsMocks.resolveUserRefs).toHaveBeenCalledWith('Alice', 1)
         expect(refsMocks.resolveConversationId).not.toHaveBeenCalled()
         expect(consoleSpy).toHaveBeenCalledWith('Conversation with Me, Alice Example')
-        expect(client.conversations.getConversations).toHaveBeenCalledWith({ workspaceId: 1 })
+        expect(client.conversations.getConversations).toHaveBeenCalledWith({
+            workspaceId: 1,
+            limit: 500,
+            archived: false,
+        })
     })
 
     it('searches archived conversations when no active 1:1 is found', async () => {
@@ -285,9 +293,14 @@ describe('conversation with', () => {
 
         await program.parseAsync(['node', 'tdc', 'conversation', 'with', 'Alice'])
 
-        expect(client.conversations.getConversations).toHaveBeenCalledWith({ workspaceId: 1 })
         expect(client.conversations.getConversations).toHaveBeenCalledWith({
             workspaceId: 1,
+            limit: 500,
+            archived: false,
+        })
+        expect(client.conversations.getConversations).toHaveBeenCalledWith({
+            workspaceId: 1,
+            limit: 500,
             archived: true,
         })
     })
@@ -423,11 +436,14 @@ describe('conversation list', () => {
         expect(output).toContain('id:43')
         expect(output).toContain('id:42')
         // Active-only default never touches the archived fetch.
-        expect(client.conversations.getConversations).toHaveBeenCalledWith({ workspaceId: 1 })
-        expect(client.conversations.getConversations).not.toHaveBeenCalledWith({
+        expect(client.conversations.getConversations).toHaveBeenCalledWith({
             workspaceId: 1,
-            archived: true,
+            limit: 500,
+            archived: false,
         })
+        expect(client.conversations.getConversations).not.toHaveBeenCalledWith(
+            expect.objectContaining({ archived: true }),
+        )
     })
 
     it('filters to conversations that include a given participant', async () => {
@@ -611,9 +627,12 @@ describe('conversation list', () => {
 
         expect(client.conversations.getConversations).toHaveBeenCalledWith({
             workspaceId: 1,
+            limit: 500,
             archived: true,
         })
-        expect(client.conversations.getConversations).not.toHaveBeenCalledWith({ workspaceId: 1 })
+        expect(client.conversations.getConversations).not.toHaveBeenCalledWith(
+            expect.objectContaining({ archived: false }),
+        )
         expect(JSON.parse(consoleSpy.mock.calls[0][0]).map((c: { id: string }) => c.id)).toEqual([
             '43',
         ])
@@ -1250,5 +1269,188 @@ describe('conversation reply --file', () => {
         expect(client.attachments.upload).not.toHaveBeenCalled()
         expect(client.conversationMessages.createMessage).not.toHaveBeenCalled()
         expect(consoleSpy).toHaveBeenCalledWith(expect.stringContaining(files.png))
+    })
+})
+
+describe('conversation pagination', () => {
+    beforeEach(() => {
+        vi.clearAllMocks()
+        refsMocks.resolveUserRefs.mockResolvedValue([2])
+    })
+
+    const paginationUsers = {
+        1: { id: 1, fullName: 'Me' },
+        2: { id: 2, fullName: 'Alice Example' },
+        3: { id: 3, fullName: 'Bob Example' },
+    }
+
+    function descendingConversations(count: number, userIds: number[] = [1, 2, 3]) {
+        // Distinct, strictly descending lastActive so page boundaries are unambiguous.
+        return Array.from({ length: count }, (_, index) =>
+            createConversation(
+                1000 + index,
+                userIds,
+                new Date(Date.UTC(2026, 0, 20, 0, 0, 0) - index * 60_000).toISOString(),
+            ),
+        )
+    }
+
+    /** Client whose getConversations honors limit + the strict compound cursor. */
+    function paginatedClient(conversations: TestConversation[]) {
+        const client = createClient({ users: paginationUsers })
+        const sorted = [...conversations].sort(
+            (a, b) => b.lastActive.getTime() - a.lastActive.getTime(),
+        )
+        client.conversations.getConversations = vi.fn(
+            async ({
+                archived,
+                limit = 20,
+                olderThan,
+                beforeId,
+            }: {
+                workspaceId: number
+                archived?: boolean
+                limit?: number
+                olderThan?: Date
+                beforeId?: string
+            }) => {
+                let rows = sorted.filter(
+                    (conversation) => archived === undefined || conversation.archived === archived,
+                )
+                if (olderThan && beforeId) {
+                    rows = rows.filter(
+                        (conversation) =>
+                            conversation.lastActive.getTime() < olderThan.getTime() ||
+                            (conversation.lastActive.getTime() === olderThan.getTime() &&
+                                conversation.id < beforeId),
+                    )
+                }
+                return rows.slice(0, limit)
+            },
+        ) as never
+        return client
+    }
+
+    it('pages past the 500-row server limit to find quiet conversations', async () => {
+        const conversations = descendingConversations(501)
+        const needle = conversations[conversations.length - 1] as TestConversation
+        needle.title = 'Backend Leads'
+        const client = paginatedClient(conversations)
+        apiMocks.getCommsClient.mockResolvedValue(client)
+
+        const program = createProgram()
+        const consoleSpy = captureConsole('log')
+
+        await program.parseAsync(['node', 'tdc', 'conversation', 'list', '--name', 'backend'])
+
+        const output = consoleSpy.mock.calls.map((call) => call[0]).join('\n')
+        expect(output).toContain('Backend Leads')
+
+        expect(client.conversations.getConversations).toHaveBeenCalledTimes(2)
+        const boundary = conversations[499] as TestConversation
+        expect(client.conversations.getConversations).toHaveBeenLastCalledWith({
+            workspaceId: 1,
+            limit: 500,
+            archived: false,
+            olderThan: boundary.lastActive,
+            beforeId: boundary.id,
+        })
+    })
+
+    it('dedupes boundary rows repeated by a legacy inclusive server', async () => {
+        const conversations = descendingConversations(501)
+        const client = createClient({ users: paginationUsers })
+        const sorted = [...conversations].sort(
+            (a, b) => b.lastActive.getTime() - a.lastActive.getTime(),
+        )
+        // Legacy server: ignores beforeId, repeats the boundary row (<=).
+        client.conversations.getConversations = vi.fn(
+            async ({ limit = 20, olderThan }: { limit?: number; olderThan?: Date }) => {
+                const rows = olderThan
+                    ? sorted.filter(
+                          (conversation) =>
+                              conversation.lastActive.getTime() <= olderThan.getTime(),
+                      )
+                    : sorted
+                return rows.slice(0, limit)
+            },
+        ) as never
+        apiMocks.getCommsClient.mockResolvedValue(client)
+
+        const program = createProgram()
+        const consoleSpy = captureConsole('log')
+
+        await program.parseAsync(['node', 'tdc', 'conversation', 'list', '--json', '--full'])
+
+        const ids = JSON.parse(consoleSpy.mock.calls[0][0]).map(
+            (conversation: { id: string }) => conversation.id,
+        )
+        expect(ids).toHaveLength(501)
+        expect(new Set(ids).size).toBe(501)
+    })
+
+    it('fails loudly when the server never advances the page', async () => {
+        const stuckPage = descendingConversations(500)
+        const client = createClient({ users: paginationUsers })
+        client.conversations.getConversations = vi.fn(async () => stuckPage) as never
+        apiMocks.getCommsClient.mockResolvedValue(client)
+
+        const program = createProgram()
+
+        await expect(
+            program.parseAsync(['node', 'tdc', 'conversation', 'list']),
+        ).rejects.toHaveProperty('code', 'PAGINATION_STALLED')
+    })
+
+    it('does not double-count a boundary group repeated by a legacy inclusive server', async () => {
+        // 501 groups with Alice, no 1:1. The legacy server repeats the page
+        // boundary; the suggestion must still count each group once.
+        const groups = descendingConversations(501)
+        const client = createClient({ users: paginationUsers })
+        const sorted = [...groups].sort((a, b) => b.lastActive.getTime() - a.lastActive.getTime())
+        client.conversations.getConversations = vi.fn(
+            async ({
+                archived,
+                limit = 20,
+                olderThan,
+            }: {
+                archived?: boolean
+                limit?: number
+                olderThan?: Date
+            }) => {
+                let rows = sorted.filter(
+                    (conversation) => archived === undefined || conversation.archived === archived,
+                )
+                if (olderThan) {
+                    rows = rows.filter(
+                        (conversation) => conversation.lastActive.getTime() <= olderThan.getTime(),
+                    )
+                }
+                return rows.slice(0, limit)
+            },
+        ) as never
+        apiMocks.getCommsClient.mockResolvedValue(client)
+
+        const program = createProgram()
+        const consoleSpy = captureConsole('log')
+
+        await program.parseAsync(['node', 'tdc', 'conversation', 'with', 'Alice'])
+
+        expect(consoleSpy).toHaveBeenCalledWith(expect.stringContaining('501 group conversations'))
+    })
+
+    it('finds a 1:1 conversation beyond the first page with `conversation with`', async () => {
+        const groups = descendingConversations(500)
+        const direct = createConversation(9999, [1, 2], '2020-01-01T00:00:00.000Z')
+        const client = paginatedClient([...groups, direct])
+        apiMocks.getCommsClient.mockResolvedValue(client)
+
+        const program = createProgram()
+        const consoleSpy = captureConsole('log')
+
+        await program.parseAsync(['node', 'tdc', 'conversation', 'with', 'Alice'])
+
+        expect(consoleSpy).toHaveBeenCalledWith('Conversation with Me, Alice Example')
+        expect(client.conversations.getConversations).toHaveBeenCalledTimes(2)
     })
 })
