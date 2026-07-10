@@ -1402,6 +1402,43 @@ describe('conversation pagination', () => {
         ).rejects.toHaveProperty('code', 'PAGINATION_STALLED')
     })
 
+    it('does not double-count a boundary group repeated by a legacy inclusive server', async () => {
+        // 501 groups with Alice, no 1:1. The legacy server repeats the page
+        // boundary; the suggestion must still count each group once.
+        const groups = descendingConversations(501)
+        const client = createClient({ users: paginationUsers })
+        const sorted = [...groups].sort((a, b) => b.lastActive.getTime() - a.lastActive.getTime())
+        client.conversations.getConversations = vi.fn(
+            async ({
+                archived,
+                limit = 20,
+                olderThan,
+            }: {
+                archived?: boolean
+                limit?: number
+                olderThan?: Date
+            }) => {
+                let rows = sorted.filter(
+                    (conversation) => archived === undefined || conversation.archived === archived,
+                )
+                if (olderThan) {
+                    rows = rows.filter(
+                        (conversation) => conversation.lastActive.getTime() <= olderThan.getTime(),
+                    )
+                }
+                return rows.slice(0, limit)
+            },
+        ) as never
+        apiMocks.getCommsClient.mockResolvedValue(client)
+
+        const program = createProgram()
+        const consoleSpy = captureConsole('log')
+
+        await program.parseAsync(['node', 'tdc', 'conversation', 'with', 'Alice'])
+
+        expect(consoleSpy).toHaveBeenCalledWith(expect.stringContaining('501 group conversations'))
+    })
+
     it('finds a 1:1 conversation beyond the first page with `conversation with`', async () => {
         const groups = descendingConversations(500)
         const direct = createConversation(9999, [1, 2], '2020-01-01T00:00:00.000Z')

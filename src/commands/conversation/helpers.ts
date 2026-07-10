@@ -76,6 +76,8 @@ const CONVERSATION_PAGE_LIMIT = 500
  * (undefined = the server's unfiltered active+archived stream). Pages
  * advance by the strict compound (lastActive, id) cursor taken from the
  * last raw row, so quiet conversations beyond the first page are reached.
+ * Only rows unseen on earlier pages are yielded: legacy inclusive servers
+ * repeat the boundary row, and consumers must not process it twice.
  */
 async function* iterateConversationPages(
     workspaceId: number,
@@ -93,12 +95,12 @@ async function* iterateConversationPages(
             ...cursor,
         })
 
-        const sizeBefore = seenIds.size
-        for (const conversation of page) seenIds.add(conversation.id)
-        yield page
+        const unseen = page.filter((conversation) => !seenIds.has(conversation.id))
+        for (const conversation of unseen) seenIds.add(conversation.id)
+        yield unseen
 
         if (page.length < CONVERSATION_PAGE_LIMIT) return
-        if (seenIds.size === sizeBefore) {
+        if (unseen.length === 0) {
             // A full page of only known rows means the cursor is not
             // advancing; truncating silently is how conversations "disappear".
             throw new CliError(
@@ -115,11 +117,11 @@ async function fetchAllConversations(
     workspaceId: number,
     archived: boolean | undefined,
 ): Promise<Conversation[]> {
-    const byId = new Map<string, Conversation>()
+    const conversations: Conversation[] = []
     for await (const page of iterateConversationPages(workspaceId, archived)) {
-        for (const conversation of page) byId.set(conversation.id, conversation)
+        conversations.push(...page)
     }
-    return [...byId.values()]
+    return conversations
 }
 
 /**
