@@ -1,3 +1,9 @@
+## [1.9.4](https://github.com/Doist/comms-cli/compare/v1.9.3...v1.9.4) (2026-07-14)
+
+### Bug Fixes
+
+- clean up spinner on Commander errors ([#41](https://github.com/Doist/comms-cli/issues/41)) ([a6abe2b](https://github.com/Doist/comms-cli/commit/a6abe2b6d9ae611d40506e462281bf5073cd1995))
+
 ## [1.9.3](https://github.com/Doist/comms-cli/compare/v1.9.2...v1.9.3) (2026-07-14)
 
 ### Bug Fixes
