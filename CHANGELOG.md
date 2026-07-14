@@ -1,3 +1,10 @@
+## [1.9.3](https://github.com/Doist/comms-cli/compare/v1.9.2...v1.9.3) (2026-07-14)
+
+### Bug Fixes
+
+- forward conversation and thread date filters ([#42](https://github.com/Doist/comms-cli/issues/42)) ([f69968e](https://github.com/Doist/comms-cli/commit/f69968e5eefbbb0ddd355f54030b76a352335231))
+- use opaque Comms IDs in help examples ([#40](https://github.com/Doist/comms-cli/issues/40)) ([f8ad8e4](https://github.com/Doist/comms-cli/commit/f8ad8e4a1ea1669e8924b1022321e7d4bf9e01ee))
+
 ## [1.9.2](https://github.com/Doist/comms-cli/compare/v1.9.1...v1.9.2) (2026-07-10)
 
 ### Bug Fixes
