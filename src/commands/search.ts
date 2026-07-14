@@ -45,7 +45,7 @@ export function registerSearchCommand(program: Command): void {
             `
 Examples:
   tdc search "deployment issue"
-  tdc search "bug report" --type threads --channel id:12345
+  tdc search "bug report" --type threads --channel id:CbC8n2Kp4Qx6Rz9Lm3Va
   tdc search "API" --author id:5678 --since 2025-01-01 --json
   tdc search "incident" --all --json`,
         )

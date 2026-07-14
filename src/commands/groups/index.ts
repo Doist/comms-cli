@@ -37,9 +37,9 @@ Examples:
             'after',
             `
 Examples:
-  tdc groups view 12345
+  tdc groups view id:CbG8n2Kp4Qx6Rz9Lm3Va
   tdc groups view "Frontend"
-  tdc groups view id:12345 --json`,
+  tdc groups view id:CbG8n2Kp4Qx6Rz9Lm3Va --json`,
         )
         .action(viewGroup)
 
@@ -71,7 +71,7 @@ Examples:
             'after',
             `
 Examples:
-  tdc groups rename 12345 "Frontend Team"
+  tdc groups rename id:CbG8n2Kp4Qx6Rz9Lm3Va "Frontend Team"
   tdc groups rename "Frontend" "Frontend Team" --json`,
         )
         .action(renameGroup)
@@ -86,7 +86,7 @@ Examples:
             'after',
             `
 Examples:
-  tdc groups delete 12345 --yes
+  tdc groups delete id:CbG8n2Kp4Qx6Rz9Lm3Va --yes
   tdc groups delete "Frontend" --dry-run`,
         )
         .action(deleteGroupCommand)
@@ -101,9 +101,9 @@ Examples:
             'after',
             `
 Examples:
-  tdc groups add-user 12345 alice@doist.com bob@doist.com
+  tdc groups add-user id:CbG8n2Kp4Qx6Rz9Lm3Va alice@doist.com bob@doist.com
   tdc groups add-user "Frontend" id:123,id:456
-  tdc groups add-user 12345 alice bob carol --json
+  tdc groups add-user id:CbG8n2Kp4Qx6Rz9Lm3Va alice bob carol --json
 
 User references can be passed as space-separated args, comma-separated within a
 single arg, or any mix of the two.`,
@@ -120,7 +120,7 @@ single arg, or any mix of the two.`,
             'after',
             `
 Examples:
-  tdc groups remove-user 12345 alice@doist.com
+  tdc groups remove-user id:CbG8n2Kp4Qx6Rz9Lm3Va alice@doist.com
   tdc groups remove-user "Frontend" id:123,id:456`,
         )
         .action(removeUsersCommand)

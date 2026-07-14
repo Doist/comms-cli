@@ -39,12 +39,12 @@ Route mapping:
   Thread URL       → tdc thread view <url>
 
 Examples:
-  tdc view https://comms.todoist.com/1585/ch/100/t/200
-  tdc view https://comms.todoist.com/a/1585/ch/100/t/200
-  tdc view https://comms.todoist.com/a/1585/ch/100/t/200/c/300
-  tdc view https://comms.todoist.com/a/1585/msg/400
-  tdc view https://comms.todoist.com/a/1585/msg/400/m/500
-  tdc view https://comms.todoist.com/a/1585/msg/400/m/500 --json`,
+  tdc view https://comms.todoist.com/1585/ch/CbC8n2Kp4Qx6Rz9Lm3Va/t/CbT8n2Kp4Qx6Rz9Lm3Va
+  tdc view https://comms.todoist.com/a/1585/ch/CbC8n2Kp4Qx6Rz9Lm3Va/t/CbT8n2Kp4Qx6Rz9Lm3Va
+  tdc view https://comms.todoist.com/a/1585/ch/CbC8n2Kp4Qx6Rz9Lm3Va/t/CbT8n2Kp4Qx6Rz9Lm3Va/c/CbM8n2Kp4Qx6Rz9Lm3Va
+  tdc view https://comms.todoist.com/a/1585/msg/CbV8n2Kp4Qx6Rz9Lm3Va
+  tdc view https://comms.todoist.com/a/1585/msg/CbV8n2Kp4Qx6Rz9Lm3Va/m/CbS8n2Kp4Qx6Rz9Lm3Va
+  tdc view https://comms.todoist.com/a/1585/msg/CbV8n2Kp4Qx6Rz9Lm3Va/m/CbS8n2Kp4Qx6Rz9Lm3Va --json`,
         )
         .action(async (url: string) => {
             const urlHints = [

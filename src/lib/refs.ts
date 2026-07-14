@@ -230,7 +230,7 @@ function matchByName<T extends { id: number | string; name: string }>(
             .map((item) => `"${item.name}" (id:${item.id})`)
             .join(', ')
         throw new CliError(opts.ambiguousCode, `Multiple matches for "${opts.ref}": ${matches}`, [
-            'Use the numeric ID (e.g. id:123) to specify exactly which one.',
+            'Use an explicit ID ref (for example, id:<id>) to specify exactly which one.',
         ])
     }
 

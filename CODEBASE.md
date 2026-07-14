@@ -186,9 +186,10 @@ don't duplicate it here.
 
 ## Ref resolution
 
-All in `src/lib/refs.ts`. A ref is one of: a bare numeric id (`123`), an
-`id:`-prefixed id, a full Comms URL (`parseCommsUrl` → `classifyCommsUrl` routes
-`tdc view <url>`), or a fuzzy name (workspaces/users/channels/groups). Async
+All in `src/lib/refs.ts`. A ref is one of: an `id:`-prefixed id, a bare id when
+unambiguous, a full Comms URL (`parseCommsUrl` → `classifyCommsUrl` routes
+`tdc view <url>`), or a fuzzy name (workspaces/users/channels/groups). Workspace
+and user IDs are numeric; most Comms entity IDs are opaque strings. Async
 resolvers return the resolved id or entity and throw `CliError` (e.g.
 `AMBIGUOUS_*`, `*_NOT_FOUND`) on miss. `looksLikeRawId()` decides when a string
 is tried as an id vs a name.
