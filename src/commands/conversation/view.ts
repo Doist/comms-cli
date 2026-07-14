@@ -3,6 +3,7 @@ import chalk from 'chalk'
 import { getCommsClient } from '../../lib/api.js'
 import { formatRelativeDate } from '../../lib/dates.js'
 import { renderMarkdown } from '../../lib/markdown.js'
+import { toDate } from '../../lib/options.js'
 import { colors, filterEntityFields } from '../../lib/output.js'
 import { resolveConversationId } from '../../lib/refs.js'
 import { buildConversationTitle, type ConversationViewOptions } from './helpers.js'
@@ -37,7 +38,12 @@ export async function viewConversation(
 
     const [conversation, messages] = await Promise.all([
         client.conversations.getConversation(conversationId),
-        client.conversationMessages.getMessages({ conversationId, limit }),
+        client.conversationMessages.getMessages({
+            conversationId,
+            newerThan: toDate(options.since),
+            olderThan: toDate(options.until),
+            limit,
+        }),
     ])
 
     const userMap = await fetchUserNamesByIds(client, conversation.workspaceId, [

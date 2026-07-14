@@ -125,8 +125,14 @@ function createClient({
         },
         conversationMessages: {
             getMessages: vi.fn(
-                async ({ conversationId }: { conversationId: string; limit?: number }) =>
-                    messagesByConversation[conversationId] ?? [],
+                async ({
+                    conversationId,
+                }: {
+                    conversationId: string
+                    limit?: number
+                    newerThan?: Date
+                    olderThan?: Date
+                }) => messagesByConversation[conversationId] ?? [],
             ),
             createMessage: vi.fn(
                 async (args: {
@@ -859,6 +865,43 @@ describe('conversation view machine output', () => {
         expect(fullJsonOutput.conversation.participantNames).toEqual(['Me', 'Alice Example'])
         expect(fullJsonOutput.messages[0].creatorName).toBe('Alice Example')
         expect(fullJsonOutput.messages[0].extra).toBe('message-extra')
+    })
+})
+
+describe('conversation view date filters', () => {
+    beforeEach(() => {
+        vi.clearAllMocks()
+    })
+
+    it('maps --since and --until to getMessages date filters', async () => {
+        const conversation = createConversation(42, [1], '2026-03-08T10:00:00.000Z')
+        const client = createClient({ activeConversations: [conversation] })
+        apiMocks.getCommsClient.mockResolvedValue(client)
+
+        const program = createProgram()
+        captureConsole('log')
+
+        await program.parseAsync([
+            'node',
+            'tdc',
+            'conversation',
+            'view',
+            '42',
+            '--since',
+            '2026-06-26',
+            '--until',
+            '2026-06-30',
+            '--json',
+        ])
+
+        expect(client.conversationMessages.getMessages).toHaveBeenCalledWith(
+            expect.objectContaining({
+                conversationId: '42',
+                newerThan: new Date('2026-06-26'),
+                olderThan: new Date('2026-06-30'),
+                limit: 50,
+            }),
+        )
     })
 })
 
