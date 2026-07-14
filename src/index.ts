@@ -1,8 +1,9 @@
 #!/usr/bin/env node
 
 import { stripUserFlag } from '@doist/cli-core'
-import { type Command, program } from 'commander'
+import { CommanderError, type Command, program } from 'commander'
 import pkg from '../package.json' with { type: 'json' }
+import { configureCommandOutput } from './lib/command-output.js'
 import { BaseCliError } from './lib/errors.js'
 import { getRequestedUserRef, isJsonMode, isNdjsonMode } from './lib/global-args.js'
 import { preloadMarkdown } from './lib/markdown.js'
@@ -106,6 +107,8 @@ Note for AI/LLM agents:
   Use --json or --ndjson flags for unambiguous, parseable output.
   Default JSON shows essential fields; use --full for all fields.`,
     )
+
+configureCommandOutput(program)
 
 // Register lightweight placeholders so --help lists all commands
 for (const [name, [description]] of Object.entries(commands)) {
@@ -215,6 +218,10 @@ await program
     .parseAsync()
     .catch((err: Error) => {
         stopEarlySpinner()
+        if (err instanceof CommanderError) {
+            process.exitCode = err.exitCode
+            return
+        }
         if (err instanceof BaseCliError) {
             console.error(isJsonMode() ? formatErrorJson(err) : formatError(err))
         } else {
