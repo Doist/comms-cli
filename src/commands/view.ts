@@ -1,4 +1,5 @@
 import { Command } from 'commander'
+import { configureCommandOutput } from '../lib/command-output.js'
 import { CliError } from '../lib/errors.js'
 import { classifyCommsUrl } from '../lib/refs.js'
 
@@ -17,8 +18,7 @@ async function runRoutedCommand(
     loadRegister: () => Promise<(p: Command) => void>,
     argv: string[],
 ): Promise<void> {
-    const proxy = new Command()
-    proxy.exitOverride()
+    const proxy = configureCommandOutput(new Command())
     const register = await loadRegister()
     register(proxy)
     await proxy.parseAsync(['node', 'tdc', ...argv])
@@ -39,12 +39,12 @@ Route mapping:
   Thread URL       → tdc thread view <url>
 
 Examples:
-  tdc view https://comms.todoist.com/1585/ch/100/t/200
-  tdc view https://comms.todoist.com/a/1585/ch/100/t/200
-  tdc view https://comms.todoist.com/a/1585/ch/100/t/200/c/300
-  tdc view https://comms.todoist.com/a/1585/msg/400
-  tdc view https://comms.todoist.com/a/1585/msg/400/m/500
-  tdc view https://comms.todoist.com/a/1585/msg/400/m/500 --json`,
+  tdc view https://comms.todoist.com/1585/ch/CbC8n2Kp4Qx6Rz9Lm3Va/t/CbT8n2Kp4Qx6Rz9Lm3Va
+  tdc view https://comms.todoist.com/a/1585/ch/CbC8n2Kp4Qx6Rz9Lm3Va/t/CbT8n2Kp4Qx6Rz9Lm3Va
+  tdc view https://comms.todoist.com/a/1585/ch/CbC8n2Kp4Qx6Rz9Lm3Va/t/CbT8n2Kp4Qx6Rz9Lm3Va/c/CbM8n2Kp4Qx6Rz9Lm3Va
+  tdc view https://comms.todoist.com/a/1585/msg/CbV8n2Kp4Qx6Rz9Lm3Va
+  tdc view https://comms.todoist.com/a/1585/msg/CbV8n2Kp4Qx6Rz9Lm3Va/m/CbS8n2Kp4Qx6Rz9Lm3Va
+  tdc view https://comms.todoist.com/a/1585/msg/CbV8n2Kp4Qx6Rz9Lm3Va/m/CbS8n2Kp4Qx6Rz9Lm3Va --json`,
         )
         .action(async (url: string) => {
             const urlHints = [

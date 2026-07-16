@@ -53,6 +53,7 @@ export type ErrorCode =
     // State errors
     | 'ALREADY_INSTALLED'
     | 'BATCH_FAILED'
+    | 'PAGINATION_STALLED'
     | 'FILE_NOT_FOUND'
     | 'FILE_READ_ERROR'
     | 'NOT_CREATOR'

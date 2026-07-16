@@ -153,7 +153,7 @@ Examples:
   tdc channel unarchive id:abc123 --json
 
 Notes:
-  Name-ref resolution only finds active channels — pass id: or numeric ID for archived channels.`,
+  Name-ref resolution only finds active channels — pass an id: ref for archived channels.`,
         )
         .action(unarchiveChannel)
 
@@ -182,12 +182,12 @@ Notes:
             'after',
             `
 Examples:
-  tdc channel threads 12345
+  tdc channel threads id:CbC8n2Kp4Qx6Rz9Lm3Va
   tdc channel threads "general"
-  tdc channel threads id:12345 --unread
-  tdc channel threads 12345 --archive-filter all --since 2026-01-01
-  tdc channel threads 12345 --limit 20 --json
-  tdc channel threads 12345 --limit 20 --cursor <cursor-from-previous>
+  tdc channel threads id:CbC8n2Kp4Qx6Rz9Lm3Va --unread
+  tdc channel threads id:CbC8n2Kp4Qx6Rz9Lm3Va --archive-filter all --since 2026-01-01
+  tdc channel threads id:CbC8n2Kp4Qx6Rz9Lm3Va --limit 20 --json
+  tdc channel threads id:CbC8n2Kp4Qx6Rz9Lm3Va --limit 20 --cursor <cursor-from-previous>
 
 Notes:
   Sorted newest-first by last activity. --limit, --cursor, --since, --until,
@@ -209,11 +209,11 @@ Notes:
             'after',
             `
 Examples:
-  tdc channel members 12345
+  tdc channel members id:CbC8n2Kp4Qx6Rz9Lm3Va
   tdc channel members "general" --json
-  tdc channel members add 12345 alice group:Design
-  tdc channel members remove 12345 alice
-  tdc channel members set 12345 group:Squad --apply
+  tdc channel members add id:CbC8n2Kp4Qx6Rz9Lm3Va alice group:Design
+  tdc channel members remove id:CbC8n2Kp4Qx6Rz9Lm3Va alice
+  tdc channel members set id:CbC8n2Kp4Qx6Rz9Lm3Va group:Squad --apply
 
 Notes:
   "Groups fully in channel" lists groups whose entire current membership is
@@ -231,9 +231,9 @@ Notes:
             'after',
             `
 Examples:
-  tdc channel members add 12345 alice@doist.com bob@doist.com
+  tdc channel members add id:CbC8n2Kp4Qx6Rz9Lm3Va alice@doist.com bob@doist.com
   tdc channel members add "general" group:Frontend
-  tdc channel members add 12345 alice group:Design id:789 --json
+  tdc channel members add id:CbC8n2Kp4Qx6Rz9Lm3Va alice group:Design id:789 --json
 
 Notes:
   Refs accept user identifiers (id:N, email, name) or "group:<ref>" to expand
@@ -252,7 +252,7 @@ Notes:
             'after',
             `
 Examples:
-  tdc channel members remove 12345 alice@doist.com
+  tdc channel members remove id:CbC8n2Kp4Qx6Rz9Lm3Va alice@doist.com
   tdc channel members remove "general" group:Frontend
 
 Notes:
@@ -273,9 +273,9 @@ Notes:
             'after',
             `
 Examples:
-  tdc channel members set 12345 group:Frontend group:Design
+  tdc channel members set id:CbC8n2Kp4Qx6Rz9Lm3Va group:Frontend group:Design
   tdc channel members set "general" alice bob carol --apply
-  tdc channel members set 12345 group:Squad --apply --include-self
+  tdc channel members set id:CbC8n2Kp4Qx6Rz9Lm3Va group:Squad --apply --include-self
 
 Notes:
   Dry-run by default. Pass --apply to mutate.

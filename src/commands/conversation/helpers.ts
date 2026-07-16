@@ -69,42 +69,75 @@ export function sortByLastActiveDescending(a: Conversation, b: Conversation): nu
     return new Date(b.lastActive).getTime() - new Date(a.lastActive).getTime()
 }
 
+const CONVERSATION_PAGE_LIMIT = 500
+
 /**
- * Fetch a workspace's conversations for the requested {@link ConversationState},
- * sorted by last activity (newest first). `active` and `archived` are single
- * calls; `all` fetches both and dedupes by id (the SDK's `getConversations` is
- * not paginated, so each state returns the full set in one call).
+ * Stream a workspace's conversations page by page for one archived state
+ * (undefined = active and archived in a single stream). Each request
+ * continues from the previous page's last row via the strict compound
+ * (lastActive, id) cursor, so quiet conversations far down the list are
+ * still reached. Only rows unseen on earlier pages are yielded: older
+ * servers repeat the boundary row, and consumers must not process it
+ * twice.
+ */
+async function* iterateConversationPages(
+    workspaceId: number,
+    archived: boolean | undefined,
+): AsyncGenerator<Conversation[]> {
+    const client = await getCommsClient()
+    const seenIds = new Set<string>()
+    let cursor: { olderThan: Date; beforeId: string } | undefined
+
+    for (;;) {
+        const page = await client.conversations.getConversations({
+            workspaceId,
+            limit: CONVERSATION_PAGE_LIMIT,
+            ...(archived === undefined ? {} : { archived }),
+            ...cursor,
+        })
+
+        const unseen = page.filter((conversation) => !seenIds.has(conversation.id))
+        for (const conversation of unseen) seenIds.add(conversation.id)
+        yield unseen
+
+        if (page.length < CONVERSATION_PAGE_LIMIT) return
+        if (unseen.length === 0) {
+            // A full page of only known rows means the cursor is not
+            // advancing; truncating silently is how conversations "disappear".
+            throw new CliError(
+                'PAGINATION_STALLED',
+                `conversations/get returned a full page with no new conversations (workspace ${workspaceId}); results would be incomplete`,
+            )
+        }
+        const boundary = page[page.length - 1] as Conversation
+        cursor = { olderThan: new Date(boundary.lastActive), beforeId: boundary.id }
+    }
+}
+
+async function fetchAllConversations(
+    workspaceId: number,
+    archived: boolean | undefined,
+): Promise<Conversation[]> {
+    const conversations: Conversation[] = []
+    for await (const page of iterateConversationPages(workspaceId, archived)) {
+        conversations.push(...page)
+    }
+    return conversations
+}
+
+/**
+ * Fetch ALL of a workspace's conversations for the requested
+ * {@link ConversationState}, sorted by last activity (newest first).
+ * `active`/`archived` page one filtered stream each; `all` pages the
+ * server's unfiltered stream once.
  */
 export async function getConversationsByState(
     workspaceId: number,
     state: ConversationState = 'all',
 ): Promise<Conversation[]> {
-    const client = await getCommsClient()
-
-    if (state === 'active') {
-        const active = await client.conversations.getConversations({ workspaceId })
-        return [...active].sort(sortByLastActiveDescending)
-    }
-
-    if (state === 'archived') {
-        const archived = await client.conversations.getConversations({
-            workspaceId,
-            archived: true,
-        })
-        return [...archived].sort(sortByLastActiveDescending)
-    }
-
-    const [active, archived] = await Promise.all([
-        client.conversations.getConversations({ workspaceId }),
-        client.conversations.getConversations({ workspaceId, archived: true }),
-    ])
-
-    const byId = new Map<string, Conversation>()
-    for (const conversation of [...active, ...archived]) {
-        byId.set(conversation.id, conversation)
-    }
-
-    return [...byId.values()].sort(sortByLastActiveDescending)
+    const archived = state === 'all' ? undefined : state === 'archived'
+    const conversations = await fetchAllConversations(workspaceId, archived)
+    return conversations.sort(sortByLastActiveDescending)
 }
 
 function scanForDirectConversation(
@@ -135,23 +168,18 @@ export async function findDirectConversation(
     sessionUserId: number,
     targetUserId: number,
 ): Promise<ConversationLookupResult> {
-    const client = await getCommsClient()
-    // Active first — only scan archived on miss.
-    const active = await client.conversations.getConversations({ workspaceId })
-    const activeScan = scanForDirectConversation(active, sessionUserId, targetUserId)
-    if (activeScan.match) {
-        return {
-            directConversation: activeScan.match,
-            groupConversationCount: activeScan.extraGroupCount,
+    let groupConversationCount = 0
+    // Active first — only scan archived on miss; stop at the first match.
+    for (const archived of [false, true]) {
+        for await (const page of iterateConversationPages(workspaceId, archived)) {
+            const scan = scanForDirectConversation(page, sessionUserId, targetUserId)
+            groupConversationCount += scan.extraGroupCount
+            if (scan.match) {
+                return { directConversation: scan.match, groupConversationCount }
+            }
         }
     }
-
-    const archived = await client.conversations.getConversations({ workspaceId, archived: true })
-    const archivedScan = scanForDirectConversation(archived, sessionUserId, targetUserId)
-    return {
-        directConversation: archivedScan.match,
-        groupConversationCount: activeScan.extraGroupCount + archivedScan.extraGroupCount,
-    }
+    return { groupConversationCount }
 }
 
 export async function renderConversationList(

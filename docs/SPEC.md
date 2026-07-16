@@ -182,7 +182,7 @@ Arguments:
 
 Content input priority:
 
-1. Stdin (if piped: `echo "text" | tdc thread reply id:123`)
+1. Stdin (if piped: `echo "text" | tdc thread reply id:CbT8n2Kp4Qx6Rz9Lm3Va`)
 2. Argument (if provided)
 3. Opens `$EDITOR` (if neither stdin nor argument)
 
@@ -388,8 +388,8 @@ Options:
 
 Commands support these reference formats:
 
-- `id:123456` - Direct ID lookup
-- `123456` - Bare ID (when unambiguous context)
+- `id:CbT8n2Kp4Qx6Rz9Lm3Va` - Direct ID lookup
+- `CbT8n2Kp4Qx6Rz9Lm3Va` - Bare ID (when unambiguous context)
 - Full Comms URLs - Parsed to extract IDs
 - `"Workspace Name"` - Name matching for workspaces only (case-insensitive)
 
@@ -492,40 +492,40 @@ tdc inbox
 tdc inbox --unread
 
 # View a thread
-tdc thread view id:123456
-tdc thread view https://comms.todoist.com/a/12345/ch/67890/t/123456
+tdc thread view id:CbT8n2Kp4Qx6Rz9Lm3Va
+tdc thread view https://comms.todoist.com/a/12345/ch/CbC8n2Kp4Qx6Rz9Lm3Va/t/CbT8n2Kp4Qx6Rz9Lm3Va
 
 # Reply to a thread
-tdc thread reply id:123456 "Great idea!"
-echo "Multiline\nreply" | tdc thread reply id:123456
-tdc thread reply id:123456  # opens $EDITOR
+tdc thread reply id:CbT8n2Kp4Qx6Rz9Lm3Va "Great idea!"
+echo "Multiline\nreply" | tdc thread reply id:CbT8n2Kp4Qx6Rz9Lm3Va
+tdc thread reply id:CbT8n2Kp4Qx6Rz9Lm3Va  # opens $EDITOR
 
 # Mark thread as done
-tdc thread done id:123456 --yes
+tdc thread done id:CbT8n2Kp4Qx6Rz9Lm3Va --yes
 
 # List unread conversations
 tdc conversation unread
 
 # View and reply to a conversation
-tdc conversation view id:456789
-tdc conversation reply id:456789 "Thanks!"
+tdc conversation view id:CbV8n2Kp4Qx6Rz9Lm3Va
+tdc conversation reply id:CbV8n2Kp4Qx6Rz9Lm3Va "Thanks!"
 
 # Search
 tdc search "quarterly report"
 tdc search "bug fix" --author id:123 --since 2024-01-01
 
 # React to content
-tdc react thread id:123456 +1
-tdc react comment id:789 👍
-tdc unreact message id:456 heart
+tdc react thread id:CbT8n2Kp4Qx6Rz9Lm3Va +1
+tdc react comment id:CbM8n2Kp4Qx6Rz9Lm3Va 👍
+tdc unreact message id:CbS8n2Kp4Qx6Rz9Lm3Va heart
 
 # List channels and users
 tdc channels
 tdc users --search "john"
 
 # Dry run before mutating
-tdc thread reply id:123 "test" --dry-run
-tdc thread done id:123 --dry-run
+tdc thread reply id:CbT8n2Kp4Qx6Rz9Lm3Va "test" --dry-run
+tdc thread done id:CbT8n2Kp4Qx6Rz9Lm3Va --dry-run
 
 # JSON output for scripting
 tdc inbox --json

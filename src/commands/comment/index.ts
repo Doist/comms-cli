@@ -19,8 +19,8 @@ export function registerCommentCommand(program: Command): void {
             'after',
             `
 Examples:
-  tdc comment 12345
-  tdc comment view 12345 --json`,
+  tdc comment id:CbM8n2Kp4Qx6Rz9Lm3Va
+  tdc comment view id:CbM8n2Kp4Qx6Rz9Lm3Va --json`,
         )
         .action((ref, options) => {
             if (!ref) {
@@ -40,9 +40,9 @@ Examples:
             'after',
             `
 Examples:
-  tdc comment update 12345 "Updated text"
-  echo "New content" | tdc comment update 12345
-  tdc comment update 12345 "Fixed" --json`,
+  tdc comment update id:CbM8n2Kp4Qx6Rz9Lm3Va "Updated text"
+  echo "New content" | tdc comment update id:CbM8n2Kp4Qx6Rz9Lm3Va
+  tdc comment update id:CbM8n2Kp4Qx6Rz9Lm3Va "Fixed" --json`,
         )
         .action(updateComment)
 
@@ -56,8 +56,8 @@ Examples:
             'after',
             `
 Examples:
-  tdc comment delete 12345 --yes
-  tdc comment delete 12345 --dry-run`,
+  tdc comment delete id:CbM8n2Kp4Qx6Rz9Lm3Va --yes
+  tdc comment delete id:CbM8n2Kp4Qx6Rz9Lm3Va --dry-run`,
         )
         .action(deleteComment)
 }

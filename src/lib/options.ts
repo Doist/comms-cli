@@ -18,6 +18,11 @@ export type MutationOptions = {
     yes?: boolean
 }
 
+/** Converts an optional Commander date argument without applying boundary semantics. */
+export function toDate(value?: string): Date | undefined {
+    return value ? new Date(value) : undefined
+}
+
 /**
  * Commander collector for repeatable options (e.g. `--file a --file b`).
  * Use with a `[]` default: `.option('--file <path>', '…', collect, [])`.

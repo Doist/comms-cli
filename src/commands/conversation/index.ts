@@ -94,9 +94,9 @@ Notes:
             'after',
             `
 Examples:
-  tdc conversation 12345
-  tdc conversation view 12345 --limit 20
-  tdc conversation view 12345 --since 2025-01-01 --json`,
+  tdc conversation id:CbV8n2Kp4Qx6Rz9Lm3Va
+  tdc conversation view id:CbV8n2Kp4Qx6Rz9Lm3Va --limit 20
+  tdc conversation view id:CbV8n2Kp4Qx6Rz9Lm3Va --since 2025-01-01 --json`,
         )
         .action((ref, options) => {
             if (!ref) {
@@ -136,10 +136,10 @@ Examples:
             'after',
             `
 Examples:
-  tdc conversation reply 12345 "Hello!"
-  echo "Message body" | tdc conversation reply 12345
-  tdc conversation reply 12345 "Update" --json
-  tdc conversation reply 12345 "See attached" --file ./photo.jpg`,
+  tdc conversation reply id:CbV8n2Kp4Qx6Rz9Lm3Va "Hello!"
+  echo "Message body" | tdc conversation reply id:CbV8n2Kp4Qx6Rz9Lm3Va
+  tdc conversation reply id:CbV8n2Kp4Qx6Rz9Lm3Va "Update" --json
+  tdc conversation reply id:CbV8n2Kp4Qx6Rz9Lm3Va "See attached" --file ./photo.jpg`,
         )
         .action(replyToConversation)
 
@@ -153,8 +153,8 @@ Examples:
             'after',
             `
 Examples:
-  tdc conversation done 12345 --yes
-  tdc conversation done 12345 --dry-run`,
+  tdc conversation done id:CbV8n2Kp4Qx6Rz9Lm3Va --yes
+  tdc conversation done id:CbV8n2Kp4Qx6Rz9Lm3Va --dry-run`,
         )
         .action(markConversationDone)
 
@@ -169,8 +169,8 @@ Examples:
             'after',
             `
 Examples:
-  tdc conversation mute 12345
-  tdc conversation mute 12345 --minutes 480`,
+  tdc conversation mute id:CbV8n2Kp4Qx6Rz9Lm3Va
+  tdc conversation mute id:CbV8n2Kp4Qx6Rz9Lm3Va --minutes 480`,
         )
         .action(muteConversation)
 
@@ -184,7 +184,7 @@ Examples:
             'after',
             `
 Examples:
-  tdc conversation unmute 12345`,
+  tdc conversation unmute id:CbV8n2Kp4Qx6Rz9Lm3Va`,
         )
         .action(unmuteConversation)
 }

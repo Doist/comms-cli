@@ -31,9 +31,9 @@ export function registerThreadCommand(program: Command): void {
             'after',
             `
 Examples:
-  tdc thread 12345
-  tdc thread view 12345 --unread
-  tdc thread view 12345 --limit 10 --json`,
+  tdc thread id:CbT8n2Kp4Qx6Rz9Lm3Va
+  tdc thread view id:CbT8n2Kp4Qx6Rz9Lm3Va --unread
+  tdc thread view id:CbT8n2Kp4Qx6Rz9Lm3Va --limit 10 --json`,
         )
         .action((ref, options) => {
             if (!ref) {
@@ -65,12 +65,12 @@ Examples:
             'after',
             `
 Examples:
-  tdc thread reply 12345 "Sounds good!"
-  echo "Long reply" | tdc thread reply 12345
-  tdc thread reply 12345 "Done" --close --json
-  tdc thread reply 12345 "Heads up" --notify 67890,Cbzzm11ZeYZoJYD4a6rti
-  tdc thread reply 12345 "See attached" --file ./diagram.png
-  tdc thread reply 12345 --file ./a.png --file ./b.pdf`,
+  tdc thread reply id:CbT8n2Kp4Qx6Rz9Lm3Va "Sounds good!"
+  echo "Long reply" | tdc thread reply id:CbT8n2Kp4Qx6Rz9Lm3Va
+  tdc thread reply id:CbT8n2Kp4Qx6Rz9Lm3Va "Done" --close --json
+  tdc thread reply id:CbT8n2Kp4Qx6Rz9Lm3Va "Heads up" --notify 67890,Cbzzm11ZeYZoJYD4a6rti
+  tdc thread reply id:CbT8n2Kp4Qx6Rz9Lm3Va "See attached" --file ./diagram.png
+  tdc thread reply id:CbT8n2Kp4Qx6Rz9Lm3Va --file ./a.png --file ./b.pdf`,
         )
         .action(replyToThread)
 
@@ -91,11 +91,11 @@ Examples:
             'after',
             `
 Examples:
-  tdc thread create 12345 "Weekly update" "Here's what happened..."
-  echo "Body from stdin" | tdc thread create id:12345 "Title"
-  tdc thread create 12345 "Title" "Body" --notify 67890,11111 --json
-  tdc thread create 12345 "Title" "Body" --unarchive
-  tdc thread create 12345 "Title" --file ./report.pdf`,
+  tdc thread create id:CbC8n2Kp4Qx6Rz9Lm3Va "Weekly update" "Here's what happened..."
+  echo "Body from stdin" | tdc thread create id:CbC8n2Kp4Qx6Rz9Lm3Va "Title"
+  tdc thread create id:CbC8n2Kp4Qx6Rz9Lm3Va "Title" "Body" --notify 67890,11111 --json
+  tdc thread create id:CbC8n2Kp4Qx6Rz9Lm3Va "Title" "Body" --unarchive
+  tdc thread create id:CbC8n2Kp4Qx6Rz9Lm3Va "Title" --file ./report.pdf`,
         )
         .action(createThread)
 
@@ -109,9 +109,9 @@ Examples:
             'after',
             `
 Examples:
-  tdc thread done 12345 --yes
-  tdc thread done 12345 --dry-run
-  tdc thread done 12345 --json --yes`,
+  tdc thread done id:CbT8n2Kp4Qx6Rz9Lm3Va --yes
+  tdc thread done id:CbT8n2Kp4Qx6Rz9Lm3Va --dry-run
+  tdc thread done id:CbT8n2Kp4Qx6Rz9Lm3Va --json --yes`,
         )
         .action(markThreadDone)
 
@@ -125,9 +125,9 @@ Examples:
             'after',
             `
 Examples:
-  tdc thread mark-read 12345
-  tdc thread mark-read 12345 67890 --yes
-  printf "12345\\n67890\\n" | tdc thread mark-read --yes`,
+  tdc thread mark-read id:CbT8n2Kp4Qx6Rz9Lm3Va
+  tdc thread mark-read id:CbT8n2Kp4Qx6Rz9Lm3Va id:CbT9m4Qr7Vz2Nx8Lp5Sa --yes
+  printf "id:CbT8n2Kp4Qx6Rz9Lm3Va\\nid:CbT9m4Qr7Vz2Nx8Lp5Sa\\n" | tdc thread mark-read --yes`,
         )
         .action((refs, options) => {
             if (refs.length === 0 && process.stdin.isTTY) {
@@ -147,9 +147,9 @@ Examples:
             'after',
             `
 Examples:
-  tdc thread delete 12345 --yes
-  tdc thread delete 12345 --dry-run
-  tdc thread delete 12345 --yes --json`,
+  tdc thread delete id:CbT8n2Kp4Qx6Rz9Lm3Va --yes
+  tdc thread delete id:CbT8n2Kp4Qx6Rz9Lm3Va --dry-run
+  tdc thread delete id:CbT8n2Kp4Qx6Rz9Lm3Va --yes --json`,
         )
         .action(deleteThread)
 
@@ -164,8 +164,8 @@ Examples:
             'after',
             `
 Examples:
-  tdc thread mute 12345
-  tdc thread mute 12345 --minutes 480`,
+  tdc thread mute id:CbT8n2Kp4Qx6Rz9Lm3Va
+  tdc thread mute id:CbT8n2Kp4Qx6Rz9Lm3Va --minutes 480`,
         )
         .action(muteThread)
 
@@ -187,9 +187,9 @@ Examples:
             'after',
             `
 Examples:
-  tdc thread update 12345 "Updated body text"
-  echo "New body" | tdc thread update 12345
-  tdc thread update 12345 "Fixed" --json`,
+  tdc thread update id:CbT8n2Kp4Qx6Rz9Lm3Va "Updated body text"
+  echo "New body" | tdc thread update id:CbT8n2Kp4Qx6Rz9Lm3Va
+  tdc thread update id:CbT8n2Kp4Qx6Rz9Lm3Va "Fixed" --json`,
         )
         .action(updateThread)
 
@@ -203,7 +203,7 @@ Examples:
             'after',
             `
 Examples:
-  tdc thread unmute 12345`,
+  tdc thread unmute id:CbT8n2Kp4Qx6Rz9Lm3Va`,
         )
         .action(unmuteThread)
 }

@@ -6,7 +6,7 @@ import { withCaseInsensitiveChoices } from '../lib/completion.js'
 import { formatRelativeDate } from '../lib/dates.js'
 import { CliError } from '../lib/errors.js'
 import { includePrivateChannels, isAccessible } from '../lib/global-args.js'
-import type { PaginatedViewOptions } from '../lib/options.js'
+import { toDate, type PaginatedViewOptions } from '../lib/options.js'
 import { colors, formatJson, formatNdjson, printEmpty } from '../lib/output.js'
 import { getPublicChannelIds } from '../lib/public-channels.js'
 import { resolveWorkspaceRef } from '../lib/refs.js'
@@ -43,8 +43,8 @@ async function showInbox(workspaceRef: string | undefined, options: InboxOptions
     const [threads, unreadThreadIds] = await Promise.all([
         client.inbox.getInbox({
             workspaceId,
-            newerThan: options.since ? new Date(options.since) : undefined,
-            olderThan: options.until ? new Date(options.until) : undefined,
+            newerThan: toDate(options.since),
+            olderThan: toDate(options.until),
             limit,
             archiveFilter: options.archiveFilter ?? 'active',
         }),

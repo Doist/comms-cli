@@ -1,3 +1,28 @@
+## [1.9.4](https://github.com/Doist/comms-cli/compare/v1.9.3...v1.9.4) (2026-07-14)
+
+### Bug Fixes
+
+- clean up spinner on Commander errors ([#41](https://github.com/Doist/comms-cli/issues/41)) ([a6abe2b](https://github.com/Doist/comms-cli/commit/a6abe2b6d9ae611d40506e462281bf5073cd1995))
+
+## [1.9.3](https://github.com/Doist/comms-cli/compare/v1.9.2...v1.9.3) (2026-07-14)
+
+### Bug Fixes
+
+- forward conversation and thread date filters ([#42](https://github.com/Doist/comms-cli/issues/42)) ([f69968e](https://github.com/Doist/comms-cli/commit/f69968e5eefbbb0ddd355f54030b76a352335231))
+- use opaque Comms IDs in help examples ([#40](https://github.com/Doist/comms-cli/issues/40)) ([f8ad8e4](https://github.com/Doist/comms-cli/commit/f8ad8e4a1ea1669e8924b1022321e7d4bf9e01ee))
+
+## [1.9.2](https://github.com/Doist/comms-cli/compare/v1.9.1...v1.9.2) (2026-07-10)
+
+### Bug Fixes
+
+- Paginate conversation fetches to exhaustion ([#43](https://github.com/Doist/comms-cli/issues/43)) ([0e1ee31](https://github.com/Doist/comms-cli/commit/0e1ee31b9b3ea9db996eae418e78ee943a47a615))
+
+## [1.9.1](https://github.com/Doist/comms-cli/compare/v1.9.0...v1.9.1) (2026-07-02)
+
+### Bug Fixes
+
+- **deps:** release comms-sdk 0.7.1 for Node 26 terminated fix ([587b17b](https://github.com/Doist/comms-cli/commit/587b17b3a2df4e2060c6452f5a9d2d6dbda12a5b)), closes [#39](https://github.com/Doist/comms-cli/issues/39)
+
 ## [1.9.0](https://github.com/Doist/comms-cli/compare/v1.8.0...v1.9.0) (2026-06-26)
 
 ### Features
