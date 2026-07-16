@@ -1,3 +1,13 @@
+## [2.0.0](https://github.com/Doist/comms-cli/compare/v1.9.4...v2.0.0) (2026-07-16)
+
+### ⚠ BREAKING CHANGES
+
+- require node >=24, test on 24 & 26, support npm >=11 (#44)
+
+### Features
+
+- require node >=24, test on 24 & 26, support npm >=11 ([#44](https://github.com/Doist/comms-cli/issues/44)) ([e79d5f2](https://github.com/Doist/comms-cli/commit/e79d5f27c6f0ec2c2dd4eca380ddcdb53283fb4b))
+
 ## [1.9.4](https://github.com/Doist/comms-cli/compare/v1.9.3...v1.9.4) (2026-07-14)
 
 ### Bug Fixes
