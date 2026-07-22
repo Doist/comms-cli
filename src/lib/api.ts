@@ -7,8 +7,8 @@ import {
 } from '@doist/comms-sdk'
 import { getApiTokenSnapshot } from './auth.js'
 import { getConfig, updateConfig } from './config.js'
-import { CliError, isForbidden, isInsufficientScope } from './errors.js'
-import { ensureWriteAllowed, isMutatingMethod } from './permissions.js'
+import { CliError, isForbidden, isInsufficientScope, isInvalidToken } from './errors.js'
+import { ensureScopeAllowed, ensureWriteAllowed, isMutatingMethod } from './permissions.js'
 import { getProgressTracker } from './progress.js'
 import { withSpinner } from './spinner.js'
 
@@ -158,10 +158,12 @@ function createNestedSpinnerProxy<T extends object>(obj: T, basePath: string): T
 
                 // For mutating methods, check permissions before calling the API
                 if (shouldCheckPermissions) {
-                    return ensureWriteAllowed().then(() => {
-                        const result = originalMethod.apply(target, args)
-                        return wrapResult(result, progressTracker, spinnerConfig)
-                    })
+                    return ensureWriteAllowed()
+                        .then(() => ensureScopeAllowed(fullPath))
+                        .then(() => {
+                            const result = originalMethod.apply(target, args)
+                            return wrapResult(result, progressTracker, spinnerConfig)
+                        })
                 }
 
                 const result = originalMethod.apply(target, args)
@@ -206,6 +208,12 @@ function wrapResult(
                 throw new CliError('FORBIDDEN', 'Comms refused this action: 403 Forbidden.', [
                     'You may not have permission for this action',
                     'Contact your workspace admin, or re-authenticate with `tdc auth login` if your token looks wrong',
+                ])
+            }
+            if (isInvalidToken(error)) {
+                throw new CliError('INVALID_TOKEN', 'Comms rejected the token: 401.', [
+                    'Re-authenticate with `tdc auth login`, then check `tdc auth status`',
+                    'Group and workspace writes need `tdc auth login --full-access`',
                 ])
             }
             throw error

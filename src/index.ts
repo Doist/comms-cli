@@ -71,7 +71,7 @@ const commands: Record<string, [string, () => Promise<(p: Command) => void>]> = 
     changelog: ['Show recent changelog entries', loadChangelogCommand],
     doctor: ['Diagnose common CLI setup and environment issues', loadDoctorCommand],
     groups: [
-        'Group operations (list, view, create, rename, delete, add-user, remove-user)',
+        'Group operations (list, view, create, rename, delete, add-user, remove-user); writes need --full-access',
         loadGroupsCommand,
     ],
     config: ['Manage CLI configuration', loadConfigCommand],

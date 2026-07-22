@@ -66,6 +66,8 @@ tdc auth login
 
 This opens Todoist OAuth in your browser. The default grant can read Comms data and create/update content and messages. It does not include delete, channel management, or user/workspace write scopes; use `--read-only` for read-only access or `--full-access` when needed.
 
+All group management — `groups create`, `rename`, `delete`, `add-user`, `remove-user` — needs the `workspaces:write` scope, so it requires `tdc auth login --full-access`. Group reads (`groups`, `groups view`) work on a default login.
+
 Once approved, the token is stored in your OS credential manager:
 
 - macOS: Keychain

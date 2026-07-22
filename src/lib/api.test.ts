@@ -7,12 +7,14 @@ const sdkMocks = vi.hoisted(() => ({
     createClient: vi.fn(),
     deleteChannel: vi.fn(),
     uploadAttachment: vi.fn(),
+    addGroupUsers: vi.fn(),
 }))
 
 vi.mock('@doist/comms-sdk', () => {
     class CommsApi {
         channels = { deleteChannel: sdkMocks.deleteChannel }
         attachments = { upload: sdkMocks.uploadAttachment }
+        groups = { addUsers: sdkMocks.addGroupUsers }
         workspaceUsers = { getWorkspaceUsers: getWorkspaceUsersMock }
         constructor(token?: string, options?: unknown) {
             sdkMocks.createClient(token, options)
@@ -51,8 +53,12 @@ vi.mock('./auth.js', () => ({
 // reads (getWorkspaceUsers) stay off the write path.
 const permMocks = vi.hoisted(() => ({
     ensureWriteAllowed: vi.fn().mockResolvedValue(undefined),
+    ensureScopeAllowed: vi.fn().mockResolvedValue(undefined),
     isMutatingMethod: vi.fn(
-        (path: string) => path === 'channels.deleteChannel' || path === 'attachments.upload',
+        (path: string) =>
+            path === 'channels.deleteChannel' ||
+            path === 'attachments.upload' ||
+            path === 'groups.addUsers',
     ),
 }))
 vi.mock('./permissions.js', () => permMocks)
@@ -125,7 +131,9 @@ describe('wrapResult — central 403 translation', () => {
         sdkMocks.createClient.mockReset()
         sdkMocks.deleteChannel.mockReset()
         sdkMocks.uploadAttachment.mockReset()
+        sdkMocks.addGroupUsers.mockReset()
         permMocks.ensureWriteAllowed.mockReset().mockResolvedValue(undefined)
+        permMocks.ensureScopeAllowed.mockReset().mockResolvedValue(undefined)
     })
 
     it('uses the explicit base URL when creating the wrapped SDK client', () => {
@@ -210,6 +218,35 @@ describe('wrapResult — central 403 translation', () => {
         ).rejects.toThrow('READ_ONLY')
         // The SDK upload must never fire when the write-guard rejects.
         expect(sdkMocks.uploadAttachment).not.toHaveBeenCalled()
+    })
+
+    it('routes group membership writes through the scope-guard', async () => {
+        permMocks.ensureScopeAllowed.mockRejectedValueOnce(new Error('INSUFFICIENT_SCOPE'))
+        const client = createWrappedCommsClient('test-token')
+
+        await expect(
+            client.groups.addUsers({ id: 'G1', workspaceId: 69, userIds: [1] }),
+        ).rejects.toThrow('INSUFFICIENT_SCOPE')
+        // The guard runs before the request, so nothing hits the network.
+        expect(sdkMocks.addGroupUsers).not.toHaveBeenCalled()
+        expect(permMocks.ensureScopeAllowed).toHaveBeenCalledWith('groups.addUsers')
+    })
+
+    it('translates a 401 into INVALID_TOKEN with re-auth guidance', async () => {
+        sdkMocks.addGroupUsers.mockRejectedValueOnce(
+            new CommsRequestError('Request failed with status 401', 401, {
+                error_string: 'Invalid token',
+                error_code: 200,
+            }),
+        )
+        const client = createWrappedCommsClient('test-token')
+
+        await expect(
+            client.groups.addUsers({ id: 'G1', workspaceId: 69, userIds: [1] }),
+        ).rejects.toMatchObject({
+            code: 'INVALID_TOKEN',
+            message: 'Comms rejected the token: 401.',
+        })
     })
 
     it('passes non-403 errors through untranslated', async () => {
