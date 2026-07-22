@@ -1,3 +1,9 @@
+## [2.0.1](https://github.com/Doist/comms-cli/compare/v2.0.0...v2.0.1) (2026-07-22)
+
+### Bug Fixes
+
+- fail fast and explain 401s on group writes ([#45](https://github.com/Doist/comms-cli/issues/45)) ([670722e](https://github.com/Doist/comms-cli/commit/670722e38e91be8e3bedeb0c942091f34809c614))
+
 ## [2.0.0](https://github.com/Doist/comms-cli/compare/v1.9.4...v2.0.0) (2026-07-16)
 
 ### ⚠ BREAKING CHANGES
