@@ -8,7 +8,7 @@ import {
 import { getApiTokenSnapshot } from './auth.js'
 import { getConfig, updateConfig } from './config.js'
 import { CliError, isForbidden, isInsufficientScope, isInvalidToken } from './errors.js'
-import { ensureMutationAllowed, getRequiredScope, isMutatingMethod } from './permissions.js'
+import { ensureMutationAllowed, isMutatingMethod } from './permissions.js'
 import { getProgressTracker } from './progress.js'
 import { withSpinner } from './spinner.js'
 
@@ -160,12 +160,12 @@ function createNestedSpinnerProxy<T extends object>(obj: T, basePath: string): T
                 if (shouldCheckPermissions) {
                     return ensureMutationAllowed(fullPath).then(() => {
                         const result = originalMethod.apply(target, args)
-                        return wrapResult(result, progressTracker, spinnerConfig, fullPath)
+                        return wrapResult(result, progressTracker, spinnerConfig)
                     })
                 }
 
                 const result = originalMethod.apply(target, args)
-                return wrapResult(result, progressTracker, spinnerConfig, fullPath)
+                return wrapResult(result, progressTracker, spinnerConfig)
             }
         },
     })
@@ -175,7 +175,6 @@ function wrapResult(
     result: unknown,
     progressTracker: ReturnType<typeof getProgressTracker>,
     spinnerConfig: (typeof API_SPINNER_MESSAGES)[string] | undefined,
-    methodPath?: string,
 ): unknown {
     // If the method returns a non-thenable, return as-is.
     if (!result || typeof (result as { then?: unknown }).then !== 'function') {
@@ -210,15 +209,11 @@ function wrapResult(
                 ])
             }
             if (isInvalidToken(error)) {
-                // Re-authenticating is the fix for any 401. The scope hint only
-                // belongs on methods that actually need an extra scope — every
-                // call routes through here, reads included.
-                const requiredScope = methodPath ? getRequiredScope(methodPath) : undefined
+                // A 401 means the token itself is bad or expired. An
+                // under-scoped grant is a 403 `Insufficient scope`, handled
+                // above — so re-authenticating is the whole fix here.
                 throw new CliError('INVALID_TOKEN', 'Comms rejected the token: 401.', [
                     'Re-authenticate with `tdc auth login`, then check `tdc auth status`',
-                    ...(requiredScope
-                        ? [`This action needs \`${requiredScope}\`: tdc auth login --full-access`]
-                        : []),
                 ])
             }
             throw error

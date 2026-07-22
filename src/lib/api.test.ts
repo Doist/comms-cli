@@ -53,9 +53,6 @@ vi.mock('./auth.js', () => ({
 // reads (getWorkspaceUsers) stay off the write path.
 const permMocks = vi.hoisted(() => ({
     ensureMutationAllowed: vi.fn().mockResolvedValue(undefined),
-    getRequiredScope: vi.fn((path: string) =>
-        path === 'groups.addUsers' ? 'workspaces:write' : undefined,
-    ),
     isMutatingMethod: vi.fn(
         (path: string) =>
             path === 'channels.deleteChannel' ||
@@ -233,7 +230,7 @@ describe('wrapResult — central 403 translation', () => {
         expect(permMocks.ensureMutationAllowed).toHaveBeenCalledWith('groups.addUsers')
     })
 
-    it('translates a 401 into INVALID_TOKEN, adding the scope hint on scoped methods', async () => {
+    it('translates a 401 into INVALID_TOKEN with re-auth guidance', async () => {
         sdkMocks.addGroupUsers.mockRejectedValueOnce(
             new CommsRequestError('Request failed with status 401', 401, {
                 error_string: 'Invalid token',
@@ -247,16 +244,11 @@ describe('wrapResult — central 403 translation', () => {
         ).rejects.toMatchObject({
             code: 'INVALID_TOKEN',
             message: 'Comms rejected the token: 401.',
-            hints: [
-                'Re-authenticate with `tdc auth login`, then check `tdc auth status`',
-                'This action needs `workspaces:write`: tdc auth login --full-access',
-            ],
+            hints: ['Re-authenticate with `tdc auth login`, then check `tdc auth status`'],
         })
     })
 
-    it('omits the scope hint on a 401 from a method that needs no extra scope', async () => {
-        // Every call routes through wrapResult, reads included — a 401 on an
-        // expired token must not blame group/workspace scopes.
+    it('gives the same 401 guidance on reads, which also route through wrapResult', async () => {
         sdkMocks.deleteChannel.mockRejectedValueOnce(
             new CommsRequestError('Request failed with status 401', 401, {}),
         )
