@@ -8,7 +8,7 @@ import {
 import { getApiTokenSnapshot } from './auth.js'
 import { getConfig, updateConfig } from './config.js'
 import { CliError, isForbidden, isInsufficientScope, isInvalidToken } from './errors.js'
-import { ensureScopeAllowed, ensureWriteAllowed, isMutatingMethod } from './permissions.js'
+import { ensureMutationAllowed, getRequiredScope, isMutatingMethod } from './permissions.js'
 import { getProgressTracker } from './progress.js'
 import { withSpinner } from './spinner.js'
 
@@ -158,16 +158,14 @@ function createNestedSpinnerProxy<T extends object>(obj: T, basePath: string): T
 
                 // For mutating methods, check permissions before calling the API
                 if (shouldCheckPermissions) {
-                    return ensureWriteAllowed()
-                        .then(() => ensureScopeAllowed(fullPath))
-                        .then(() => {
-                            const result = originalMethod.apply(target, args)
-                            return wrapResult(result, progressTracker, spinnerConfig)
-                        })
+                    return ensureMutationAllowed(fullPath).then(() => {
+                        const result = originalMethod.apply(target, args)
+                        return wrapResult(result, progressTracker, spinnerConfig, fullPath)
+                    })
                 }
 
                 const result = originalMethod.apply(target, args)
-                return wrapResult(result, progressTracker, spinnerConfig)
+                return wrapResult(result, progressTracker, spinnerConfig, fullPath)
             }
         },
     })
@@ -177,6 +175,7 @@ function wrapResult(
     result: unknown,
     progressTracker: ReturnType<typeof getProgressTracker>,
     spinnerConfig: (typeof API_SPINNER_MESSAGES)[string] | undefined,
+    methodPath?: string,
 ): unknown {
     // If the method returns a non-thenable, return as-is.
     if (!result || typeof (result as { then?: unknown }).then !== 'function') {
@@ -211,9 +210,15 @@ function wrapResult(
                 ])
             }
             if (isInvalidToken(error)) {
+                // Re-authenticating is the fix for any 401. The scope hint only
+                // belongs on methods that actually need an extra scope — every
+                // call routes through here, reads included.
+                const requiredScope = methodPath ? getRequiredScope(methodPath) : undefined
                 throw new CliError('INVALID_TOKEN', 'Comms rejected the token: 401.', [
                     'Re-authenticate with `tdc auth login`, then check `tdc auth status`',
-                    'Group and workspace writes need `tdc auth login --full-access`',
+                    ...(requiredScope
+                        ? [`This action needs \`${requiredScope}\`: tdc auth login --full-access`]
+                        : []),
                 ])
             }
             throw error

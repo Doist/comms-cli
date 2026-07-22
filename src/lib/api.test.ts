@@ -52,8 +52,10 @@ vi.mock('./auth.js', () => ({
 // exercise `channels.deleteChannel` and `attachments.upload` as mutating;
 // reads (getWorkspaceUsers) stay off the write path.
 const permMocks = vi.hoisted(() => ({
-    ensureWriteAllowed: vi.fn().mockResolvedValue(undefined),
-    ensureScopeAllowed: vi.fn().mockResolvedValue(undefined),
+    ensureMutationAllowed: vi.fn().mockResolvedValue(undefined),
+    getRequiredScope: vi.fn((path: string) =>
+        path === 'groups.addUsers' ? 'workspaces:write' : undefined,
+    ),
     isMutatingMethod: vi.fn(
         (path: string) =>
             path === 'channels.deleteChannel' ||
@@ -132,8 +134,7 @@ describe('wrapResult — central 403 translation', () => {
         sdkMocks.deleteChannel.mockReset()
         sdkMocks.uploadAttachment.mockReset()
         sdkMocks.addGroupUsers.mockReset()
-        permMocks.ensureWriteAllowed.mockReset().mockResolvedValue(undefined)
-        permMocks.ensureScopeAllowed.mockReset().mockResolvedValue(undefined)
+        permMocks.ensureMutationAllowed.mockReset().mockResolvedValue(undefined)
     })
 
     it('uses the explicit base URL when creating the wrapped SDK client', () => {
@@ -187,7 +188,7 @@ describe('wrapResult — central 403 translation', () => {
     })
 
     it('translates an attachments.upload scope 403 into INSUFFICIENT_SCOPE (re-login prompt)', async () => {
-        permMocks.ensureWriteAllowed.mockResolvedValue(undefined)
+        permMocks.ensureMutationAllowed.mockResolvedValue(undefined)
         sdkMocks.uploadAttachment.mockRejectedValueOnce(
             new CommsRequestError('Request failed with status 403', 403, {
                 error_string: 'Insufficient scope provided: attachments:write',
@@ -206,11 +207,11 @@ describe('wrapResult — central 403 translation', () => {
             ],
         })
         // Confirms upload runs through the mutating write-guard.
-        expect(permMocks.ensureWriteAllowed).toHaveBeenCalled()
+        expect(permMocks.ensureMutationAllowed).toHaveBeenCalled()
     })
 
     it('routes attachments.upload through the write-guard, blocking it in read-only mode', async () => {
-        permMocks.ensureWriteAllowed.mockRejectedValueOnce(new Error('READ_ONLY'))
+        permMocks.ensureMutationAllowed.mockRejectedValueOnce(new Error('READ_ONLY'))
         const client = createWrappedCommsClient('test-token')
 
         await expect(
@@ -220,8 +221,8 @@ describe('wrapResult — central 403 translation', () => {
         expect(sdkMocks.uploadAttachment).not.toHaveBeenCalled()
     })
 
-    it('routes group membership writes through the scope-guard', async () => {
-        permMocks.ensureScopeAllowed.mockRejectedValueOnce(new Error('INSUFFICIENT_SCOPE'))
+    it('routes group membership writes through the mutation guard', async () => {
+        permMocks.ensureMutationAllowed.mockRejectedValueOnce(new Error('INSUFFICIENT_SCOPE'))
         const client = createWrappedCommsClient('test-token')
 
         await expect(
@@ -229,10 +230,10 @@ describe('wrapResult — central 403 translation', () => {
         ).rejects.toThrow('INSUFFICIENT_SCOPE')
         // The guard runs before the request, so nothing hits the network.
         expect(sdkMocks.addGroupUsers).not.toHaveBeenCalled()
-        expect(permMocks.ensureScopeAllowed).toHaveBeenCalledWith('groups.addUsers')
+        expect(permMocks.ensureMutationAllowed).toHaveBeenCalledWith('groups.addUsers')
     })
 
-    it('translates a 401 into INVALID_TOKEN with re-auth guidance', async () => {
+    it('translates a 401 into INVALID_TOKEN, adding the scope hint on scoped methods', async () => {
         sdkMocks.addGroupUsers.mockRejectedValueOnce(
             new CommsRequestError('Request failed with status 401', 401, {
                 error_string: 'Invalid token',
@@ -246,6 +247,24 @@ describe('wrapResult — central 403 translation', () => {
         ).rejects.toMatchObject({
             code: 'INVALID_TOKEN',
             message: 'Comms rejected the token: 401.',
+            hints: [
+                'Re-authenticate with `tdc auth login`, then check `tdc auth status`',
+                'This action needs `workspaces:write`: tdc auth login --full-access',
+            ],
+        })
+    })
+
+    it('omits the scope hint on a 401 from a method that needs no extra scope', async () => {
+        // Every call routes through wrapResult, reads included — a 401 on an
+        // expired token must not blame group/workspace scopes.
+        sdkMocks.deleteChannel.mockRejectedValueOnce(
+            new CommsRequestError('Request failed with status 401', 401, {}),
+        )
+        const client = createWrappedCommsClient('test-token')
+
+        await expect(client.channels.deleteChannel('CH500')).rejects.toMatchObject({
+            code: 'INVALID_TOKEN',
+            hints: ['Re-authenticate with `tdc auth login`, then check `tdc auth status`'],
         })
     })
 

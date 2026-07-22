@@ -1,5 +1,6 @@
-import { getAuthMetadata } from './auth.js'
+import { type AuthMetadata, getAuthMetadata } from './auth.js'
 import { CliError } from './errors.js'
+import { hasScope } from './scopes.js'
 
 export const READ_ONLY_ERROR_MESSAGE =
     'This CLI is authenticated in read-only mode. Re-run `tdc auth login` without --read-only to enable write operations.'
@@ -53,8 +54,13 @@ export function isMutatingMethod(methodPath: string): boolean {
     return !KNOWN_SAFE_API_METHODS.has(methodPath)
 }
 
-export async function ensureWriteAllowed(): Promise<void> {
-    const metadata = await getAuthMetadata()
+/** The scope `methodPath` needs beyond the default write grant, if any. */
+export function getRequiredScope(methodPath: string): string | undefined {
+    return API_METHOD_SCOPES[methodPath]
+}
+
+export async function ensureWriteAllowed(preloaded?: AuthMetadata): Promise<void> {
+    const metadata = preloaded ?? (await getAuthMetadata())
     if (metadata.authMode === 'read-only') {
         throw new CliError('READ_ONLY', READ_ONLY_ERROR_MESSAGE, [
             'Re-run: tdc auth login (without --read-only)',
@@ -70,15 +76,19 @@ export async function ensureWriteAllowed(): Promise<void> {
  * which bypass Comms' scope enforcement entirely. Blocking those would break
  * working setups to guess at an error the server is better placed to raise.
  */
-export async function ensureScopeAllowed(methodPath: string): Promise<void> {
-    const requiredScope = API_METHOD_SCOPES[methodPath]
+export async function ensureScopeAllowed(
+    methodPath: string,
+    preloaded?: AuthMetadata,
+): Promise<void> {
+    const requiredScope = getRequiredScope(methodPath)
+    // Bail before touching auth metadata: most methods declare no extra scope.
     if (!requiredScope) return
 
-    const metadata = await getAuthMetadata()
+    const metadata = preloaded ?? (await getAuthMetadata())
     const grantedScope = metadata.authScope
     if (!grantedScope) return
 
-    if (!grantedScope.split(/\s+/).includes(requiredScope)) {
+    if (!hasScope(grantedScope, requiredScope)) {
         throw new CliError(
             'INSUFFICIENT_SCOPE',
             `This action requires the \`${requiredScope}\` scope, which your token does not have.`,
@@ -88,4 +98,14 @@ export async function ensureScopeAllowed(methodPath: string): Promise<void> {
             ],
         )
     }
+}
+
+/**
+ * Single guard for a mutating call: one `getAuthMetadata()` read shared by both
+ * checks, since it hits the config file on every invocation and is uncached.
+ */
+export async function ensureMutationAllowed(methodPath: string): Promise<void> {
+    const metadata = await getAuthMetadata()
+    await ensureWriteAllowed(metadata)
+    await ensureScopeAllowed(methodPath, metadata)
 }

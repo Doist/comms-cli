@@ -6,6 +6,7 @@ vi.mock('./auth.js', () => ({
 
 import { getAuthMetadata } from './auth.js'
 import {
+    ensureMutationAllowed,
     ensureScopeAllowed,
     ensureWriteAllowed,
     isMutatingMethod,
@@ -105,13 +106,29 @@ describe('ensureScopeAllowed', () => {
     it('matches whole scopes, not substrings', async () => {
         mockGetAuthMetadata.mockResolvedValue({
             authMode: 'read-write',
-            // `workspaces:write` is a prefix of nothing here, but a naive
-            // `includes` on the raw string would pass on `workspaces:write:x`.
+            // A naive `includes` on the raw string would pass on this.
             authScope: 'workspaces:write:something-else',
             source: 'config',
         })
 
         await expect(ensureScopeAllowed('groups.addUsers')).rejects.toThrow('workspaces:write')
+    })
+
+    it('accepts comma-delimited scope strings', async () => {
+        mockGetAuthMetadata.mockResolvedValue({
+            authMode: 'read-write',
+            authScope: 'workspaces:write,comms:content:write',
+            source: 'config',
+        })
+
+        await expect(ensureScopeAllowed('groups.addUsers')).resolves.toBeUndefined()
+    })
+
+    it('skips the auth-metadata lookup for methods needing no extra scope', async () => {
+        mockGetAuthMetadata.mockClear()
+
+        await expect(ensureScopeAllowed('comments.createComment')).resolves.toBeUndefined()
+        expect(mockGetAuthMetadata).not.toHaveBeenCalled()
     })
 
     it('fails open when the granted scope is unknown (env token)', async () => {
@@ -149,5 +166,42 @@ describe('ensureScopeAllowed', () => {
         ]) {
             await expect(ensureScopeAllowed(method)).rejects.toThrow('workspaces:write')
         }
+    })
+})
+
+describe('ensureMutationAllowed', () => {
+    it('reads auth metadata once for both checks', async () => {
+        mockGetAuthMetadata.mockClear()
+        mockGetAuthMetadata.mockResolvedValue({
+            authMode: 'read-write',
+            authScope: 'workspaces:write',
+            source: 'config',
+        })
+
+        await expect(ensureMutationAllowed('groups.addUsers')).resolves.toBeUndefined()
+        // getAuthMetadata hits the config file uncached, so one read, not two.
+        expect(mockGetAuthMetadata).toHaveBeenCalledTimes(1)
+    })
+
+    it('rejects read-only mode before checking scopes', async () => {
+        mockGetAuthMetadata.mockResolvedValue({
+            authMode: 'read-only',
+            authScope: 'workspaces:read',
+            source: 'config',
+        })
+
+        await expect(ensureMutationAllowed('groups.addUsers')).rejects.toThrow(
+            READ_ONLY_ERROR_MESSAGE,
+        )
+    })
+
+    it('rejects an under-scoped grant', async () => {
+        mockGetAuthMetadata.mockResolvedValue({
+            authMode: 'read-write',
+            authScope: 'comms:content:write',
+            source: 'config',
+        })
+
+        await expect(ensureMutationAllowed('groups.addUsers')).rejects.toThrow('workspaces:write')
     })
 })
