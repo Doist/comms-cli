@@ -107,6 +107,17 @@ export function isForbidden(error: unknown): boolean {
 }
 
 /**
+ * Check whether an error is a Comms API 401. Comms returns this both for a
+ * genuinely bad token and — because `_raise_todoist_rest_error` maps an
+ * upstream Todoist `UNAUTHORIZED` onto `INVALID_TOKEN` — for a valid token that
+ * lacks the scope a proxied workspace/group write needs. The two are
+ * indistinguishable on the wire, so the hint covers both.
+ */
+export function isInvalidToken(error: unknown): boolean {
+    return hasCommsStatusCode(error, 401)
+}
+
+/**
  * Comms-flavoured CliError that preserves the historical positional
  * `(code, message, hints?, type?)` signature used across hundreds of call
  * sites. Internally it forwards to the cli-core options-object form.

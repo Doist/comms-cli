@@ -50,7 +50,7 @@ tdc changelog                     # Show recent changelog entries
 tdc migrate urls <urls>           # Translate old twist.com URLs to Comms URLs (needs a Twist token)
 \`\`\`
 
-OAuth login uses Todoist OAuth for Comms access. The default grant can read Comms data and create/update content or messages. It does not include delete, channel management, or user/workspace write scopes; use \`tdc auth login --full-access\` only when needed. Stored auth uses the system credential manager when available. If secure storage is unavailable, \`tdc\` warns and falls back to \`~/.config/comms-cli/config.json\`. \`COMMS_API_TOKEN\` always takes priority over the stored token.
+OAuth login uses Todoist OAuth for Comms access. The default grant can read Comms data and create/update content or messages. It does not include delete, channel management, or user/workspace write scopes; use \`tdc auth login --full-access\` only when needed (all \`tdc groups\` writes require it). Stored auth uses the system credential manager when available. If secure storage is unavailable, \`tdc\` warns and falls back to \`~/.config/comms-cli/config.json\`. \`COMMS_API_TOKEN\` always takes priority over the stored token.
 
 In read-only mode (\`tdc auth login --read-only\`), commands that modify Comms data (reply, archive, react, delete, etc.) are blocked by the CLI. Externally provided tokens (\`COMMS_API_TOKEN\` or \`tdc auth token\`) are treated as unknown scope and assumed write-capable.
 
@@ -287,6 +287,8 @@ tdc groups add-user <ref> id:123 --json       # Output result as JSON
 tdc groups remove-user <group-ref> user1 user2  # Remove users from a group
 tdc groups remove-user <ref> id:123,id:456      # Comma-separated ID refs
 \`\`\`
+
+All group *writes* (\`groups create\`, \`rename\`, \`delete\`, \`add-user\`, \`remove-user\`) need the \`workspaces:write\` scope, which only \`tdc auth login --full-access\` grants. Group *reads* (\`groups\`, \`groups view\`) work on a default login.
 
 If a channel is not found in \`tdc channels\`, widen with broader listings such as \`tdc channels --scope public\`, then \`tdc channels --scope public --state all\`. Check \`tdc channels --help\` for other available filters.
 

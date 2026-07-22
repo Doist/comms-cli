@@ -1,7 +1,7 @@
 import { CommsRequestError } from '@doist/comms-sdk'
 import { describe, expect, it } from 'vitest'
 
-import { isForbidden, isInsufficientScope } from './errors.js'
+import { isForbidden, isInsufficientScope, isInvalidToken } from './errors.js'
 
 describe('isInsufficientScope', () => {
     it('returns true for a 403 with "Insufficient scope" error_string', () => {
@@ -81,5 +81,40 @@ describe('isForbidden', () => {
         })
         expect(isInsufficientScope(error)).toBe(true)
         expect(isForbidden(error)).toBe(false)
+    })
+})
+
+describe('isInvalidToken', () => {
+    it('returns true for a 401 regardless of body', () => {
+        expect(
+            isInvalidToken(new CommsRequestError('Request failed with status 401', 401, {})),
+        ).toBe(true)
+        expect(
+            isInvalidToken(
+                new CommsRequestError('Request failed with status 401', 401, {
+                    error_code: 200,
+                    error_string: 'Invalid token',
+                }),
+            ),
+        ).toBe(true)
+    })
+
+    it('returns false for non-401 status codes', () => {
+        expect(
+            isInvalidToken(new CommsRequestError('Request failed with status 403', 403, {})),
+        ).toBe(false)
+        expect(
+            isInvalidToken(new CommsRequestError('Request failed with status 404', 404, {})),
+        ).toBe(false)
+        expect(
+            isInvalidToken(new CommsRequestError('Request failed with status 500', 500, {})),
+        ).toBe(false)
+    })
+
+    it('returns false for plain errors and non-object values', () => {
+        expect(isInvalidToken(new Error('something'))).toBe(false)
+        expect(isInvalidToken(null)).toBe(false)
+        expect(isInvalidToken(undefined)).toBe(false)
+        expect(isInvalidToken('string')).toBe(false)
     })
 })

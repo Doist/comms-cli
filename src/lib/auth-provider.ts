@@ -25,6 +25,7 @@ import {
 } from './config.js'
 import { CliError } from './errors.js'
 import { parseRef } from './refs.js'
+import { splitScopeString } from './scopes.js'
 import { createCommsUserRecordStore, getDefaultUserRecord } from './user-records.js'
 
 const DEFAULT_TODOIST_AUTH_BASE_URL = 'https://todoist.com'
@@ -515,14 +516,6 @@ function getAuthModeForGrantedScope(scope: string): AuthMode {
 
 function normalizeScopeString(scope: string): string {
     return splitScopeString(scope).join(' ')
-}
-
-function splitScopeString(scope: string): string[] {
-    return scope
-        .replaceAll(',', ' ')
-        .split(/\s+/)
-        .map((part) => part.trim())
-        .filter(Boolean)
 }
 
 /**
