@@ -1,3 +1,9 @@
+## [2.0.2](https://github.com/Doist/comms-cli/compare/v2.0.1...v2.0.2) (2026-07-29)
+
+### Bug Fixes
+
+- set Comms audience to thread ([#49](https://github.com/Doist/comms-cli/issues/49)) ([42e8ccb](https://github.com/Doist/comms-cli/commit/42e8ccb333a9d420a8082a5ea16e93be86e5671e))
+
 ## [2.0.1](https://github.com/Doist/comms-cli/compare/v2.0.0...v2.0.1) (2026-07-22)
 
 ### Bug Fixes
