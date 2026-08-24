@@ -115,6 +115,7 @@ describe('tdc channel members list (default)', () => {
                 getUserById: vi.fn().mockResolvedValue({
                     id: 6,
                     fullName: 'Restricted User',
+                    email: 'restricted@example.com',
                     restricted: true,
                 }),
             },

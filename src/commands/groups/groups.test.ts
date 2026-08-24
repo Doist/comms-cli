@@ -236,6 +236,7 @@ describe('tdc groups view', () => {
         mockGetUserById.mockResolvedValueOnce({
             id: 1,
             fullName: 'Restricted User',
+            email: 'restricted@example.com',
             restricted: true,
         })
         const program = createProgram()
