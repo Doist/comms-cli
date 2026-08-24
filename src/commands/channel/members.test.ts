@@ -108,6 +108,26 @@ describe('tdc channel members list (default)', () => {
         ])
     })
 
+    it('omits email for restricted members', async () => {
+        refsMocks.resolveChannelRef.mockResolvedValue(createChannel([6]))
+        apiMocks.getCommsClient.mockResolvedValue({
+            workspaceUsers: {
+                getUserById: vi.fn().mockResolvedValue({
+                    id: 6,
+                    fullName: 'Restricted User',
+                    restricted: true,
+                }),
+            },
+        })
+        const consoleSpy = captureConsole('log')
+        const program = createProgram()
+
+        await program.parseAsync(['node', 'tdc', 'channel', 'members', 'General', '--json'])
+
+        const payload = JSON.parse(consoleSpy.mock.calls[0][0] as string)
+        expect(payload.members[0]).toEqual({ id: 6, name: 'Restricted User', email: null })
+    })
+
     it('falls back to user:<id> for unknown members', async () => {
         refsMocks.resolveChannelRef.mockResolvedValue(createChannel([99]))
         const consoleSpy = captureConsole('log')

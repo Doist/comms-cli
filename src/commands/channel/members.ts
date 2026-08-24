@@ -1,3 +1,4 @@
+import { isRestrictedWorkspaceUser } from '@doist/comms-sdk'
 import { getCurrentWorkspaceId, getWorkspaceGroups } from '../../lib/api.js'
 import type { ViewOptions } from '../../lib/options.js'
 import { colors, formatJson, formatNdjson, pluralize } from '../../lib/output.js'
@@ -21,7 +22,8 @@ export async function listChannelMembers(
 
     const members = userIds.map((id) => {
         const user = userMap.get(id)
-        return { id, name: user?.fullName ?? null, email: user?.email ?? null }
+        const email = user && !isRestrictedWorkspaceUser(user) ? (user.email ?? null) : null
+        return { id, name: user?.fullName ?? null, email }
     })
 
     const slimPayload = {
