@@ -1,3 +1,9 @@
+## [2.0.3](https://github.com/Doist/comms-cli/compare/v2.0.2...v2.0.3) (2026-08-24)
+
+### Bug Fixes
+
+- upgrade Comms SDK to 2.0.1 ([#53](https://github.com/Doist/comms-cli/issues/53)) ([d4e207a](https://github.com/Doist/comms-cli/commit/d4e207a26f2cc3cb32184529e8fc8384ee0f5544))
+
 ## [2.0.2](https://github.com/Doist/comms-cli/compare/v2.0.1...v2.0.2) (2026-07-29)
 
 ### Bug Fixes
