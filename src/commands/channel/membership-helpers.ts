@@ -1,4 +1,4 @@
-import type { Channel, Group, WorkspaceUser } from '@doist/comms-sdk'
+import type { Channel, Group, VisibleWorkspaceUser } from '@doist/comms-sdk'
 import {
     addUsersToChannel,
     getCommsClient,
@@ -20,7 +20,7 @@ export function channelUserIds(channel: Channel): number[] {
 export async function fetchUsersByIds(
     workspaceId: number,
     userIds: number[],
-): Promise<Map<number, WorkspaceUser>> {
+): Promise<Map<number, VisibleWorkspaceUser>> {
     if (userIds.length === 0) return new Map()
     const client = await getCommsClient()
     // Per-member fetch keeps latency tied to channel size, not workspace size
@@ -35,7 +35,7 @@ export async function fetchUsersByIds(
             }
         }),
     )
-    const map = new Map<number, WorkspaceUser>()
+    const map = new Map<number, VisibleWorkspaceUser>()
     for (const entry of entries) {
         if (entry) map.set(entry[0], entry[1])
     }

@@ -52,7 +52,7 @@
     ],
     "dependencies": {
         "@doist/cli-core": "0.26.2",
-        "@doist/comms-sdk": "0.11.0",
+        "@doist/comms-sdk": "2.0.1",
         "@pnpm/tabtab": "0.5.4",
         "chalk": "5.6.2",
         "commander": "14.0.3",

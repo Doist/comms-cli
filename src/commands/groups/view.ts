@@ -1,3 +1,4 @@
+import { isRestrictedWorkspaceUser } from '@doist/comms-sdk'
 import { getCommsClient, getCurrentWorkspaceId } from '../../lib/api.js'
 import type { ViewOptions } from '../../lib/options.js'
 import { colors, formatJson, formatNdjson, pluralize } from '../../lib/output.js'
@@ -18,7 +19,8 @@ export async function viewGroup(ref: string, options: GroupViewOptions): Promise
                     workspaceId,
                     userId: id,
                 })
-                return { id, name: user.fullName, email: user.email ?? null }
+                const email = isRestrictedWorkspaceUser(user) ? null : (user.email ?? null)
+                return { id, name: user.fullName, email }
             } catch {
                 return { id, name: null as string | null, email: null as string | null }
             }

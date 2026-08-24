@@ -232,6 +232,22 @@ describe('tdc groups view', () => {
         expect(output).not.toHaveProperty('version')
     })
 
+    it('omits email for restricted members', async () => {
+        mockGetUserById.mockResolvedValueOnce({
+            id: 1,
+            fullName: 'Restricted User',
+            email: 'restricted@example.com',
+            restricted: true,
+        })
+        const program = createProgram()
+        const consoleSpy = captureConsole('log')
+
+        await program.parseAsync(['node', 'tdc', 'groups', 'view', 'Frontend', '--json'])
+
+        const output = JSON.parse(consoleSpy.mock.calls[0][0])
+        expect(output.members[0]).toEqual({ id: 1, name: 'Restricted User', email: null })
+    })
+
     it('renders user:N for members whose lookup fails', async () => {
         mockGetUserById.mockImplementationOnce(async () => {
             throw new Error('User not found')
