@@ -37,11 +37,14 @@ describe('react refs', () => {
             'tdc',
             'react',
             'thread',
-            'https://comms.todoist.com/a/1/ch/2/t/99',
+            'https://comms.todoist.com/a/1/ch/CeRAj1WU3YFhsTejuePLW/t/CeRAj1WU3YFhsVZGDyPr9',
             '+1',
         ])
 
-        expect(apiMocks.addReaction).toHaveBeenCalledWith({ threadId: '99', reaction: '👍' })
+        expect(apiMocks.addReaction).toHaveBeenCalledWith({
+            threadId: 'CeRAj1WU3YFhsVZGDyPr9',
+            reaction: '👍',
+        })
     })
 
     it('accepts message URLs for unreact', async () => {
@@ -53,11 +56,14 @@ describe('react refs', () => {
             'tdc',
             'unreact',
             'message',
-            'https://comms.todoist.com/a/1/msg/33/m/44',
+            'https://comms.todoist.com/a/1/msg/CeRAj1WU3YFhsatbAs43L/m/CeRAj1WU3YFhsbp9GT1ir',
             'heart',
         ])
 
-        expect(apiMocks.removeReaction).toHaveBeenCalledWith({ messageId: '44', reaction: '❤️' })
+        expect(apiMocks.removeReaction).toHaveBeenCalledWith({
+            messageId: 'CeRAj1WU3YFhsbp9GT1ir',
+            reaction: '❤️',
+        })
     })
 
     it('outputs JSON for react --json', async () => {

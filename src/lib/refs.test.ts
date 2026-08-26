@@ -58,7 +58,7 @@ describe('extractId', () => {
 
     it('returns bare strings as ID', () => {
         expect(extractId('123')).toBe('123')
-        expect(extractId('7YpL3oZ4kZ9vP7Q1tR2sX3z')).toBe('7YpL3oZ4kZ9vP7Q1tR2sX3z')
+        expect(extractId('CeRAj1WU3YFhsTejuePLW')).toBe('CeRAj1WU3YFhsTejuePLW')
     })
 
     it('trims whitespace', () => {
@@ -92,7 +92,7 @@ describe('looksLikeRawId', () => {
     })
 
     it('detects base58 alphanumeric strings', () => {
-        expect(looksLikeRawId('7YpL3oZ4kZ9vP7Q1tR2sX3z')).toBe(true)
+        expect(looksLikeRawId('CeRAj1WU3YFhsTejuePLW')).toBe(true)
     })
 
     it('rejects plain names and spaces', () => {
@@ -114,36 +114,64 @@ describe('parseCommsUrl', () => {
         expect(result).toEqual({ workspaceId: 12345 })
     })
 
+    it.each([
+        ['channel', 'https://comms.todoist.com/a/12345/ch/CH1'],
+        ['thread', 'https://comms.todoist.com/a/12345/ch/CH1/t/TH1'],
+        ['conversation', 'https://comms.todoist.com/a/12345/msg/CV1'],
+    ])('reads a well-formed %s URL with a non-base58 id as workspace-only', (_name, url) => {
+        // Comms only issues base58-encoded UUIDv7 ids, so anything else names
+        // no entity and must not be passed on as a ref.
+        expect(parseCommsUrl(url)).toEqual({ workspaceId: 12345 })
+    })
+
     it('parses channel URL with base58 id', () => {
-        const result = parseCommsUrl('https://comms.todoist.com/a/12345/ch/7YpL3oZ4kZ9vP7Q1tR2sX3z')
-        expect(result).toEqual({ workspaceId: 12345, channelId: '7YpL3oZ4kZ9vP7Q1tR2sX3z' })
+        const result = parseCommsUrl('https://comms.todoist.com/a/12345/ch/CeRAj1WU3YFhsTejuePLW')
+        expect(result).toEqual({ workspaceId: 12345, channelId: 'CeRAj1WU3YFhsTejuePLW' })
     })
 
     it('parses short channel URL with base58 id', () => {
-        const result = parseCommsUrl('https://comms.todoist.com/12345/ch/7YpL3oZ4kZ9vP7Q1tR2sX3z')
-        expect(result).toEqual({ workspaceId: 12345, channelId: '7YpL3oZ4kZ9vP7Q1tR2sX3z' })
+        const result = parseCommsUrl('https://comms.todoist.com/12345/ch/CeRAj1WU3YFhsTejuePLW')
+        expect(result).toEqual({ workspaceId: 12345, channelId: 'CeRAj1WU3YFhsTejuePLW' })
     })
 
     it.each([
         [
             'short thread URL',
-            'https://comms.todoist.com/12345/ch/CH1/t/TH1',
-            { workspaceId: 12345, channelId: 'CH1', threadId: 'TH1' },
+            'https://comms.todoist.com/12345/ch/CeRAj1WU3YFhsTejuePLW/t/CeRAj1WU3YFhsVZGDyPr9',
+            {
+                workspaceId: 12345,
+                channelId: 'CeRAj1WU3YFhsTejuePLW',
+                threadId: 'CeRAj1WU3YFhsVZGDyPr9',
+            },
         ],
         [
             'thread URL',
-            'https://comms.todoist.com/a/12345/ch/CH1/t/TH1',
-            { workspaceId: 12345, channelId: 'CH1', threadId: 'TH1' },
+            'https://comms.todoist.com/a/12345/ch/CeRAj1WU3YFhsTejuePLW/t/CeRAj1WU3YFhsVZGDyPr9',
+            {
+                workspaceId: 12345,
+                channelId: 'CeRAj1WU3YFhsTejuePLW',
+                threadId: 'CeRAj1WU3YFhsVZGDyPr9',
+            },
         ],
         [
             'short thread with comment URL',
-            'https://comms.todoist.com/12345/ch/CH1/t/TH1/c/CM1',
-            { workspaceId: 12345, channelId: 'CH1', threadId: 'TH1', commentId: 'CM1' },
+            'https://comms.todoist.com/12345/ch/CeRAj1WU3YFhsTejuePLW/t/CeRAj1WU3YFhsVZGDyPr9/c/CeRAj1WU3YFhsY6fUxMhj',
+            {
+                workspaceId: 12345,
+                channelId: 'CeRAj1WU3YFhsTejuePLW',
+                threadId: 'CeRAj1WU3YFhsVZGDyPr9',
+                commentId: 'CeRAj1WU3YFhsY6fUxMhj',
+            },
         ],
         [
             'thread with comment URL',
-            'https://comms.todoist.com/a/12345/ch/CH1/t/TH1/c/CM1',
-            { workspaceId: 12345, channelId: 'CH1', threadId: 'TH1', commentId: 'CM1' },
+            'https://comms.todoist.com/a/12345/ch/CeRAj1WU3YFhsTejuePLW/t/CeRAj1WU3YFhsVZGDyPr9/c/CeRAj1WU3YFhsY6fUxMhj',
+            {
+                workspaceId: 12345,
+                channelId: 'CeRAj1WU3YFhsTejuePLW',
+                threadId: 'CeRAj1WU3YFhsVZGDyPr9',
+                commentId: 'CeRAj1WU3YFhsY6fUxMhj',
+            },
         ],
         [
             'people URL as workspace-only',
@@ -157,23 +185,31 @@ describe('parseCommsUrl', () => {
     it.each([
         [
             'inbox thread URL',
-            'https://comms.todoist.com/12345/inbox/t/TH1/',
-            { workspaceId: 12345, threadId: 'TH1' },
+            'https://comms.todoist.com/12345/inbox/t/CeRAj1WU3YFhsVZGDyPr9/',
+            { workspaceId: 12345, threadId: 'CeRAj1WU3YFhsVZGDyPr9' },
         ],
         [
             'inbox thread with comment URL',
-            'https://comms.todoist.com/12345/inbox/t/TH1/c/CM1',
-            { workspaceId: 12345, threadId: 'TH1', commentId: 'CM1' },
+            'https://comms.todoist.com/12345/inbox/t/CeRAj1WU3YFhsVZGDyPr9/c/CeRAj1WU3YFhsY6fUxMhj',
+            {
+                workspaceId: 12345,
+                threadId: 'CeRAj1WU3YFhsVZGDyPr9',
+                commentId: 'CeRAj1WU3YFhsY6fUxMhj',
+            },
         ],
         [
             'saved thread URL',
-            'https://comms.todoist.com/12345/saved/t/TH1',
-            { workspaceId: 12345, threadId: 'TH1' },
+            'https://comms.todoist.com/12345/saved/t/CeRAj1WU3YFhsVZGDyPr9',
+            { workspaceId: 12345, threadId: 'CeRAj1WU3YFhsVZGDyPr9' },
         ],
         [
             'saved thread with comment URL',
-            'https://comms.todoist.com/12345/saved/t/TH1/c/CM1',
-            { workspaceId: 12345, threadId: 'TH1', commentId: 'CM1' },
+            'https://comms.todoist.com/12345/saved/t/CeRAj1WU3YFhsVZGDyPr9/c/CeRAj1WU3YFhsY6fUxMhj',
+            {
+                workspaceId: 12345,
+                threadId: 'CeRAj1WU3YFhsVZGDyPr9',
+                commentId: 'CeRAj1WU3YFhsY6fUxMhj',
+            },
         ],
     ])('parses %s', (_description, url, expected) => {
         expect(parseCommsUrl(url)).toEqual(expected)
@@ -182,50 +218,81 @@ describe('parseCommsUrl', () => {
     it.each([
         ['inbox root URL', 'https://comms.todoist.com/12345/inbox'],
         ['inbox done URL', 'https://comms.todoist.com/12345/inbox/done'],
-        ['inbox done thread-like URL', 'https://comms.todoist.com/12345/inbox/done/t/TH1'],
+        [
+            'inbox done thread-like URL',
+            'https://comms.todoist.com/12345/inbox/done/t/CeRAj1WU3YFhsVZGDyPr9',
+        ],
         ['missing thread id', 'https://comms.todoist.com/12345/inbox/t'],
-        ['missing comment id', 'https://comms.todoist.com/12345/inbox/t/TH1/c'],
-        ['comment-only path', 'https://comms.todoist.com/12345/inbox/c/CM1'],
-        ['wrong marker after thread id', 'https://comms.todoist.com/12345/inbox/t/TH1/x/CM1'],
-        ['extra segment after thread id', 'https://comms.todoist.com/12345/inbox/t/TH1/extra'],
+        ['missing comment id', 'https://comms.todoist.com/12345/inbox/t/CeRAj1WU3YFhsVZGDyPr9/c'],
+        ['comment-only path', 'https://comms.todoist.com/12345/inbox/c/CeRAj1WU3YFhsY6fUxMhj'],
+        [
+            'wrong marker after thread id',
+            'https://comms.todoist.com/12345/inbox/t/CeRAj1WU3YFhsVZGDyPr9/x/CeRAj1WU3YFhsY6fUxMhj',
+        ],
+        [
+            'extra segment after thread id',
+            'https://comms.todoist.com/12345/inbox/t/CeRAj1WU3YFhsVZGDyPr9/extra',
+        ],
         [
             'extra segment after comment id',
-            'https://comms.todoist.com/12345/inbox/t/TH1/c/CM1/extra',
+            'https://comms.todoist.com/12345/inbox/t/CeRAj1WU3YFhsVZGDyPr9/c/CeRAj1WU3YFhsY6fUxMhj/extra',
         ],
-        ['msg suffix after thread id', 'https://comms.todoist.com/12345/inbox/t/TH1/msg/CV1'],
-        ['saved URL with extra segment', 'https://comms.todoist.com/12345/saved/t/TH1/extra'],
+        [
+            'msg suffix after thread id',
+            'https://comms.todoist.com/12345/inbox/t/CeRAj1WU3YFhsVZGDyPr9/msg/CeRAj1WU3YFhsatbAs43L',
+        ],
+        [
+            'saved URL with extra segment',
+            'https://comms.todoist.com/12345/saved/t/CeRAj1WU3YFhsVZGDyPr9/extra',
+        ],
     ])('leaves %s workspace-only', (_description, url) => {
         expect(parseCommsUrl(url)).toEqual({ workspaceId: 12345 })
     })
 
     it('parses conversation URL', () => {
-        const result = parseCommsUrl('https://comms.todoist.com/a/12345/msg/CV1')
-        expect(result).toEqual({ workspaceId: 12345, conversationId: 'CV1' })
+        const result = parseCommsUrl('https://comms.todoist.com/a/12345/msg/CeRAj1WU3YFhsatbAs43L')
+        expect(result).toEqual({ workspaceId: 12345, conversationId: 'CeRAj1WU3YFhsatbAs43L' })
     })
 
     it('parses short conversation URL', () => {
-        const result = parseCommsUrl('https://comms.todoist.com/12345/msg/CV1')
-        expect(result).toEqual({ workspaceId: 12345, conversationId: 'CV1' })
+        const result = parseCommsUrl('https://comms.todoist.com/12345/msg/CeRAj1WU3YFhsatbAs43L')
+        expect(result).toEqual({ workspaceId: 12345, conversationId: 'CeRAj1WU3YFhsatbAs43L' })
     })
 
     it('parses message URL', () => {
-        const result = parseCommsUrl('https://comms.todoist.com/a/12345/msg/CV1/m/MS1')
-        expect(result).toEqual({ workspaceId: 12345, conversationId: 'CV1', messageId: 'MS1' })
+        const result = parseCommsUrl(
+            'https://comms.todoist.com/a/12345/msg/CeRAj1WU3YFhsatbAs43L/m/CeRAj1WU3YFhsbp9GT1ir',
+        )
+        expect(result).toEqual({
+            workspaceId: 12345,
+            conversationId: 'CeRAj1WU3YFhsatbAs43L',
+            messageId: 'CeRAj1WU3YFhsbp9GT1ir',
+        })
     })
 
     it('parses short message URL', () => {
-        const result = parseCommsUrl('https://comms.todoist.com/12345/msg/CV1/m/MS1')
-        expect(result).toEqual({ workspaceId: 12345, conversationId: 'CV1', messageId: 'MS1' })
+        const result = parseCommsUrl(
+            'https://comms.todoist.com/12345/msg/CeRAj1WU3YFhsatbAs43L/m/CeRAj1WU3YFhsbp9GT1ir',
+        )
+        expect(result).toEqual({
+            workspaceId: 12345,
+            conversationId: 'CeRAj1WU3YFhsatbAs43L',
+            messageId: 'CeRAj1WU3YFhsbp9GT1ir',
+        })
     })
 
     it('parses staging URLs', () => {
-        const result = parseCommsUrl('https://comms.staging.todoist.com/12345/msg/CV1')
-        expect(result).toEqual({ workspaceId: 12345, conversationId: 'CV1' })
+        const result = parseCommsUrl(
+            'https://comms.staging.todoist.com/12345/msg/CeRAj1WU3YFhsatbAs43L',
+        )
+        expect(result).toEqual({ workspaceId: 12345, conversationId: 'CeRAj1WU3YFhsatbAs43L' })
     })
 
     it('parses local URLs', () => {
-        const result = parseCommsUrl('https://comms.local.todoist.com/12345/msg/CV1')
-        expect(result).toEqual({ workspaceId: 12345, conversationId: 'CV1' })
+        const result = parseCommsUrl(
+            'https://comms.local.todoist.com/12345/msg/CeRAj1WU3YFhsatbAs43L',
+        )
+        expect(result).toEqual({ workspaceId: 12345, conversationId: 'CeRAj1WU3YFhsatbAs43L' })
     })
 
     it('returns null for non-Comms URLs', () => {
@@ -234,7 +301,7 @@ describe('parseCommsUrl', () => {
     })
 
     it('returns null for unsupported protocols', () => {
-        expect(parseCommsUrl('ftp://comms.todoist.com/12345/msg/CV1')).toBeNull()
+        expect(parseCommsUrl('ftp://comms.todoist.com/12345/msg/CeRAj1WU3YFhsatbAs43L')).toBeNull()
     })
 
     it('returns null for invalid URLs', () => {
@@ -252,9 +319,9 @@ describe('parseRef', () => {
     })
 
     it('parses base58 IDs', () => {
-        expect(parseRef('7YpL3oZ4kZ9vP7Q1tR2sX3z')).toEqual({
+        expect(parseRef('CeRAj1WU3YFhsTejuePLW')).toEqual({
             type: 'id',
-            id: '7YpL3oZ4kZ9vP7Q1tR2sX3z',
+            id: 'CeRAj1WU3YFhsTejuePLW',
         })
     })
 
@@ -266,10 +333,16 @@ describe('parseRef', () => {
     })
 
     it('parses URLs', () => {
-        const result = parseRef('https://comms.todoist.com/a/12345/ch/CH1/t/TH1')
+        const result = parseRef(
+            'https://comms.todoist.com/a/12345/ch/CeRAj1WU3YFhsTejuePLW/t/CeRAj1WU3YFhsVZGDyPr9',
+        )
         expect(result).toEqual({
             type: 'url',
-            parsed: { workspaceId: 12345, channelId: 'CH1', threadId: 'TH1' },
+            parsed: {
+                workspaceId: 12345,
+                channelId: 'CeRAj1WU3YFhsTejuePLW',
+                threadId: 'CeRAj1WU3YFhsVZGDyPr9',
+            },
         })
     })
 
@@ -285,9 +358,13 @@ describe('parseRef', () => {
 
 describe('getDirectChannelId', () => {
     it('returns ids and channel URL ids', () => {
-        expect(getDirectChannelId('id:CH1')).toBe('CH1')
-        expect(getDirectChannelId('CH1')).toBe('CH1')
-        expect(getDirectChannelId('https://comms.todoist.com/a/12345/ch/CH1/t/TH1')).toBe('CH1')
+        expect(getDirectChannelId('id:CeRAj1WU3YFhsTejuePLW')).toBe('CeRAj1WU3YFhsTejuePLW')
+        expect(getDirectChannelId('CeRAj1WU3YFhsTejuePLW')).toBe('CeRAj1WU3YFhsTejuePLW')
+        expect(
+            getDirectChannelId(
+                'https://comms.todoist.com/a/12345/ch/CeRAj1WU3YFhsTejuePLW/t/CeRAj1WU3YFhsVZGDyPr9',
+            ),
+        ).toBe('CeRAj1WU3YFhsTejuePLW')
     })
 
     it('returns null for fuzzy names', () => {
@@ -295,19 +372,19 @@ describe('getDirectChannelId', () => {
     })
 
     it('rejects URLs that do not identify a channel', () => {
-        expect(() => getDirectChannelId('https://comms.todoist.com/a/12345/msg/CV1')).toThrow(
-            'Invalid channel reference',
-        )
+        expect(() =>
+            getDirectChannelId('https://comms.todoist.com/a/12345/msg/CeRAj1WU3YFhsatbAs43L'),
+        ).toThrow('Invalid channel reference')
     })
 })
 
 describe('resolveThreadId', () => {
     it('resolves id: refs', () => {
-        expect(resolveThreadId('id:TH1')).toBe('TH1')
+        expect(resolveThreadId('id:CeRAj1WU3YFhsVZGDyPr9')).toBe('CeRAj1WU3YFhsVZGDyPr9')
     })
 
     it('resolves base58 ids', () => {
-        expect(resolveThreadId('7YpL3oZ4kZ9vP7Q1tR2sX3z')).toBe('7YpL3oZ4kZ9vP7Q1tR2sX3z')
+        expect(resolveThreadId('CeRAj1WU3YFhsTejuePLW')).toBe('CeRAj1WU3YFhsTejuePLW')
     })
 
     it('resolves generated Comms IDs without digits', () => {
@@ -315,20 +392,26 @@ describe('resolveThreadId', () => {
     })
 
     it.each([
-        ['thread URL', 'https://comms.todoist.com/a/12345/ch/CH1/t/TH1'],
-        ['thread URL with comment suffix', 'https://comms.todoist.com/a/12345/ch/CH1/t/TH1/c/CM1'],
-        ['inbox thread URL', 'https://comms.todoist.com/12345/inbox/t/TH1/'],
+        [
+            'thread URL',
+            'https://comms.todoist.com/a/12345/ch/CeRAj1WU3YFhsTejuePLW/t/CeRAj1WU3YFhsVZGDyPr9',
+        ],
+        [
+            'thread URL with comment suffix',
+            'https://comms.todoist.com/a/12345/ch/CeRAj1WU3YFhsTejuePLW/t/CeRAj1WU3YFhsVZGDyPr9/c/CeRAj1WU3YFhsY6fUxMhj',
+        ],
+        ['inbox thread URL', 'https://comms.todoist.com/12345/inbox/t/CeRAj1WU3YFhsVZGDyPr9/'],
         [
             'inbox thread URL with comment suffix',
-            'https://comms.todoist.com/12345/inbox/t/TH1/c/CM1',
+            'https://comms.todoist.com/12345/inbox/t/CeRAj1WU3YFhsVZGDyPr9/c/CeRAj1WU3YFhsY6fUxMhj',
         ],
-        ['saved thread URL', 'https://comms.todoist.com/12345/saved/t/TH1'],
+        ['saved thread URL', 'https://comms.todoist.com/12345/saved/t/CeRAj1WU3YFhsVZGDyPr9'],
         [
             'saved thread URL with comment suffix',
-            'https://comms.todoist.com/12345/saved/t/TH1/c/CM1',
+            'https://comms.todoist.com/12345/saved/t/CeRAj1WU3YFhsVZGDyPr9/c/CeRAj1WU3YFhsY6fUxMhj',
         ],
     ])('resolves %s', (_description, url) => {
-        expect(resolveThreadId(url)).toBe('TH1')
+        expect(resolveThreadId(url)).toBe('CeRAj1WU3YFhsVZGDyPr9')
     })
 
     it('throws on invalid refs', () => {
@@ -338,21 +421,27 @@ describe('resolveThreadId', () => {
 
 describe('resolveCommentId', () => {
     it('resolves id: refs', () => {
-        expect(resolveCommentId('id:CM1')).toBe('CM1')
+        expect(resolveCommentId('id:CeRAj1WU3YFhsY6fUxMhj')).toBe('CeRAj1WU3YFhsY6fUxMhj')
     })
 
     it('resolves comment URLs', () => {
-        expect(resolveCommentId('https://comms.todoist.com/a/12345/ch/CH1/t/TH1/c/CM1')).toBe('CM1')
+        expect(
+            resolveCommentId(
+                'https://comms.todoist.com/a/12345/ch/CeRAj1WU3YFhsTejuePLW/t/CeRAj1WU3YFhsVZGDyPr9/c/CeRAj1WU3YFhsY6fUxMhj',
+            ),
+        ).toBe('CeRAj1WU3YFhsY6fUxMhj')
     })
 })
 
 describe('resolveChannelId', () => {
     it('resolves id: refs', () => {
-        expect(resolveChannelId('id:CH1')).toBe('CH1')
+        expect(resolveChannelId('id:CeRAj1WU3YFhsTejuePLW')).toBe('CeRAj1WU3YFhsTejuePLW')
     })
 
     it('resolves channel URLs', () => {
-        expect(resolveChannelId('https://comms.todoist.com/a/12345/ch/CH1')).toBe('CH1')
+        expect(resolveChannelId('https://comms.todoist.com/a/12345/ch/CeRAj1WU3YFhsTejuePLW')).toBe(
+            'CeRAj1WU3YFhsTejuePLW',
+        )
     })
 })
 
@@ -399,30 +488,35 @@ describe('resolveChannelRef', () => {
     })
 
     it('fetches channel by id: ref via getChannel', async () => {
-        const ch = createChannel('CH1', 'engineering')
+        const ch = createChannel('CeRAj1WU3YFhsTejuePLW', 'engineering')
         mockGetChannel.mockResolvedValue(ch)
 
-        const result = await resolveChannelRef('id:CH1', 1)
+        const result = await resolveChannelRef('id:CeRAj1WU3YFhsTejuePLW', 1)
 
-        expect(mockGetChannel).toHaveBeenCalledWith('CH1')
+        expect(mockGetChannel).toHaveBeenCalledWith('CeRAj1WU3YFhsTejuePLW')
         expect(mockGetChannels).not.toHaveBeenCalled()
         expect(result).toEqual(ch)
     })
 
     it('fetches channel by Comms URL via getChannel', async () => {
-        const ch = createChannel('CH1', 'engineering')
+        const ch = createChannel('CeRAj1WU3YFhsTejuePLW', 'engineering')
         mockGetChannel.mockResolvedValue(ch)
 
-        const result = await resolveChannelRef('https://comms.todoist.com/a/1/ch/CH1', 1)
+        const result = await resolveChannelRef(
+            'https://comms.todoist.com/a/1/ch/CeRAj1WU3YFhsTejuePLW',
+            1,
+        )
 
-        expect(mockGetChannel).toHaveBeenCalledWith('CH1')
+        expect(mockGetChannel).toHaveBeenCalledWith('CeRAj1WU3YFhsTejuePLW')
         expect(result).toEqual(ch)
     })
 
     it('throws CHANNEL_NOT_FOUND when id: ref resolves to a channel in another workspace', async () => {
-        mockGetChannel.mockResolvedValue(createChannel('CH1', 'engineering', { workspaceId: 2 }))
+        mockGetChannel.mockResolvedValue(
+            createChannel('CeRAj1WU3YFhsTejuePLW', 'engineering', { workspaceId: 2 }),
+        )
 
-        await expect(resolveChannelRef('id:CH1', 1)).rejects.toHaveProperty(
+        await expect(resolveChannelRef('id:CeRAj1WU3YFhsTejuePLW', 1)).rejects.toHaveProperty(
             'code',
             'CHANNEL_NOT_FOUND',
         )
@@ -430,7 +524,7 @@ describe('resolveChannelRef', () => {
 
     it('throws CHANNEL_NOT_FOUND when URL workspaceId conflicts with expected workspaceId', async () => {
         await expect(
-            resolveChannelRef('https://comms.todoist.com/a/2/ch/CH1', 1),
+            resolveChannelRef('https://comms.todoist.com/a/2/ch/CeRAj1WU3YFhsTejuePLW', 1),
         ).rejects.toHaveProperty('code', 'CHANNEL_NOT_FOUND')
         expect(mockGetChannel).not.toHaveBeenCalled()
     })
@@ -526,21 +620,27 @@ describe('resolveChannelRef', () => {
 
 describe('resolveConversationId', () => {
     it('resolves id: refs', () => {
-        expect(resolveConversationId('id:CV1')).toBe('CV1')
+        expect(resolveConversationId('id:CeRAj1WU3YFhsatbAs43L')).toBe('CeRAj1WU3YFhsatbAs43L')
     })
 
     it('resolves conversation URLs', () => {
-        expect(resolveConversationId('https://comms.todoist.com/a/12345/msg/CV1')).toBe('CV1')
+        expect(
+            resolveConversationId('https://comms.todoist.com/a/12345/msg/CeRAj1WU3YFhsatbAs43L'),
+        ).toBe('CeRAj1WU3YFhsatbAs43L')
     })
 })
 
 describe('resolveMessageId', () => {
     it('resolves id: refs', () => {
-        expect(resolveMessageId('id:MS1')).toBe('MS1')
+        expect(resolveMessageId('id:CeRAj1WU3YFhsbp9GT1ir')).toBe('CeRAj1WU3YFhsbp9GT1ir')
     })
 
     it('resolves message URLs', () => {
-        expect(resolveMessageId('https://comms.todoist.com/a/12345/msg/CV1/m/MS1')).toBe('MS1')
+        expect(
+            resolveMessageId(
+                'https://comms.todoist.com/a/12345/msg/CeRAj1WU3YFhsatbAs43L/m/CeRAj1WU3YFhsbp9GT1ir',
+            ),
+        ).toBe('CeRAj1WU3YFhsbp9GT1ir')
     })
 })
 
@@ -580,15 +680,51 @@ describe('partitionNotifyIds', () => {
 
 describe('classifyCommsUrl', () => {
     it.each([
-        ['thread URL', 'https://comms.todoist.com/a/20/ch/CH1/t/TH1', 'thread'],
-        ['thread+comment URL', 'https://comms.todoist.com/a/20/ch/CH1/t/TH1/c/CM1', 'comment'],
-        ['inbox thread URL', 'https://comms.todoist.com/20/inbox/t/TH1/', 'thread'],
-        ['inbox thread+comment URL', 'https://comms.todoist.com/20/inbox/t/TH1/c/CM1', 'comment'],
-        ['saved thread URL', 'https://comms.todoist.com/20/saved/t/TH1', 'thread'],
-        ['saved thread+comment URL', 'https://comms.todoist.com/20/saved/t/TH1/c/CM1', 'comment'],
-        ['conversation URL', 'https://comms.todoist.com/a/20/msg/CV1', 'conversation'],
-        ['short conversation URL', 'https://comms.todoist.com/20/msg/CV1', 'conversation'],
-        ['message URL', 'https://comms.todoist.com/a/20/msg/CV1/m/MS1', 'message'],
+        [
+            'thread URL',
+            'https://comms.todoist.com/a/20/ch/CeRAj1WU3YFhsTejuePLW/t/CeRAj1WU3YFhsVZGDyPr9',
+            'thread',
+        ],
+        [
+            'thread+comment URL',
+            'https://comms.todoist.com/a/20/ch/CeRAj1WU3YFhsTejuePLW/t/CeRAj1WU3YFhsVZGDyPr9/c/CeRAj1WU3YFhsY6fUxMhj',
+            'comment',
+        ],
+        [
+            'inbox thread URL',
+            'https://comms.todoist.com/20/inbox/t/CeRAj1WU3YFhsVZGDyPr9/',
+            'thread',
+        ],
+        [
+            'inbox thread+comment URL',
+            'https://comms.todoist.com/20/inbox/t/CeRAj1WU3YFhsVZGDyPr9/c/CeRAj1WU3YFhsY6fUxMhj',
+            'comment',
+        ],
+        [
+            'saved thread URL',
+            'https://comms.todoist.com/20/saved/t/CeRAj1WU3YFhsVZGDyPr9',
+            'thread',
+        ],
+        [
+            'saved thread+comment URL',
+            'https://comms.todoist.com/20/saved/t/CeRAj1WU3YFhsVZGDyPr9/c/CeRAj1WU3YFhsY6fUxMhj',
+            'comment',
+        ],
+        [
+            'conversation URL',
+            'https://comms.todoist.com/a/20/msg/CeRAj1WU3YFhsatbAs43L',
+            'conversation',
+        ],
+        [
+            'short conversation URL',
+            'https://comms.todoist.com/20/msg/CeRAj1WU3YFhsatbAs43L',
+            'conversation',
+        ],
+        [
+            'message URL',
+            'https://comms.todoist.com/a/20/msg/CeRAj1WU3YFhsatbAs43L/m/CeRAj1WU3YFhsbp9GT1ir',
+            'message',
+        ],
     ] as const)('classifies %s', (_description, url, entityType) => {
         expect(classifyCommsUrl(url)).toEqual({ entityType, url })
     })
@@ -596,13 +732,28 @@ describe('classifyCommsUrl', () => {
     it.each([
         ['inbox root URL', 'https://comms.todoist.com/20/inbox'],
         ['inbox done URL', 'https://comms.todoist.com/20/inbox/done'],
-        ['inbox done thread-like URL', 'https://comms.todoist.com/20/inbox/done/t/TH1'],
-        ['inbox thread with extra segment', 'https://comms.todoist.com/20/inbox/t/TH1/extra'],
-        ['inbox thread with msg suffix', 'https://comms.todoist.com/20/inbox/t/TH1/msg/CV1'],
-        ['saved thread with extra segment', 'https://comms.todoist.com/20/saved/t/TH1/extra'],
+        [
+            'inbox done thread-like URL',
+            'https://comms.todoist.com/20/inbox/done/t/CeRAj1WU3YFhsVZGDyPr9',
+        ],
+        [
+            'inbox thread with extra segment',
+            'https://comms.todoist.com/20/inbox/t/CeRAj1WU3YFhsVZGDyPr9/extra',
+        ],
+        [
+            'inbox thread with msg suffix',
+            'https://comms.todoist.com/20/inbox/t/CeRAj1WU3YFhsVZGDyPr9/msg/CeRAj1WU3YFhsatbAs43L',
+        ],
+        [
+            'saved thread with extra segment',
+            'https://comms.todoist.com/20/saved/t/CeRAj1WU3YFhsVZGDyPr9/extra',
+        ],
         ['workspace-only URL', 'https://comms.todoist.com/a/20'],
-        ['channel-only URL', 'https://comms.todoist.com/a/20/ch/CH1'],
-        ['malformed account URL', 'https://comms.todoist.com/a/ch/CH1/t/TH1'],
+        ['channel-only URL', 'https://comms.todoist.com/a/20/ch/CeRAj1WU3YFhsTejuePLW'],
+        [
+            'malformed account URL',
+            'https://comms.todoist.com/a/ch/CeRAj1WU3YFhsTejuePLW/t/CeRAj1WU3YFhsVZGDyPr9',
+        ],
         ['non-Comms URL', 'https://google.com/a/20/t/200'],
         ['invalid string', 'not-a-url'],
     ])('returns null for %s', (_description, url) => {

@@ -244,7 +244,7 @@ function buildSearchResultUrl(
             messageId: result.id,
         })
     }
-    return `https://comms.todoist.com/${workspaceId}`
+    return getFullCommsURL({ workspaceId })
 }
 
 type SearchOutputOptions = Pick<SharedSearchOptions, 'all' | 'json' | 'ndjson' | 'full'>
