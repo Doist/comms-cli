@@ -73,7 +73,7 @@ describe('CLI entrypoint', () => {
             'tdc',
             'conversation',
             'view',
-            'https://comms.todoist.com/123/msg/ANON_MESSAGE_ID/',
+            'https://comms.todoist.com/123/msg/CeRAj1WU3YFhsatbAs43L/',
             '--from',
             '2026-06-26',
         ])
@@ -84,7 +84,7 @@ describe('CLI entrypoint', () => {
             'node',
             'tdc',
             'view',
-            'https://comms.todoist.com/a/123/msg/456',
+            'https://comms.todoist.com/a/123/msg/CeRAj1WU3YFhsatbAs43L',
             '--from',
             '2026-06-26',
         ])

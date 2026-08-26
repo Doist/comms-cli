@@ -84,18 +84,20 @@ describe('getPublicChannelIds', () => {
     it('returns only public channel IDs', async () => {
         mockGetCommsClient.mockImplementation(() =>
             makeMockChannels([
-                { id: 'CH1', public: true },
+                { id: 'CeRAj1WU3YFhsTejuePLW', public: true },
                 { id: 'CH2', public: false },
                 { id: 'CH3', public: true },
             ]),
         )
 
         const ids = await getPublicChannelIds(100)
-        expect(ids).toEqual(new Set(['CH1', 'CH3']))
+        expect(ids).toEqual(new Set(['CeRAj1WU3YFhsTejuePLW', 'CH3']))
     })
 
     it('caches results per workspace', async () => {
-        const getChannels = vi.fn().mockResolvedValue([{ id: 'CH1', public: true }])
+        const getChannels = vi
+            .fn()
+            .mockResolvedValue([{ id: 'CeRAj1WU3YFhsTejuePLW', public: true }])
         mockGetCommsClient.mockResolvedValue({
             channels: { getChannels },
         } as unknown as Awaited<ReturnType<typeof getCommsClient>>)
@@ -107,7 +109,9 @@ describe('getPublicChannelIds', () => {
     })
 
     it('fetches separately for different workspaces', async () => {
-        const getChannels = vi.fn().mockResolvedValue([{ id: 'CH1', public: true }])
+        const getChannels = vi
+            .fn()
+            .mockResolvedValue([{ id: 'CeRAj1WU3YFhsTejuePLW', public: true }])
         mockGetCommsClient.mockResolvedValue({
             channels: { getChannels },
         } as unknown as Awaited<ReturnType<typeof getCommsClient>>)

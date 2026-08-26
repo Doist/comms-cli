@@ -28,7 +28,7 @@ const createProgram = () => createTestProgram(registerChannelCommand)
 
 function createChannel(userIds: number[], overrides: Record<string, unknown> = {}) {
     return {
-        id: 'CH1',
+        id: 'CeRAj1WU3YFhsTejuePLW',
         name: 'General',
         public: true,
         workspaceId: 1,
@@ -100,7 +100,7 @@ describe('tdc channel members list (default)', () => {
         await program.parseAsync(['node', 'tdc', 'channel', 'members', 'General', '--json'])
 
         const payload = JSON.parse(consoleSpy.mock.calls[0][0] as string)
-        expect(payload.id).toBe('CH1')
+        expect(payload.id).toBe('CeRAj1WU3YFhsTejuePLW')
         expect(payload.members).toHaveLength(3)
         expect(payload.members[0]).toEqual({ id: 1, name: 'Alice', email: 'a@d.com' })
         expect(payload.groupsFullyInChannel).toEqual([
@@ -159,7 +159,7 @@ describe('tdc channel members add', () => {
             'alice',
         ])
 
-        expect(apiMocks.addUsersToChannel).toHaveBeenCalledWith('CH1', [3])
+        expect(apiMocks.addUsersToChannel).toHaveBeenCalledWith('CeRAj1WU3YFhsTejuePLW', [3])
         const output = consoleSpy.mock.calls.map((c) => c[0]).join('\n')
         expect(output).toContain('Added 1 user to "General" (now 3 members)')
         expect(output).toContain('Already members: 1')
@@ -184,7 +184,7 @@ describe('tdc channel members add', () => {
             'group:Frontend',
         ])
 
-        expect(apiMocks.addUsersToChannel).toHaveBeenCalledWith('CH1', [2, 3])
+        expect(apiMocks.addUsersToChannel).toHaveBeenCalledWith('CeRAj1WU3YFhsTejuePLW', [2, 3])
         const output = consoleSpy.mock.calls.map((c) => c[0]).join('\n')
         expect(output).toContain('Expanded group "Frontend"')
     })
@@ -230,7 +230,7 @@ describe('tdc channel members add', () => {
 
         const payload = JSON.parse(consoleSpy.mock.calls[0][0] as string)
         expect(payload).toEqual({
-            id: 'CH1',
+            id: 'CeRAj1WU3YFhsTejuePLW',
             memberCount: 3,
             added: [3],
             alreadyMembers: [1],
@@ -256,7 +256,7 @@ describe('tdc channel members remove', () => {
             'id:9',
         ])
 
-        expect(apiMocks.removeUsersFromChannel).toHaveBeenCalledWith('CH1', [3])
+        expect(apiMocks.removeUsersFromChannel).toHaveBeenCalledWith('CeRAj1WU3YFhsTejuePLW', [3])
         const output = consoleSpy.mock.calls.map((c) => c[0]).join('\n')
         expect(output).toContain('Removed 1 user from "General" (now 2 members)')
         expect(output).toContain('Not members: 9')
@@ -317,8 +317,8 @@ describe('tdc channel members set', () => {
             '--apply',
         ])
 
-        expect(apiMocks.addUsersToChannel).toHaveBeenCalledWith('CH1', [3])
-        expect(apiMocks.removeUsersFromChannel).toHaveBeenCalledWith('CH1', [2])
+        expect(apiMocks.addUsersToChannel).toHaveBeenCalledWith('CeRAj1WU3YFhsTejuePLW', [3])
+        expect(apiMocks.removeUsersFromChannel).toHaveBeenCalledWith('CeRAj1WU3YFhsTejuePLW', [2])
         const output = consoleSpy.mock.calls.map((c) => c[0]).join('\n')
         expect(output).toContain('Set "General": +1 / -1 (now 2 members)')
     })
@@ -343,7 +343,12 @@ describe('tdc channel members set', () => {
         ])
 
         const payload = JSON.parse(consoleSpy.mock.calls[0][0] as string)
-        expect(payload).toEqual({ id: 'CH1', memberCount: 2, added: [3], removed: [2] })
+        expect(payload).toEqual({
+            id: 'CeRAj1WU3YFhsTejuePLW',
+            memberCount: 2,
+            added: [3],
+            removed: [2],
+        })
     })
 
     it('emits JSON (not text) on dry-run --json without --apply', async () => {
@@ -367,7 +372,7 @@ describe('tdc channel members set', () => {
         expect(apiMocks.addUsersToChannel).not.toHaveBeenCalled()
         const payload = JSON.parse(consoleSpy.mock.calls[0][0] as string)
         expect(payload).toEqual({
-            id: 'CH1',
+            id: 'CeRAj1WU3YFhsTejuePLW',
             dryRun: true,
             memberCount: 2,
             added: [3],
@@ -392,6 +397,6 @@ describe('tdc channel members set', () => {
             '--include-self',
         ])
 
-        expect(apiMocks.removeUsersFromChannel).toHaveBeenCalledWith('CH1', [1])
+        expect(apiMocks.removeUsersFromChannel).toHaveBeenCalledWith('CeRAj1WU3YFhsTejuePLW', [1])
     })
 })

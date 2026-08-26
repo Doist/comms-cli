@@ -1,4 +1,4 @@
-import type { Channel, Group, Workspace } from '@doist/comms-sdk'
+import { type Channel, type Group, parseCommsURL, type Workspace } from '@doist/comms-sdk'
 import { fetchWorkspaces, getGroup, getWorkspaceGroups, getCommsClient } from './api.js'
 import { CliError, type ErrorCode } from './errors.js'
 
@@ -89,26 +89,6 @@ export interface ParsedCommsUrl {
     messageId?: string
 }
 
-function parseInboxOrSavedThreadRoute(
-    routeSegments: readonly string[],
-): Pick<ParsedCommsUrl, 'threadId' | 'commentId'> | null {
-    const [threadMarker, threadId, commentMarker, commentId, ...extraSegments] = routeSegments
-
-    if (threadMarker !== 't' || !threadId || extraSegments.length > 0) {
-        return null
-    }
-
-    if (routeSegments.length === 2) {
-        return { threadId }
-    }
-
-    if (routeSegments.length === 4 && commentMarker === 'c' && commentId) {
-        return { threadId, commentId }
-    }
-
-    return null
-}
-
 export function parseCommsUrl(url: string): ParsedCommsUrl | null {
     try {
         const parsed = new URL(url)
@@ -119,61 +99,31 @@ export function parseCommsUrl(url: string): ParsedCommsUrl | null {
             return null
         }
 
-        const segments = parsed.pathname.split('/').filter(Boolean)
-        const result: ParsedCommsUrl = {}
+        // The SDK holds the shared route rules, so it reads any URL that names
+        // an entity. It does not recognise a bare workspace URL, and malformed
+        // routes fall through here as workspace-only rather than being
+        // misrouted as a thread, comment, or conversation ref.
+        const link = parseCommsURL(url)
+        if (link) {
+            const result: ParsedCommsUrl = { workspaceId: Number(link.workspaceId) }
+            if (link.channelId) result.channelId = link.channelId
+            if (link.threadId) result.threadId = link.threadId
+            if (link.commentId) result.commentId = link.commentId
+            if (link.conversationId) result.conversationId = link.conversationId
+            if (link.messageId) result.messageId = link.messageId
+            return result
+        }
 
         // Pattern: /a/{workspaceId}/... or /{workspaceId}/...
-        let routeStart = 0
-        if (segments[0] === 'a' && /^\d+$/.test(segments[1] ?? '')) {
-            result.workspaceId = Number(segments[1])
-            routeStart = 2
-        } else if (/^\d+$/.test(segments[0] ?? '')) {
-            result.workspaceId = Number(segments[0])
-            routeStart = 1
+        const segments = parsed.pathname.split('/').filter(Boolean)
+        const workspaceSegment =
+            segments[0] === 'a' && /^\d+$/.test(segments[1] ?? '') ? segments[1] : segments[0]
+
+        if (workspaceSegment && /^\d+$/.test(workspaceSegment)) {
+            return { workspaceId: Number(workspaceSegment) }
         }
 
-        const parseRoutePairs = (start: number) => {
-            for (let index = start; index < segments.length - 1; index += 2) {
-                const value = segments[index + 1]
-                switch (segments[index]) {
-                    case 'ch':
-                        result.channelId = value
-                        break
-                    case 't':
-                        result.threadId = value
-                        break
-                    case 'c':
-                        result.commentId = value
-                        break
-                    case 'msg':
-                        result.conversationId = value
-                        break
-                    case 'm':
-                        result.messageId = value
-                        break
-                }
-            }
-        }
-
-        const route = segments[routeStart]
-        if (route === 'inbox' || route === 'saved') {
-            // Inbox/saved routes only accept:
-            //   t/{thread}
-            //   t/{thread}/c/{comment}
-            // Other inbox/saved paths stay workspace-only so malformed URLs don't get
-            // misrouted as thread, comment, or conversation refs.
-            const threadRoute = parseInboxOrSavedThreadRoute(segments.slice(routeStart + 1))
-            if (threadRoute) {
-                result.threadId = threadRoute.threadId
-                if (threadRoute.commentId) {
-                    result.commentId = threadRoute.commentId
-                }
-            }
-        } else {
-            parseRoutePairs(routeStart)
-        }
-
-        return Object.keys(result).length > 0 ? result : null
+        return null
     } catch {
         return null
     }

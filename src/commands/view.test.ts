@@ -45,7 +45,7 @@ describe('tdc view <url> routing', () => {
                 'node',
                 'tdc',
                 'view',
-                'https://comms.todoist.com/a/1585/ch/100/t/200',
+                'https://comms.todoist.com/a/1585/ch/CeRAj1WU3YFhsTejuePLW/t/CeRAj1WU3YFhsVZGDyPr9',
             ]),
         ).rejects.toThrow('ROUTED_TO_THREAD')
     })
@@ -57,7 +57,7 @@ describe('tdc view <url> routing', () => {
                 'node',
                 'tdc',
                 'view',
-                'https://comms.todoist.com/a/1585/ch/100/t/200/c/300',
+                'https://comms.todoist.com/a/1585/ch/CeRAj1WU3YFhsTejuePLW/t/CeRAj1WU3YFhsVZGDyPr9/c/CeRAj1WU3YFhsY6fUxMhj',
             ]),
         ).rejects.toThrow('ROUTED_TO_THREAD')
     })
@@ -65,14 +65,24 @@ describe('tdc view <url> routing', () => {
     it('routes conversation URL to conversation view', async () => {
         const program = createProgram()
         await expect(
-            program.parseAsync(['node', 'tdc', 'view', 'https://comms.todoist.com/a/1585/msg/400']),
+            program.parseAsync([
+                'node',
+                'tdc',
+                'view',
+                'https://comms.todoist.com/a/1585/msg/CeRAj1WU3YFhsatbAs43L',
+            ]),
         ).rejects.toThrow('ROUTED_TO_CONVERSATION')
     })
 
     it('routes short conversation URL to conversation view', async () => {
         const program = createProgram()
         await expect(
-            program.parseAsync(['node', 'tdc', 'view', 'https://comms.todoist.com/1585/msg/400']),
+            program.parseAsync([
+                'node',
+                'tdc',
+                'view',
+                'https://comms.todoist.com/1585/msg/CeRAj1WU3YFhsatbAs43L',
+            ]),
         ).rejects.toThrow('ROUTED_TO_CONVERSATION')
     })
 
@@ -83,7 +93,7 @@ describe('tdc view <url> routing', () => {
                 'node',
                 'tdc',
                 'view',
-                'https://comms.todoist.com/a/1585/msg/400/m/500',
+                'https://comms.todoist.com/a/1585/msg/CeRAj1WU3YFhsatbAs43L/m/CeRAj1WU3YFhsbp9GT1ir',
             ]),
         ).rejects.toThrow('ROUTED_TO_MSG')
     })
@@ -102,7 +112,7 @@ describe('tdc view <url> routing', () => {
                 'node',
                 'tdc',
                 'view',
-                'https://comms.todoist.com/20/inbox/t/TH1/msg/CV1',
+                'https://comms.todoist.com/20/inbox/t/CeRAj1WU3YFhsVZGDyPr9/msg/CeRAj1WU3YFhsatbAs43L',
             ]),
         ).rejects.toThrow('Not a recognized Comms URL')
     })

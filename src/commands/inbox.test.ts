@@ -136,7 +136,7 @@ describe('inbox empty output (channel filter)', () => {
         vi.clearAllMocks()
         apiMocks.getCurrentWorkspaceId.mockResolvedValue(1)
         const thread = {
-            id: 'TH1',
+            id: 'CeRAj1WU3YFhsVZGDyPr9',
             channelId: 'CH10',
             title: 't',
             posted: '2026-05-01T00:00:00Z',
