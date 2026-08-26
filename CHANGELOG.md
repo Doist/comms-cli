@@ -1,3 +1,26 @@
+## [3.0.0](https://github.com/Doist/comms-cli/compare/v2.0.4...v3.0.0) (2026-08-26)
+
+### ⚠ BREAKING CHANGES
+
+- a Comms URL whose entity ID is not a base58-encoded
+  UUIDv7 is no longer recognised. Comms only issues IDs in that format, so
+  this rejects malformed links rather than passing them to the API.
+
+Co-Authored-By: Claude Opus 5 <noreply@anthropic.com>
+
+- test: pin the non-base58 id contract
+
+Every parse case now uses a valid base58-encoded UUIDv7, so the contract
+this change introduces — a well-formed path whose id is not that shape
+names no entity and reads as workspace-only — could regress without a
+failure. Covers the channel, thread and conversation routes.
+
+Co-Authored-By: Claude Opus 5 <noreply@anthropic.com>
+
+### Features
+
+- parse Comms URLs with the SDK ([#55](https://github.com/Doist/comms-cli/issues/55)) ([6fbd645](https://github.com/Doist/comms-cli/commit/6fbd645a36574e5f82ab7cb108d12d056fe3dab2))
+
 ## [2.0.4](https://github.com/Doist/comms-cli/compare/v2.0.3...v2.0.4) (2026-08-25)
 
 ### Bug Fixes
