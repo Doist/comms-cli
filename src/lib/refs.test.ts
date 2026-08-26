@@ -114,6 +114,16 @@ describe('parseCommsUrl', () => {
         expect(result).toEqual({ workspaceId: 12345 })
     })
 
+    it.each([
+        ['channel', 'https://comms.todoist.com/a/12345/ch/CH1'],
+        ['thread', 'https://comms.todoist.com/a/12345/ch/CH1/t/TH1'],
+        ['conversation', 'https://comms.todoist.com/a/12345/msg/CV1'],
+    ])('reads a well-formed %s URL with a non-base58 id as workspace-only', (_name, url) => {
+        // Comms only issues base58-encoded UUIDv7 ids, so anything else names
+        // no entity and must not be passed on as a ref.
+        expect(parseCommsUrl(url)).toEqual({ workspaceId: 12345 })
+    })
+
     it('parses channel URL with base58 id', () => {
         const result = parseCommsUrl('https://comms.todoist.com/a/12345/ch/CeRAj1WU3YFhsTejuePLW')
         expect(result).toEqual({ workspaceId: 12345, channelId: 'CeRAj1WU3YFhsTejuePLW' })
