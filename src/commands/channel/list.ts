@@ -1,3 +1,4 @@
+import { outputIds, resolveOutputMode } from '@doist/cli-core'
 import type { Channel } from '@doist/comms-sdk'
 import { getCommsClient } from '../../lib/api.js'
 import { CliError } from '../../lib/errors.js'
@@ -144,6 +145,7 @@ export async function listChannels(
     workspaceRef: string | undefined,
     options: ListChannelsOptions,
 ): Promise<void> {
+    const outputMode = resolveOutputMode(options)
     const scope = parseChannelScope(options.scope)
     const state = parseChannelState(options.state)
     const workspaceId = await getWorkspaceId(workspaceRef, options)
@@ -187,12 +189,17 @@ export async function listChannels(
         return
     }
 
-    if (options.json) {
+    if (outputMode === 'ids-only') {
+        await outputIds(channels, (channel) => channel.id)
+        return
+    }
+
+    if (outputMode === 'json') {
         console.log(formatListedChannelsJson(channels, scope, options.full))
         return
     }
 
-    if (options.ndjson) {
+    if (outputMode === 'ndjson') {
         console.log(formatListedChannelsNdjson(channels, scope, options.full))
         return
     }

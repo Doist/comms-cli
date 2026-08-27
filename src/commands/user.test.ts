@@ -54,6 +54,7 @@ describeEmptyMachineOutput('tdc users empty output', {
         await program.parseAsync(['node', 'tdc', 'users', ...extraArgs])
     },
     humanMessage: 'No users found.',
+    idsOnly: true,
 })
 
 describe('tdc users --include-removed', () => {
@@ -99,6 +100,15 @@ describe('tdc users --include-removed', () => {
         const lines = consoleSpy.mock.calls.flat().join('\n')
         expect(lines).toMatch(/id:2.*Ghost.*\[removed\]/)
         expect(lines).not.toMatch(/id:1.*Active.*\[removed\]/)
+    })
+
+    it('outputs one stable user ID per line with --ids-only', async () => {
+        apiMocks.getWorkspaceUsers.mockResolvedValueOnce([active, removed])
+        const consoleSpy = captureConsole('log')
+
+        await createProgram().parseAsync(['node', 'tdc', 'users', '--ids-only'])
+
+        expect(consoleSpy).toHaveBeenCalledWith('1\n2')
     })
 
     it('surfaces removed in curated --json output without --full', async () => {

@@ -1,3 +1,4 @@
+import { outputIds, resolveOutputMode } from '@doist/cli-core'
 import { getCurrentWorkspaceId, getWorkspaceGroups } from '../../lib/api.js'
 import { CliError } from '../../lib/errors.js'
 import type { ViewOptions } from '../../lib/options.js'
@@ -10,6 +11,7 @@ export async function listGroups(
     workspaceRef: string | undefined,
     options: ListGroupsOptions,
 ): Promise<void> {
+    const outputMode = resolveOutputMode(options)
     if (workspaceRef && options.workspace) {
         throw new CliError(
             'CONFLICTING_OPTIONS',
@@ -39,12 +41,17 @@ export async function listGroups(
         return
     }
 
-    if (options.json) {
+    if (outputMode === 'ids-only') {
+        await outputIds(groups, (group) => group.id)
+        return
+    }
+
+    if (outputMode === 'json') {
         console.log(formatJson(groups, 'group', options.full))
         return
     }
 
-    if (options.ndjson) {
+    if (outputMode === 'ndjson') {
         console.log(formatNdjson(groups, 'group', options.full))
         return
     }

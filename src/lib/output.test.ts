@@ -111,19 +111,25 @@ describe('printEmpty', () => {
         expect(logSpy).not.toHaveBeenCalled()
     })
 
+    it('does not call console.log for --ids-only', () => {
+        printEmpty({ options: { idsOnly: true }, type: 'thread', message: 'No threads in inbox.' })
+        expect(logSpy).not.toHaveBeenCalled()
+    })
+
     it('prints the human message when neither --json nor --ndjson is set', () => {
         printEmpty({ options: {}, type: 'thread', message: 'No threads in inbox.' })
         expect(logSpy).toHaveBeenCalledWith('No threads in inbox.')
     })
 
-    it('--json takes precedence over --ndjson when both are set', () => {
-        printEmpty({
-            options: { json: true, ndjson: true },
-            type: 'conversation',
-            message: 'unused',
-        })
-        expect(logSpy).toHaveBeenCalledTimes(1)
-        expect(logSpy).toHaveBeenCalledWith('[]')
+    it('rejects conflicting machine-output modes', () => {
+        expect(() =>
+            printEmpty({
+                options: { json: true, ndjson: true },
+                type: 'conversation',
+                message: 'unused',
+            }),
+        ).toThrow('Options --json, --ndjson are mutually exclusive.')
+        expect(logSpy).not.toHaveBeenCalled()
     })
 })
 

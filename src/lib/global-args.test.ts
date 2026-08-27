@@ -20,6 +20,10 @@ describe('parseGlobalArgs', () => {
             expect(parseGlobalArgs(['--ndjson']).ndjson).toBe(true)
         })
 
+        it('parses --ids-only', () => {
+            expect(parseGlobalArgs(['--ids-only']).idsOnly).toBe(true)
+        })
+
         it('parses --no-spinner', () => {
             expect(parseGlobalArgs(['--no-spinner']).noSpinner).toBe(true)
         })
@@ -45,6 +49,7 @@ describe('parseGlobalArgs', () => {
         it('defaults all flags to false/undefined', () => {
             const result = parseGlobalArgs([])
             expect(result).toEqual({
+                idsOnly: false,
                 json: false,
                 ndjson: false,
                 accessible: false,

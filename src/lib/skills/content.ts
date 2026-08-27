@@ -21,10 +21,13 @@ Access Comms messaging via the \`tdc\` CLI. Use when the user asks about their C
 tdc auth login                    # OAuth login (standard write scopes)
 tdc auth login --read-only        # OAuth login with read-only scope
 tdc auth login --full-access      # OAuth login with delete/admin scopes
+tdc auth login --credential-store system    # Require the system credential manager
+tdc auth login --credential-store plaintext # Explicitly allow plaintext config storage
 tdc auth login --callback-port <n># Override the local OAuth callback port (default 8766)
 tdc auth login --json             # Emit a JSON envelope for scripted / agent use
 tdc auth login --ndjson           # Emit an NDJSON envelope for scripted / agent use
 tdc auth token                    # Save API token manually (prompts securely; scope unknown, assumed write-capable)
+tdc auth token --credential-store system # Require the system credential manager
 tdc auth status                   # Verify authentication + show mode
 tdc auth status --json            # Full status payload as JSON (--ndjson also supported)
 tdc auth status --user <ref>      # Target a specific stored account (id, id:<n>, or display name)
@@ -40,6 +43,7 @@ tdc account [list|current|use <ref>|remove <ref>]  # Manage stored accounts; all
                                  # current's payload is {id, label, authMode, authScope, source:"config"} | {source:"env"} | {source:"token-only"}
 tdc auth login                    # Re-running auth login with a different OAuth grant adds a NEW account; default stays pinned unless none was set
 tdc workspaces                    # List available workspaces
+tdc workspaces --ids-only         # Output only workspace IDs
 tdc workspace use <ref>           # Set current workspace
 tdc completion install            # Install shell completions
 tdc config view                   # Show the current CLI configuration file (token masked)
@@ -50,7 +54,7 @@ tdc changelog                     # Show recent changelog entries
 tdc migrate urls <urls>           # Translate old twist.com URLs to Comms URLs (needs a Twist token)
 \`\`\`
 
-OAuth login uses Todoist OAuth for Comms access. The default grant can read Comms data and create/update content or messages. It does not include delete, channel management, or user/workspace write scopes; use \`tdc auth login --full-access\` only when needed (all \`tdc groups\` writes require it). Stored auth uses the system credential manager when available. If secure storage is unavailable, \`tdc\` warns and falls back to \`~/.config/comms-cli/config.json\`. \`COMMS_API_TOKEN\` always takes priority over the stored token.
+OAuth login uses Todoist OAuth for Comms access. The default grant can read Comms data and create/update content or messages. It does not include delete, channel management, or user/workspace write scopes; use \`tdc auth login --full-access\` only when needed (all \`tdc groups\` writes require it). Credential storage defaults to \`fallback\`: use the system credential manager when available, otherwise warn and save to \`~/.config/comms-cli/config.json\`. Pass \`--credential-store system\` to fail instead of writing plaintext, or \`--credential-store plaintext\` to choose config-file storage explicitly. \`COMMS_API_TOKEN\` always takes priority over the stored token.
 
 In read-only mode (\`tdc auth login --read-only\`), commands that modify Comms data (reply, archive, react, delete, etc.) are blocked by the CLI. Externally provided tokens (\`COMMS_API_TOKEN\` or \`tdc auth token\`) are treated as unknown scope and assumed write-capable.
 
@@ -80,6 +84,7 @@ tdc inbox --archive-filter archived # Show only done threads
 tdc inbox --channel <filter>      # Filter by channel name (fuzzy)
 tdc inbox --since <date>          # Filter by date (ISO format)
 tdc inbox --limit <n>             # Max items (default: 50)
+tdc inbox --ids-only              # Output only thread IDs, one per line
 \`\`\`
 
 ## Threads
@@ -169,6 +174,8 @@ tdc conversation list --name "release"     # Filter by title substring (case-ins
 tdc conversation list --state archived     # Archived conversations only (active|all|archived; default active)
 tdc conversation list --snippet            # Include the latest message snippet
 tdc conversation list --limit 20 --json    # Cap rows and output as JSON
+tdc conversation list --ids-only           # Output only conversation IDs
+tdc conversation unread --ids-only         # Output only unread conversation IDs
 tdc conversation <conversation-ref>        # View conversation (shorthand for view)
 tdc conversation view <conversation-ref>   # View conversation messages
 tdc conversation with <user-ref>           # Find your 1:1 DM with a user
@@ -236,10 +243,12 @@ tdc user --json --full            # Include all fields in JSON output
 tdc users                         # List active workspace users
 tdc users --search <text>         # Filter by name/email
 tdc users --include-removed       # Include users removed from the workspace
+tdc users --ids-only              # Output only user IDs
 tdc channels                      # List active joined workspace channels (alias of: tdc channel list)
 tdc channels --state all          # Include archived joined channels too
 tdc channels --scope discoverable # Active public channels you can see but have not joined
 tdc channels --scope public --state all --json # All visible public channels, with joined status
+tdc channels --ids-only           # Output only channel IDs
 tdc channel create "Engineering"  # Create a channel in the current workspace
 tdc channel create "Leadership Team" --private --users id:10,id:20 # Create private channel with initial members
 tdc channel create "Product" --workspace "Doist" --description "Product discussions" --json # Create and return channel as JSON
@@ -260,8 +269,10 @@ tdc channel threads <ref> --since 2026-01-01 # Filter by last-updated date (ISO)
 tdc channel threads <ref> --limit 20         # Max threads per page (default: 50)
 tdc channel threads <ref> --limit 20 --cursor <cursor-from-prev> # Paginate
 tdc channel threads <ref> --json  # { results, nextCursor } with isUnread + url
+tdc channel threads <ref> --ids-only # Output only thread IDs; pagination notice goes to stderr
 tdc channel members <channel-ref> # List a channel's members + groups fully in the channel
 tdc channel members <ref> --json  # JSON with id, name, workspaceId, members
+tdc channel members <ref> --ids-only # Output only member user IDs
 tdc channel members add <ref> alice group:Design # Add users and/or expand group:<ref> members
 tdc channel members add <ref> a@d.com id:789 --json # Add refs, output result as JSON
 tdc channel members remove <ref> alice group:Frontend # Remove users and/or group members
@@ -270,6 +281,7 @@ tdc channel members set <ref> alice bob # Dry-run by default; refuses to remove 
 tdc groups                        # List workspace groups
 tdc groups --search "frontend"    # Filter groups by name (case-insensitive)
 tdc groups --json                 # JSON output
+tdc groups --ids-only             # Output only group IDs
 tdc groups --json --full          # Include all fields in JSON output
 tdc groups view <group-ref>       # Show group with member details
 tdc groups view <ref> --json      # JSON output with id, name, workspaceId, members
@@ -394,11 +406,12 @@ Output is one line per URL in input order: \`old -> new\` on success, \`old  ✗
 
 ## Output Formats
 
-All list/view commands support:
+List and view commands commonly support \`--json\`, \`--ndjson\`, and \`--full\`. List commands with one clear entity ID also support \`--ids-only\`; check command help for the exact surface.
 
 \`\`\`bash
 --json    # Output as JSON
 --ndjson  # Output as newline-delimited JSON (for streaming)
+--ids-only # Output one stable ID per line; mutually exclusive with JSON/NDJSON
 --full    # Include all fields (default shows essential fields only)
 \`\`\`
 

@@ -1,3 +1,4 @@
+import { outputIds, resolveOutputMode } from '@doist/cli-core'
 import { isRestrictedWorkspaceUser } from '@doist/comms-sdk'
 import { getCurrentWorkspaceId, getWorkspaceGroups } from '../../lib/api.js'
 import type { ViewOptions } from '../../lib/options.js'
@@ -9,13 +10,20 @@ export async function listChannelMembers(
     channelRef: string,
     options: ViewOptions & { full?: boolean },
 ): Promise<void> {
+    const outputMode = resolveOutputMode(options)
     const workspaceId = await getCurrentWorkspaceId()
-    const [channel, groups] = await Promise.all([
-        resolveChannelRef(channelRef, workspaceId),
-        getWorkspaceGroups(workspaceId),
-    ])
+    const channel = await resolveChannelRef(channelRef, workspaceId)
     const userIds = channelUserIds(channel)
-    const userMap = await fetchUsersByIds(workspaceId, userIds)
+
+    if (outputMode === 'ids-only') {
+        await outputIds(userIds, (id) => id)
+        return
+    }
+
+    const [groups, userMap] = await Promise.all([
+        getWorkspaceGroups(workspaceId),
+        fetchUsersByIds(workspaceId, userIds),
+    ])
 
     const userIdSet = new Set(userIds)
     const fullyInChannel = groupsFullyInChannel(groups, userIdSet)
@@ -39,12 +47,12 @@ export async function listChannelMembers(
     }
     const fullPayload = { ...channel, members, groupsFullyInChannel: fullyInChannel }
 
-    if (options.json) {
+    if (outputMode === 'json') {
         console.log(formatJson(options.full ? fullPayload : slimPayload))
         return
     }
 
-    if (options.ndjson) {
+    if (outputMode === 'ndjson') {
         console.log(formatNdjson([options.full ? fullPayload : slimPayload]))
         return
     }

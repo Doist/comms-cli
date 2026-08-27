@@ -127,6 +127,7 @@ describeEmptyMachineOutput('inbox empty output', {
         await program.parseAsync(['node', 'tdc', 'inbox', ...extraArgs])
     },
     humanMessage: 'No threads in inbox.',
+    idsOnly: true,
 })
 
 describe('inbox empty output (channel filter)', () => {

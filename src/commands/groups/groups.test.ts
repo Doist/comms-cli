@@ -90,6 +90,7 @@ describeEmptyMachineOutput('tdc groups list empty output', {
         await program.parseAsync(['node', 'tdc', 'groups', ...extraArgs])
     },
     humanMessage: 'No groups found.',
+    idsOnly: true,
 })
 
 describe('tdc groups list (default)', () => {

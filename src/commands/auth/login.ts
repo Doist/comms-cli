@@ -4,16 +4,20 @@ import type { Command } from 'commander'
 import { renderError, renderSuccess } from '../../lib/auth-pages.js'
 import {
     createCommsAuthProvider,
+    type CommsCredentialStore,
+    createCommsTokenStore,
     getScopes,
-    type CommsTokenStore,
+    parseCredentialStore,
 } from '../../lib/auth-provider.js'
 import { CliError } from '../../lib/errors.js'
 import { logTokenStorageResult, resetCurrentWorkspaceAfterLogin } from './helpers.js'
 
 const PREFERRED_CALLBACK_PORT = 8766
 
-export function attachCommsLoginCommand(parent: Command, store: CommsTokenStore): Command {
+export function attachCommsLoginCommand(parent: Command): Command {
     const provider = createCommsAuthProvider()
+    let credentialStore: CommsCredentialStore = 'fallback'
+    const store = createCommsTokenStore({ credentialStore: () => credentialStore })
 
     return attachLoginCommand(parent, {
         provider,
@@ -49,4 +53,13 @@ export function attachCommsLoginCommand(parent: Command, store: CommsTokenStore)
     })
         .description('Authenticate using OAuth (opens browser)')
         .option('--full-access', 'Request delete and workspace/user write scopes')
+        .option(
+            '--credential-store <store>',
+            'Credential storage: fallback (default), system, or plaintext',
+            (value: string) => {
+                credentialStore = parseCredentialStore(value)
+                return credentialStore
+            },
+            'fallback',
+        )
 }

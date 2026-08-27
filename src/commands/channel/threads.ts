@@ -1,3 +1,4 @@
+import { outputIds, resolveOutputMode } from '@doist/cli-core'
 import type { ArchiveFilter, Thread } from '@doist/comms-sdk'
 import chalk from 'chalk'
 import { getCommsClient, getCurrentWorkspaceId } from '../../lib/api.js'
@@ -52,6 +53,7 @@ export async function showChannelThreads(
     workspaceRef: string | undefined,
     options: ChannelThreadsOptions,
 ): Promise<void> {
+    const outputMode = resolveOutputMode(options)
     if (workspaceRef && options.workspace) {
         throw new CliError(
             'CONFLICTING_OPTIONS',
@@ -113,12 +115,21 @@ export async function showChannelThreads(
 
     const paginated: PaginatedOutput<DecoratedThread> = { results: page, nextCursor }
 
-    if (options.json) {
+    if (outputMode === 'ids-only') {
+        await outputIds(
+            page,
+            (thread) => thread.id,
+            nextCursor ? `More threads available. Use --cursor ${nextCursor}` : '',
+        )
+        return
+    }
+
+    if (outputMode === 'json') {
         console.log(formatPaginatedJson(paginated, 'thread', options.full))
         return
     }
 
-    if (options.ndjson) {
+    if (outputMode === 'ndjson') {
         console.log(formatPaginatedNdjson(paginated, 'thread', options.full))
         return
     }

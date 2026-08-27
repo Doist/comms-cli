@@ -1,3 +1,4 @@
+import { outputIds, resolveOutputMode } from '@doist/cli-core'
 import chalk from 'chalk'
 import { Command } from 'commander'
 import { fetchWorkspaces, getCurrentWorkspaceId } from '../lib/api.js'
@@ -9,6 +10,7 @@ import { resolveWorkspaceRef } from '../lib/refs.js'
 type ListOptions = ViewOptions
 
 async function listWorkspaces(options: ListOptions): Promise<void> {
+    const outputMode = resolveOutputMode(options)
     const workspaces = await fetchWorkspaces()
 
     if (workspaces.length === 0) {
@@ -16,12 +18,17 @@ async function listWorkspaces(options: ListOptions): Promise<void> {
         return
     }
 
-    if (options.json) {
+    if (outputMode === 'ids-only') {
+        await outputIds(workspaces, (workspace) => workspace.id)
+        return
+    }
+
+    if (outputMode === 'json') {
         console.log(formatJson(workspaces, 'workspace', options.full))
         return
     }
 
-    if (options.ndjson) {
+    if (outputMode === 'ndjson') {
         console.log(formatNdjson(workspaces, 'workspace', options.full))
         return
     }
@@ -49,6 +56,7 @@ export function registerWorkspaceCommand(program: Command): void {
         .description('List all workspaces')
         .option('--json', 'Output as JSON')
         .option('--ndjson', 'Output as newline-delimited JSON')
+        .option('--ids-only', 'Output only workspace IDs, one per line')
         .option('--full', 'Include all fields in JSON output')
         .addHelpText(
             'after',

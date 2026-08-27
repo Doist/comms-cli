@@ -1,3 +1,4 @@
+import { outputIds, resolveOutputMode } from '@doist/cli-core'
 import type { ArchiveFilter } from '@doist/comms-sdk'
 import chalk from 'chalk'
 import { Command, Option } from 'commander'
@@ -20,6 +21,7 @@ type InboxOptions = PaginatedViewOptions & {
 }
 
 async function showInbox(workspaceRef: string | undefined, options: InboxOptions): Promise<void> {
+    const outputMode = resolveOutputMode(options)
     if (workspaceRef && options.workspace) {
         throw new CliError(
             'CONFLICTING_OPTIONS',
@@ -118,7 +120,12 @@ async function showInbox(workspaceRef: string | undefined, options: InboxOptions
         sortedChannelGroups.push(...unreads, ...reads)
     }
 
-    if (options.json) {
+    if (outputMode === 'ids-only') {
+        await outputIds(sortedChannelGroups, (thread) => thread.id)
+        return
+    }
+
+    if (outputMode === 'json') {
         const output = sortedChannelGroups.map((t) => ({
             ...t,
             channelName: channelMap.get(t.channelId),
@@ -127,7 +134,7 @@ async function showInbox(workspaceRef: string | undefined, options: InboxOptions
         return
     }
 
-    if (options.ndjson) {
+    if (outputMode === 'ndjson') {
         const output = sortedChannelGroups.map((t) => ({
             ...t,
             channelName: channelMap.get(t.channelId),
@@ -178,6 +185,7 @@ export function registerInboxCommand(program: Command): void {
         .option('--limit <n>', 'Max items (default: 50)')
         .option('--json', 'Output as JSON')
         .option('--ndjson', 'Output as newline-delimited JSON')
+        .option('--ids-only', 'Output only thread IDs, one per line')
         .option('--full', 'Include all fields in JSON output')
         .addHelpText(
             'after',

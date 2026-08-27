@@ -16,6 +16,7 @@ export function registerGroupsCommand(program: Command): void {
         .option('--search <text>', 'Filter by name')
         .option('--json', 'Output as JSON')
         .option('--ndjson', 'Output as newline-delimited JSON')
+        .option('--ids-only', 'Output only group IDs, one per line')
         .option('--full', 'Include all fields in JSON output')
         .addHelpText(
             'after',

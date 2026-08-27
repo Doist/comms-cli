@@ -1,6 +1,10 @@
 import { createInterface } from 'node:readline'
 import chalk from 'chalk'
-import { createCommsTokenStore, MANUAL_TOKEN_ACCOUNT } from '../../lib/auth-provider.js'
+import {
+    type CommsCredentialStore,
+    createCommsTokenStore,
+    MANUAL_TOKEN_ACCOUNT,
+} from '../../lib/auth-provider.js'
 import { CliError } from '../../lib/errors.js'
 import { isNonInteractive } from '../../lib/global-args.js'
 import { logTokenStorageResult } from './helpers.js'
@@ -31,7 +35,9 @@ function promptHiddenInput(prompt: string): Promise<string> {
 // never accepted as a CLI argument. Passing secrets on the command line
 // would leak them via process lists and shell history (Doist Secrets
 // Management Standard).
-export async function loginWithToken(): Promise<void> {
+export async function loginWithToken(
+    options: { credentialStore?: CommsCredentialStore } = {},
+): Promise<void> {
     if (isNonInteractive()) {
         throw new CliError(
             'NO_TOKEN',
@@ -51,7 +57,7 @@ export async function loginWithToken(): Promise<void> {
     // Persist the empty-id account; `UserRecordStore.upsert` writes
     // `authUserId: undefined` for it and the synthesised record is what later
     // `active()` / `list()` reads will return.
-    const store = createCommsTokenStore()
+    const store = createCommsTokenStore({ credentialStore: options.credentialStore })
     await store.set(MANUAL_TOKEN_ACCOUNT, trimmed)
     console.log(chalk.green('✓'), 'API token saved successfully!')
     const result = store.getLastStorageResult()
