@@ -2,7 +2,7 @@ import { captureConsole } from '@doist/cli-core/testing'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { BaseCliError } from './errors.js'
 import { isAccessible, resetGlobalArgs } from './global-args.js'
-import { formatError, formatErrorJson, printDryRun, printEmpty } from './output.js'
+import { formatError, formatErrorJson, printDryRun } from './output.js'
 
 vi.mock('chalk')
 
@@ -90,46 +90,6 @@ describe('printDryRun', () => {
 
         expect(logSpy).toHaveBeenCalledWith('[dry-run] Would clear away status:')
         expect(logSpy).toHaveBeenCalledWith('Run without --dry-run to execute.')
-    })
-})
-
-describe('printEmpty', () => {
-    let logSpy: ReturnType<typeof vi.spyOn>
-
-    beforeEach(() => {
-        logSpy = captureConsole('log')
-    })
-
-    it('prints "[]" for --json', () => {
-        printEmpty({ options: { json: true }, type: 'thread', message: 'No threads in inbox.' })
-        expect(logSpy).toHaveBeenCalledTimes(1)
-        expect(logSpy).toHaveBeenCalledWith('[]')
-    })
-
-    it('does not call console.log at all for --ndjson (no stray newline)', () => {
-        printEmpty({ options: { ndjson: true }, type: 'thread', message: 'No threads in inbox.' })
-        expect(logSpy).not.toHaveBeenCalled()
-    })
-
-    it('does not call console.log for --ids-only', () => {
-        printEmpty({ options: { idsOnly: true }, type: 'thread', message: 'No threads in inbox.' })
-        expect(logSpy).not.toHaveBeenCalled()
-    })
-
-    it('prints the human message when neither --json nor --ndjson is set', () => {
-        printEmpty({ options: {}, type: 'thread', message: 'No threads in inbox.' })
-        expect(logSpy).toHaveBeenCalledWith('No threads in inbox.')
-    })
-
-    it('rejects conflicting machine-output modes', () => {
-        expect(() =>
-            printEmpty({
-                options: { json: true, ndjson: true },
-                type: 'conversation',
-                message: 'unused',
-            }),
-        ).toThrow('Options --json, --ndjson are mutually exclusive.')
-        expect(logSpy).not.toHaveBeenCalled()
     })
 })
 

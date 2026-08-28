@@ -1,4 +1,4 @@
-import { outputIds, resolveOutputMode } from '@doist/cli-core'
+import { outputIds, printEmpty, resolveOutputMode } from '@doist/cli-core'
 import type { Conversation } from '@doist/comms-sdk'
 import chalk from 'chalk'
 import { buildUserNameMap, getCommsClient } from '../../lib/api.js'
@@ -7,7 +7,7 @@ import { CliError } from '../../lib/errors.js'
 import { isAccessible } from '../../lib/global-args.js'
 import { renderMarkdown } from '../../lib/markdown.js'
 import type { MutationOptions, PaginatedViewOptions, ViewOptions } from '../../lib/options.js'
-import { colors, formatJson, formatNdjson, printEmpty } from '../../lib/output.js'
+import { colors, formatJson, formatNdjson } from '../../lib/output.js'
 
 export type UnreadOptions = ViewOptions & { workspace?: string }
 
@@ -193,7 +193,6 @@ export async function renderConversationList(
     if (conversations.length === 0) {
         printEmpty({
             options,
-            type: 'conversation',
             message: 'No matching conversations found.',
         })
         return

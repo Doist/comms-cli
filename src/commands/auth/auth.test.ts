@@ -309,6 +309,34 @@ describe('auth command', () => {
         expect((credentialStore as () => string)()).toBe('system')
     })
 
+    it.each(['login', 'token'])(
+        'rejects an invalid credential store on auth %s',
+        async (command) => {
+            await expect(
+                createProgram().parseAsync([
+                    'node',
+                    'tdc',
+                    'auth',
+                    command,
+                    '--credential-store=typo',
+                ]),
+            ).rejects.toHaveProperty('code', 'INVALID_CREDENTIAL_STORE')
+        },
+    )
+
+    it('registers credential-store values for shell completion', () => {
+        const auth = createProgram().commands.find((command) => command.name() === 'auth')
+        const login = auth?.commands.find((command) => command.name() === 'login')
+        const token = auth?.commands.find((command) => command.name() === 'token')
+
+        expect(
+            login?.options.find((option) => option.long === '--credential-store')?.argChoices,
+        ).toEqual(['fallback', 'system', 'plaintext'])
+        expect(
+            token?.options.find((option) => option.long === '--credential-store')?.argChoices,
+        ).toEqual(['fallback', 'system', 'plaintext'])
+    })
+
     describe('token view subcommand', () => {
         let writeSpy: ReturnType<typeof vi.spyOn>
 

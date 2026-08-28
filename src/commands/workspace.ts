@@ -1,10 +1,10 @@
-import { outputIds, resolveOutputMode } from '@doist/cli-core'
+import { outputIds, printEmpty, resolveOutputMode } from '@doist/cli-core'
 import chalk from 'chalk'
 import { Command } from 'commander'
 import { fetchWorkspaces, getCurrentWorkspaceId } from '../lib/api.js'
 import { updateConfig } from '../lib/config.js'
 import type { ViewOptions } from '../lib/options.js'
-import { colors, formatJson, formatNdjson, printEmpty } from '../lib/output.js'
+import { colors, formatJson, formatNdjson } from '../lib/output.js'
 import { resolveWorkspaceRef } from '../lib/refs.js'
 
 type ListOptions = ViewOptions
@@ -14,7 +14,7 @@ async function listWorkspaces(options: ListOptions): Promise<void> {
     const workspaces = await fetchWorkspaces()
 
     if (workspaces.length === 0) {
-        printEmpty({ options, type: 'workspace', message: 'No workspaces found.' })
+        printEmpty({ options, message: 'No workspaces found.' })
         return
     }
 

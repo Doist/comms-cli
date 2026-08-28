@@ -1,8 +1,4 @@
-import {
-    formatJson as formatJsonCore,
-    formatNdjson as formatNdjsonCore,
-    printEmpty as printEmptyCore,
-} from '@doist/cli-core'
+import { formatJson as formatJsonCore, formatNdjson as formatNdjsonCore } from '@doist/cli-core'
 import chalk from 'chalk'
 import type { BaseCliError } from './errors.js'
 
@@ -241,19 +237,6 @@ export function printJson<T extends object>(data: T | T[], type?: EntityType, fu
 
 export function printNdjson<T extends object>(items: T[], type?: EntityType, full = false): void {
     console.log(formatNdjson(items, type, full))
-}
-
-export function printEmpty({
-    options,
-    type,
-    message,
-}: {
-    options: { json?: boolean; ndjson?: boolean; idsOnly?: boolean; full?: boolean }
-    type: EntityType
-    message: string
-}): void {
-    void type
-    printEmptyCore({ options, message })
 }
 
 export function pluralize(count: number, singular: string): string {

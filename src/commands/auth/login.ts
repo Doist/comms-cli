@@ -1,14 +1,16 @@
 import { attachLoginCommand } from '@doist/cli-core/auth'
 import chalk from 'chalk'
-import type { Command } from 'commander'
+import { type Command, Option } from 'commander'
 import { renderError, renderSuccess } from '../../lib/auth-pages.js'
 import {
     createCommsAuthProvider,
+    CREDENTIAL_STORES,
     type CommsCredentialStore,
     createCommsTokenStore,
     getScopes,
     parseCredentialStore,
 } from '../../lib/auth-provider.js'
+import { withUnvalidatedChoices } from '../../lib/completion.js'
 import { CliError } from '../../lib/errors.js'
 import { logTokenStorageResult, resetCurrentWorkspaceAfterLogin } from './helpers.js'
 
@@ -53,13 +55,18 @@ export function attachCommsLoginCommand(parent: Command): Command {
     })
         .description('Authenticate using OAuth (opens browser)')
         .option('--full-access', 'Request delete and workspace/user write scopes')
-        .option(
-            '--credential-store <store>',
-            'Credential storage: fallback (default), system, or plaintext',
-            (value: string) => {
-                credentialStore = parseCredentialStore(value)
-                return credentialStore
-            },
-            'fallback',
+        .addOption(
+            withUnvalidatedChoices(
+                new Option(
+                    '--credential-store <store>',
+                    'Credential storage: fallback (default), system, or plaintext',
+                )
+                    .argParser((value: string) => {
+                        credentialStore = parseCredentialStore(value)
+                        return credentialStore
+                    })
+                    .default('fallback'),
+                [...CREDENTIAL_STORES],
+            ),
         )
 }

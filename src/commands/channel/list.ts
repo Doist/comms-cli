@@ -1,10 +1,10 @@
-import { outputIds, resolveOutputMode } from '@doist/cli-core'
+import { outputIds, printEmpty, resolveOutputMode } from '@doist/cli-core'
 import type { Channel } from '@doist/comms-sdk'
 import { getCommsClient } from '../../lib/api.js'
 import { CliError } from '../../lib/errors.js'
 import { includePrivateChannels } from '../../lib/global-args.js'
 import type { ViewOptions } from '../../lib/options.js'
-import { colors, formatJson, formatNdjson, printEmpty } from '../../lib/output.js'
+import { colors, formatJson, formatNdjson } from '../../lib/output.js'
 import { resolveChannelWorkspaceId } from './helpers.js'
 
 const CHANNEL_SCOPES = ['joined', 'public', 'discoverable'] as const
@@ -185,7 +185,7 @@ export async function listChannels(
     }
 
     if (channels.length === 0) {
-        printEmpty({ options, type: 'channel', message: getEmptyStateMessage(scope, state) })
+        printEmpty({ options, message: getEmptyStateMessage(scope, state) })
         return
     }
 

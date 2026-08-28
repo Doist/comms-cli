@@ -1,3 +1,4 @@
+import { resolveOutputMode } from '@doist/cli-core'
 import { getCurrentWorkspaceId, getSessionUser, getCommsClient } from '../../lib/api.js'
 import { CliError } from '../../lib/errors.js'
 import { resolveUserRefs, resolveWorkspaceRef } from '../../lib/refs.js'
@@ -13,6 +14,7 @@ export async function findConversationWithUser(
     workspaceRef: string | undefined,
     options: ConversationWithOptions,
 ): Promise<void> {
+    resolveOutputMode(options)
     if (workspaceRef && options.workspace) {
         throw new CliError(
             'CONFLICTING_OPTIONS',

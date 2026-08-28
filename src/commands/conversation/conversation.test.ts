@@ -270,6 +270,24 @@ describe('conversation with', () => {
         refsMocks.resolveUserRefs.mockResolvedValue([2])
     })
 
+    it('rejects conflicting output modes before resolving refs or making API calls', async () => {
+        await expect(
+            createProgram().parseAsync([
+                'node',
+                'tdc',
+                'conversation',
+                'with',
+                'Alice',
+                '--json',
+                '--ndjson',
+            ]),
+        ).rejects.toThrow('Options --json, --ndjson are mutually exclusive.')
+
+        expect(apiMocks.getCurrentWorkspaceId).not.toHaveBeenCalled()
+        expect(refsMocks.resolveUserRefs).not.toHaveBeenCalled()
+        expect(apiMocks.getCommsClient).not.toHaveBeenCalled()
+    })
+
     it('prints the exact 1:1 conversation for a user', async () => {
         const directConversation = createConversation(42, [1, 2], '2026-03-08T10:00:00.000Z')
         const groupConversation = createConversation(43, [1, 2, 3], '2026-03-09T10:00:00.000Z')

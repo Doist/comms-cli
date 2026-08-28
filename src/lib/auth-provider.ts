@@ -98,6 +98,7 @@ export type CommsAccount = AuthAccount & {
 export type CommsTokenStore = KeyringTokenStore<CommsAccount>
 
 export type CommsCredentialStore = CredentialStore
+export const CREDENTIAL_STORES = ['fallback', 'system', 'plaintext'] as const
 
 export function parseCredentialStore(value: string): CommsCredentialStore {
     switch (value) {

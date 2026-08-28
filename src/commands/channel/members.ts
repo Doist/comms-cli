@@ -12,18 +12,18 @@ export async function listChannelMembers(
 ): Promise<void> {
     const outputMode = resolveOutputMode(options)
     const workspaceId = await getCurrentWorkspaceId()
-    const channel = await resolveChannelRef(channelRef, workspaceId)
-    const userIds = channelUserIds(channel)
+    const channelPromise = resolveChannelRef(channelRef, workspaceId)
 
     if (outputMode === 'ids-only') {
+        const channel = await channelPromise
+        const userIds = channelUserIds(channel)
         await outputIds(userIds, (id) => id)
         return
     }
 
-    const [groups, userMap] = await Promise.all([
-        getWorkspaceGroups(workspaceId),
-        fetchUsersByIds(workspaceId, userIds),
-    ])
+    const [channel, groups] = await Promise.all([channelPromise, getWorkspaceGroups(workspaceId)])
+    const userIds = channelUserIds(channel)
+    const userMap = await fetchUsersByIds(workspaceId, userIds)
 
     const userIdSet = new Set(userIds)
     const fullyInChannel = groupsFullyInChannel(groups, userIdSet)

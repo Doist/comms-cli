@@ -1,7 +1,12 @@
 import { attachRefreshTokenViewCommand, attachTokenViewCommand } from '@doist/cli-core/auth'
-import { Command } from 'commander'
-import { createCommsTokenStore, parseCredentialStore } from '../../lib/auth-provider.js'
+import { Command, Option } from 'commander'
+import {
+    CREDENTIAL_STORES,
+    createCommsTokenStore,
+    parseCredentialStore,
+} from '../../lib/auth-provider.js'
 import { TOKEN_ENV_VAR } from '../../lib/auth.js'
+import { withUnvalidatedChoices } from '../../lib/completion.js'
 import { getRequestedUserRef } from '../../lib/global-args.js'
 import { attachCommsLoginCommand } from './login.js'
 import { attachCommsLogoutCommand } from './logout.js'
@@ -26,11 +31,16 @@ export function registerAuthCommand(program: Command): void {
     const tokenCmd = auth
         .command('token')
         .description('Save API token for CLI authentication (or use a subcommand: `view`)')
-        .option(
-            '--credential-store <store>',
-            'Credential storage: fallback (default), system, or plaintext',
-            parseCredentialStore,
-            'fallback',
+        .addOption(
+            withUnvalidatedChoices(
+                new Option(
+                    '--credential-store <store>',
+                    'Credential storage: fallback (default), system, or plaintext',
+                )
+                    .argParser(parseCredentialStore)
+                    .default('fallback'),
+                [...CREDENTIAL_STORES],
+            ),
         )
         .action(loginWithToken)
 

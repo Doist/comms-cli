@@ -76,6 +76,24 @@ beforeEach(() => {
 })
 
 describe('tdc channel members list (default)', () => {
+    it('outputs member IDs without fetching groups or user details', async () => {
+        refsMocks.resolveChannelRef.mockResolvedValue(createChannel([1, 2, 99]))
+        const consoleSpy = captureConsole('log')
+
+        await createProgram().parseAsync([
+            'node',
+            'tdc',
+            'channel',
+            'members',
+            'General',
+            '--ids-only',
+        ])
+
+        expect(consoleSpy).toHaveBeenCalledWith('1\n2\n99')
+        expect(apiMocks.getWorkspaceGroups).not.toHaveBeenCalled()
+        expect(apiMocks.getCommsClient).not.toHaveBeenCalled()
+    })
+
     it('lists members with names/emails and groups fully in channel', async () => {
         refsMocks.resolveChannelRef.mockResolvedValue(createChannel([1, 2, 3]))
         const consoleSpy = captureConsole('log')

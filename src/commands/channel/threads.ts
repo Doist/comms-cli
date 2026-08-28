@@ -79,22 +79,22 @@ export async function showChannelThreads(
     const archived = archiveFilterToFlag(options.archiveFilter)
     const client = await getCommsClient()
 
+    const needsUnreadData = outputMode !== 'ids-only' || options.unread
     const [threadsData, unreadThreadIds] = await Promise.all([
         client.threads.getThreads(
             archived === undefined
                 ? { workspaceId, channelId: channel.id }
                 : { workspaceId, channelId: channel.id, archived },
         ),
-        fetchUnreadThreadIds(client, workspaceId),
+        needsUnreadData
+            ? fetchUnreadThreadIds(client, workspaceId)
+            : Promise.resolve(new Set<string>()),
     ])
 
-    let threads: DecoratedThread[] = threadsData.map((t) => ({
-        ...t,
-        isUnread: unreadThreadIds.has(t.id),
-    }))
+    let threads = threadsData
 
     if (options.unread) {
-        threads = threads.filter((t) => t.isUnread)
+        threads = threads.filter((thread) => unreadThreadIds.has(thread.id))
     }
 
     if (sinceTs !== undefined) {
@@ -113,8 +113,6 @@ export async function showChannelThreads(
     const page = threads.slice(offset, offset + limit)
     const nextCursor = offset + limit < threads.length ? encodeCursor(offset + limit) : null
 
-    const paginated: PaginatedOutput<DecoratedThread> = { results: page, nextCursor }
-
     if (outputMode === 'ids-only') {
         await outputIds(
             page,
@@ -122,6 +120,15 @@ export async function showChannelThreads(
             nextCursor ? `More threads available. Use --cursor ${nextCursor}` : '',
         )
         return
+    }
+
+    const decoratedPage: DecoratedThread[] = page.map((thread) => ({
+        ...thread,
+        isUnread: unreadThreadIds.has(thread.id),
+    }))
+    const paginated: PaginatedOutput<DecoratedThread> = {
+        results: decoratedPage,
+        nextCursor,
     }
 
     if (outputMode === 'json') {
@@ -134,7 +141,7 @@ export async function showChannelThreads(
         return
     }
 
-    if (page.length === 0) {
+    if (decoratedPage.length === 0) {
         console.log(`No threads in #${channel.name}.`)
         return
     }
@@ -142,7 +149,7 @@ export async function showChannelThreads(
     console.log(chalk.bold.blue(`[${channel.name}]`))
     console.log('')
 
-    for (const thread of page) {
+    for (const thread of decoratedPage) {
         const title = thread.isUnread ? chalk.bold(thread.title) : thread.title
         const time = colors.timestamp(formatRelativeDate(thread.lastUpdated))
         const unreadBadge = thread.isUnread ? chalk.blue(isAccessible() ? ' (unread)' : ' *') : ''

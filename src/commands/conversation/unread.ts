@@ -1,9 +1,9 @@
-import { outputIds, resolveOutputMode } from '@doist/cli-core'
+import { outputIds, printEmpty, resolveOutputMode } from '@doist/cli-core'
 import chalk from 'chalk'
 import { buildUserNameMap, getCommsClient, getCurrentWorkspaceId } from '../../lib/api.js'
 import { CliError } from '../../lib/errors.js'
 import { isAccessible } from '../../lib/global-args.js'
-import { colors, formatJson, formatNdjson, printEmpty } from '../../lib/output.js'
+import { colors, formatJson, formatNdjson } from '../../lib/output.js'
 import { resolveWorkspaceRef } from '../../lib/refs.js'
 import type { UnreadOptions } from './helpers.js'
 
@@ -34,7 +34,7 @@ export async function showUnread(
     const unreadConversations = unreadResponse.data
 
     if (unreadConversations.length === 0) {
-        printEmpty({ options, type: 'conversation', message: 'No unread conversations.' })
+        printEmpty({ options, message: 'No unread conversations.' })
         return
     }
 

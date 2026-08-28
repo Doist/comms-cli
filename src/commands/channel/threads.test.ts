@@ -345,6 +345,35 @@ describe('channel threads', () => {
         expect(output.nextCursor).toEqual(encodeCursor(2))
     })
 
+    it('--ids-only keeps pagination notices on stderr and skips unread enrichment', async () => {
+        const { mockGetUnread } = setupClient({
+            threads: [
+                createThread(1, { lastUpdated: new Date('2026-01-03T00:00:00Z') }),
+                createThread(2, { lastUpdated: new Date('2026-01-02T00:00:00Z') }),
+                createThread(3, { lastUpdated: new Date('2026-01-01T00:00:00Z') }),
+            ],
+        })
+        const consoleSpy = captureConsole('log')
+        const errorSpy = captureConsole('error')
+
+        await createProgram().parseAsync([
+            'node',
+            'tdc',
+            'channel',
+            'threads',
+            '12345',
+            '--ids-only',
+            '--limit',
+            '2',
+        ])
+
+        expect(consoleSpy).toHaveBeenCalledWith('1\n2')
+        expect(errorSpy).toHaveBeenCalledWith(
+            `More threads available. Use --cursor ${encodeCursor(2)}`,
+        )
+        expect(mockGetUnread).not.toHaveBeenCalled()
+    })
+
     it('--cursor advances to the next page', async () => {
         setupClient({
             threads: [

@@ -1,8 +1,8 @@
-import { outputIds, resolveOutputMode } from '@doist/cli-core'
+import { outputIds, printEmpty, resolveOutputMode } from '@doist/cli-core'
 import { getCurrentWorkspaceId, getWorkspaceGroups } from '../../lib/api.js'
 import { CliError } from '../../lib/errors.js'
 import type { ViewOptions } from '../../lib/options.js'
-import { colors, formatJson, formatNdjson, pluralize, printEmpty } from '../../lib/output.js'
+import { colors, formatJson, formatNdjson, pluralize } from '../../lib/output.js'
 import { resolveWorkspaceRef } from '../../lib/refs.js'
 
 export type ListGroupsOptions = ViewOptions & { workspace?: string; search?: string }
@@ -37,7 +37,7 @@ export async function listGroups(
     }
 
     if (groups.length === 0) {
-        printEmpty({ options, type: 'group', message: 'No groups found.' })
+        printEmpty({ options, message: 'No groups found.' })
         return
     }
 
