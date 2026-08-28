@@ -1,3 +1,9 @@
+## [3.1.0](https://github.com/Doist/comms-cli/compare/v3.0.0...v3.1.0) (2026-08-28)
+
+### Features
+
+- adopt cli-core 1.4 capabilities ([#56](https://github.com/Doist/comms-cli/issues/56)) ([441e69c](https://github.com/Doist/comms-cli/commit/441e69c3fd465e1e052cc35999379c7c21453058))
+
 ## [3.0.0](https://github.com/Doist/comms-cli/compare/v2.0.4...v3.0.0) (2026-08-26)
 
 ### ⚠ BREAKING CHANGES
