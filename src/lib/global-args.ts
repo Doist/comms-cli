@@ -4,8 +4,8 @@
  * Layers comms's `--include-private-channels`, `--non-interactive`,
  * `--interactive`, and the `--progress-jsonl <path>` space form on top of
  * the subset of cli-core's canonical shape that comms actually registers
- * with Commander (`--json`, `--ndjson`, `--accessible`, `--no-spinner`,
- * `--progress-jsonl[=path]`).
+ * with Commander (`--json`, `--ndjson`, `--ids-only`, `--accessible`,
+ * `--no-spinner`, `--progress-jsonl[=path]`).
  *
  * cli-core's parser also surfaces `quiet` and `verbose` from argv, but
  * comms does not register `--quiet` or `--verbose` globally (Commander
@@ -39,7 +39,7 @@ type CommsSpecificFlags = {
  */
 export type GlobalArgs = Pick<
     CoreGlobalArgs,
-    'json' | 'ndjson' | 'accessible' | 'noSpinner' | 'user'
+    'json' | 'ndjson' | 'idsOnly' | 'accessible' | 'noSpinner' | 'user'
 > &
     CommsSpecificFlags
 
@@ -146,6 +146,10 @@ export function isJsonMode(): boolean {
 
 export function isNdjsonMode(): boolean {
     return store.get().ndjson
+}
+
+export function isIdsOnlyMode(): boolean {
+    return store.get().idsOnly
 }
 
 /** Pre-subcommand `tdc --user <ref>` (see `stripUserFlag` in `src/index.ts`). */

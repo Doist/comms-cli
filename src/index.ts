@@ -5,7 +5,7 @@ import { CommanderError, type Command, program } from 'commander'
 import pkg from '../package.json' with { type: 'json' }
 import { configureCommandOutput } from './lib/command-output.js'
 import { BaseCliError } from './lib/errors.js'
-import { getRequestedUserRef, isJsonMode, isNdjsonMode } from './lib/global-args.js'
+import { getRequestedUserRef, isIdsOnlyMode, isJsonMode, isNdjsonMode } from './lib/global-args.js'
 import { preloadMarkdown } from './lib/markdown.js'
 import { formatError, formatErrorJson } from './lib/output.js'
 import { startEarlySpinner, stopEarlySpinner } from './lib/spinner.js'
@@ -105,6 +105,7 @@ program
         `
 Note for AI/LLM agents:
   Use --json or --ndjson flags for unambiguous, parseable output.
+  Use --ids-only on supported list commands when you only need entity IDs.
   Default JSON shows essential fields; use --full for all fields.`,
     )
 
@@ -195,7 +196,11 @@ if (process.argv[2] === 'completion-server') {
         ])
         const wantsRaw = process.argv.slice(2).includes('--raw')
         const needsMarkdown =
-            !noMarkdownCommands.has(commandName) && !isJsonMode() && !isNdjsonMode() && !wantsRaw
+            !noMarkdownCommands.has(commandName) &&
+            !isJsonMode() &&
+            !isNdjsonMode() &&
+            !isIdsOnlyMode() &&
+            !wantsRaw
 
         startEarlySpinner()
         try {

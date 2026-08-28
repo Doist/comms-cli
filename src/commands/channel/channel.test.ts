@@ -163,6 +163,28 @@ describe('channels list', () => {
         })
     })
 
+    it('outputs one stable channel ID per line with --ids-only', async () => {
+        const client = createClient({
+            joinedChannels: [createChannel(10, 'General'), createChannel(20, 'Product')],
+        })
+        apiMocks.getCommsClient.mockResolvedValue(client)
+        const consoleSpy = captureConsole('log')
+
+        await createProgram().parseAsync(['node', 'tdc', 'channels', '--ids-only'])
+
+        expect(consoleSpy).toHaveBeenCalledWith('10\n20')
+    })
+
+    it('rejects conflicting machine-output modes before fetching channels', async () => {
+        const client = createClient()
+        apiMocks.getCommsClient.mockResolvedValue(client)
+
+        await expect(
+            createProgram().parseAsync(['node', 'tdc', 'channels', '--ids-only', '--json']),
+        ).rejects.toThrow('Options --json, --ids-only are mutually exclusive.')
+        expect(apiMocks.getCommsClient).not.toHaveBeenCalled()
+    })
+
     it('includes joined private channels when --include-private-channels is enabled', async () => {
         globalArgsMocks.includePrivateChannels.mockReturnValue(true)
         const client = createClient({
@@ -357,6 +379,7 @@ describe('channels list', () => {
             await program.parseAsync(['node', 'tdc', 'channels', ...extraArgs])
         },
         humanMessage: 'No active channels found.',
+        idsOnly: true,
     })
 
     it('shows a specific empty state when no active discoverable channels remain', async () => {

@@ -1,3 +1,4 @@
+import { outputIds, printEmpty, resolveOutputMode } from '@doist/cli-core'
 import chalk from 'chalk'
 import { Command } from 'commander'
 import {
@@ -8,7 +9,7 @@ import {
 } from '../lib/api.js'
 import { CliError } from '../lib/errors.js'
 import type { ViewOptions } from '../lib/options.js'
-import { colors, formatJson, formatNdjson, printEmpty } from '../lib/output.js'
+import { colors, formatJson, formatNdjson } from '../lib/output.js'
 import { resolveWorkspaceRef } from '../lib/refs.js'
 
 type UsersOptions = ViewOptions & {
@@ -41,6 +42,7 @@ async function showCurrentUser(options: ViewOptions): Promise<void> {
 }
 
 async function listUsers(workspaceRef: string | undefined, options: UsersOptions): Promise<void> {
+    const outputMode = resolveOutputMode(options)
     if (workspaceRef && options.workspace) {
         throw new CliError(
             'CONFLICTING_OPTIONS',
@@ -70,16 +72,21 @@ async function listUsers(workspaceRef: string | undefined, options: UsersOptions
     }
 
     if (users.length === 0) {
-        printEmpty({ options, type: 'user', message: 'No users found.' })
+        printEmpty({ options, message: 'No users found.' })
         return
     }
 
-    if (options.json) {
+    if (outputMode === 'ids-only') {
+        await outputIds(users, (user) => user.id)
+        return
+    }
+
+    if (outputMode === 'json') {
         console.log(formatJson(users, 'user', options.full))
         return
     }
 
-    if (options.ndjson) {
+    if (outputMode === 'ndjson') {
         console.log(formatNdjson(users, 'user', options.full))
         return
     }
@@ -117,6 +124,7 @@ Examples:
         .option('--include-removed', 'Include users who have been removed from the workspace')
         .option('--json', 'Output as JSON')
         .option('--ndjson', 'Output as newline-delimited JSON')
+        .option('--ids-only', 'Output only user IDs, one per line')
         .option('--full', 'Include all fields in JSON output')
         .addHelpText(
             'after',

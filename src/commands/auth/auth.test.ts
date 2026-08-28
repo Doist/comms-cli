@@ -17,6 +17,16 @@ vi.mock('../../lib/auth.js', async (importOriginal) => {
 // Mock the cli-core-backed token store so token / logout tests can drive
 // `set` / `clear` / `getLastStorageResult` / `getLastClearResult` directly.
 const storeMocks = vi.hoisted(() => ({
+    factoryOptions: [] as Array<
+        | {
+              credentialStore?:
+                  | 'system'
+                  | 'plaintext'
+                  | 'fallback'
+                  | (() => 'system' | 'plaintext' | 'fallback')
+          }
+        | undefined
+    >,
     set: vi.fn(),
     clear: vi.fn(),
     active: vi.fn(),
@@ -31,7 +41,10 @@ vi.mock('../../lib/auth-provider.js', async (importOriginal) => {
     const actual = await importOriginal<typeof import('../../lib/auth-provider.js')>()
     return {
         ...actual,
-        createCommsTokenStore: () => storeMocks,
+        createCommsTokenStore: (options?: (typeof storeMocks.factoryOptions)[number]) => {
+            storeMocks.factoryOptions.push(options)
+            return storeMocks
+        },
     }
 })
 
@@ -121,6 +134,7 @@ describe('auth command', () => {
 
     beforeEach(() => {
         vi.clearAllMocks()
+        storeMocks.factoryOptions.length = 0
 
         // Mock console.log to capture output
         consoleSpy = captureConsole('log')
@@ -213,6 +227,20 @@ describe('auth command', () => {
             ).rejects.toThrow('Permission denied')
         })
 
+        it('passes --credential-store to the cli-core-backed token store', async () => {
+            mockPromptAnswer('some_token_123456789')
+
+            await createProgram().parseAsync([
+                'node',
+                'tdc',
+                'auth',
+                'token',
+                '--credential-store=plaintext',
+            ])
+
+            expect(storeMocks.factoryOptions).toContainEqual({ credentialStore: 'plaintext' })
+        })
+
         it('surfaces the keyring-fallback warning from getLastStorageResult on stderr', async () => {
             storeMocks.getLastStorageResult.mockReturnValue({
                 storage: 'config-file',
@@ -262,6 +290,51 @@ describe('auth command', () => {
             ).rejects.toThrow()
             expect(storeMocks.set).not.toHaveBeenCalled()
         })
+    })
+
+    it('updates the OAuth store policy from --credential-store', async () => {
+        await createProgram().parseAsync([
+            'node',
+            'tdc',
+            'auth',
+            'login',
+            '--credential-store=system',
+        ])
+
+        const dynamic = storeMocks.factoryOptions.find(
+            (options) => typeof options?.credentialStore === 'function',
+        )
+        expect(dynamic).toBeDefined()
+        const { credentialStore } = dynamic as NonNullable<typeof dynamic>
+        expect((credentialStore as () => string)()).toBe('system')
+    })
+
+    it.each(['login', 'token'])(
+        'rejects an invalid credential store on auth %s',
+        async (command) => {
+            await expect(
+                createProgram().parseAsync([
+                    'node',
+                    'tdc',
+                    'auth',
+                    command,
+                    '--credential-store=typo',
+                ]),
+            ).rejects.toHaveProperty('code', 'INVALID_CREDENTIAL_STORE')
+        },
+    )
+
+    it('registers credential-store values for shell completion', () => {
+        const auth = createProgram().commands.find((command) => command.name() === 'auth')
+        const login = auth?.commands.find((command) => command.name() === 'login')
+        const token = auth?.commands.find((command) => command.name() === 'token')
+
+        expect(
+            login?.options.find((option) => option.long === '--credential-store')?.argChoices,
+        ).toEqual(['fallback', 'system', 'plaintext'])
+        expect(
+            token?.options.find((option) => option.long === '--credential-store')?.argChoices,
+        ).toEqual(['fallback', 'system', 'plaintext'])
     })
 
     describe('token view subcommand', () => {

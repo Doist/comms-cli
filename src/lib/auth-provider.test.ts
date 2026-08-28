@@ -448,7 +448,7 @@ describe('createCommsTokenStore', () => {
         vi.unstubAllEnvs()
     })
 
-    it('passes comms-cli wiring to cli-core: serviceName, no accountForUser override (uses cli-core default `user-${id}`), records location, and the parseRef-aware matcher', async () => {
+    it('passes comms-cli wiring and the fallback credential policy to cli-core', async () => {
         const createCommsTokenStore = await loadCreateCommsTokenStore()
         createCommsTokenStore()
 
@@ -456,8 +456,20 @@ describe('createCommsTokenStore', () => {
         expect(options.serviceName).toBe('comms-cli')
         expect(options.accountForUser).toBeUndefined()
         expect(options.recordsLocation).toBe('/home/user/.config/comms-cli/config.json')
+        expect(options.credentialStore).toBe('fallback')
         const { matchCommsAccount: matcher } = await import('./auth-provider.js')
         expect(options.matchAccount).toBe(matcher)
+    })
+
+    it('passes an explicit credential policy through to cli-core', async () => {
+        const createCommsTokenStore = await loadCreateCommsTokenStore()
+        const credentialStore = () => 'system' as const
+
+        createCommsTokenStore({ credentialStore })
+
+        expect(keyringMocks.createKeyringTokenStore.mock.calls[0][0].credentialStore).toBe(
+            credentialStore,
+        )
     })
 
     it('active() short-circuits to COMMS_API_TOKEN when no explicit ref is supplied', async () => {

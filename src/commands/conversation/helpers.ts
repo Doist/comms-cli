@@ -1,3 +1,4 @@
+import { outputIds, printEmpty, resolveOutputMode } from '@doist/cli-core'
 import type { Conversation } from '@doist/comms-sdk'
 import chalk from 'chalk'
 import { buildUserNameMap, getCommsClient } from '../../lib/api.js'
@@ -6,7 +7,7 @@ import { CliError } from '../../lib/errors.js'
 import { isAccessible } from '../../lib/global-args.js'
 import { renderMarkdown } from '../../lib/markdown.js'
 import type { MutationOptions, PaginatedViewOptions, ViewOptions } from '../../lib/options.js'
-import { colors, formatJson, formatNdjson, printEmpty } from '../../lib/output.js'
+import { colors, formatJson, formatNdjson } from '../../lib/output.js'
 
 export type UnreadOptions = ViewOptions & { workspace?: string }
 
@@ -32,6 +33,7 @@ export type ConversationListOptions = ViewOptions & {
 export type ConversationRenderOptions = {
     json?: boolean
     ndjson?: boolean
+    idsOnly?: boolean
     full?: boolean
     snippet?: boolean
 }
@@ -187,19 +189,24 @@ export async function renderConversationList(
     workspaceId: number,
     options: ConversationRenderOptions,
 ): Promise<void> {
+    const outputMode = resolveOutputMode(options)
     if (conversations.length === 0) {
         printEmpty({
             options,
-            type: 'conversation',
             message: 'No matching conversations found.',
         })
         return
     }
 
+    if (outputMode === 'ids-only') {
+        await outputIds(conversations, (conversation) => conversation.id)
+        return
+    }
+
     // Machine output without --full filters `participantNames` back out, so skip
     // the workspace-wide user-map fetch whose names would never be emitted.
-    if ((options.json || options.ndjson) && !options.full) {
-        if (options.json) {
+    if ((outputMode === 'json' || outputMode === 'ndjson') && !options.full) {
+        if (outputMode === 'json') {
             console.log(formatJson(conversations, 'conversation', false))
         } else {
             console.log(formatNdjson(conversations, 'conversation', false))
@@ -215,12 +222,12 @@ export async function renderConversationList(
         participantNames: conversation.userIds.map((id) => userMap.get(id)),
     }))
 
-    if (options.json) {
+    if (outputMode === 'json') {
         console.log(formatJson(output, 'conversation', options.full))
         return
     }
 
-    if (options.ndjson) {
+    if (outputMode === 'ndjson') {
         console.log(formatNdjson(output, 'conversation', options.full))
         return
     }

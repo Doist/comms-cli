@@ -1,7 +1,8 @@
+import { outputIds, printEmpty, resolveOutputMode } from '@doist/cli-core'
 import { getCurrentWorkspaceId, getWorkspaceGroups } from '../../lib/api.js'
 import { CliError } from '../../lib/errors.js'
 import type { ViewOptions } from '../../lib/options.js'
-import { colors, formatJson, formatNdjson, pluralize, printEmpty } from '../../lib/output.js'
+import { colors, formatJson, formatNdjson, pluralize } from '../../lib/output.js'
 import { resolveWorkspaceRef } from '../../lib/refs.js'
 
 export type ListGroupsOptions = ViewOptions & { workspace?: string; search?: string }
@@ -10,6 +11,7 @@ export async function listGroups(
     workspaceRef: string | undefined,
     options: ListGroupsOptions,
 ): Promise<void> {
+    const outputMode = resolveOutputMode(options)
     if (workspaceRef && options.workspace) {
         throw new CliError(
             'CONFLICTING_OPTIONS',
@@ -35,16 +37,21 @@ export async function listGroups(
     }
 
     if (groups.length === 0) {
-        printEmpty({ options, type: 'group', message: 'No groups found.' })
+        printEmpty({ options, message: 'No groups found.' })
         return
     }
 
-    if (options.json) {
+    if (outputMode === 'ids-only') {
+        await outputIds(groups, (group) => group.id)
+        return
+    }
+
+    if (outputMode === 'json') {
         console.log(formatJson(groups, 'group', options.full))
         return
     }
 
-    if (options.ndjson) {
+    if (outputMode === 'ndjson') {
         console.log(formatNdjson(groups, 'group', options.full))
         return
     }

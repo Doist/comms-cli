@@ -17,6 +17,7 @@ export type ErrorCode =
     | 'AUTH_TOKEN_EXCHANGE_FAILED'
     | 'FORBIDDEN'
     | 'INSUFFICIENT_SCOPE'
+    | 'INVALID_CREDENTIAL_STORE'
     | 'INVALID_TOKEN'
     | 'NO_TOKEN'
     | 'READ_ONLY'

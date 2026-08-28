@@ -1,8 +1,9 @@
+import { outputIds, printEmpty, resolveOutputMode } from '@doist/cli-core'
 import chalk from 'chalk'
 import { buildUserNameMap, getCommsClient, getCurrentWorkspaceId } from '../../lib/api.js'
 import { CliError } from '../../lib/errors.js'
 import { isAccessible } from '../../lib/global-args.js'
-import { colors, formatJson, formatNdjson, printEmpty } from '../../lib/output.js'
+import { colors, formatJson, formatNdjson } from '../../lib/output.js'
 import { resolveWorkspaceRef } from '../../lib/refs.js'
 import type { UnreadOptions } from './helpers.js'
 
@@ -10,6 +11,7 @@ export async function showUnread(
     workspaceRef: string | undefined,
     options: UnreadOptions,
 ): Promise<void> {
+    const outputMode = resolveOutputMode(options)
     if (workspaceRef && options.workspace) {
         throw new CliError(
             'CONFLICTING_OPTIONS',
@@ -32,7 +34,12 @@ export async function showUnread(
     const unreadConversations = unreadResponse.data
 
     if (unreadConversations.length === 0) {
-        printEmpty({ options, type: 'conversation', message: 'No unread conversations.' })
+        printEmpty({ options, message: 'No unread conversations.' })
+        return
+    }
+
+    if (outputMode === 'ids-only') {
+        await outputIds(unreadConversations, (conversation) => conversation.conversationId)
         return
     }
 
@@ -42,7 +49,7 @@ export async function showUnread(
 
     const userMap = await buildUserNameMap(workspaceId, client)
 
-    if (options.json) {
+    if (outputMode === 'json') {
         const output = conversations.map((c) => ({
             ...c,
             participantNames: c.userIds.map((id) => userMap.get(id)),
@@ -51,7 +58,7 @@ export async function showUnread(
         return
     }
 
-    if (options.ndjson) {
+    if (outputMode === 'ndjson') {
         const output = conversations.map((c) => ({
             ...c,
             participantNames: c.userIds.map((id) => userMap.get(id)),

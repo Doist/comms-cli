@@ -22,6 +22,7 @@ export function registerConversationCommand(program: Command): void {
         .option('--workspace <ref>', 'Workspace ID or name')
         .option('--json', 'Output as JSON')
         .option('--ndjson', 'Output as newline-delimited JSON')
+        .option('--ids-only', 'Output only conversation IDs, one per line')
         .option('--full', 'Include all fields in JSON output')
         .addHelpText(
             'after',
@@ -60,6 +61,7 @@ Examples:
         .option('--limit <n>', 'Maximum conversations to show (default: all)')
         .option('--json', 'Output as JSON')
         .option('--ndjson', 'Output as newline-delimited JSON')
+        .option('--ids-only', 'Output only conversation IDs, one per line')
         .option('--full', 'Include all fields in JSON output')
         .addHelpText(
             'after',

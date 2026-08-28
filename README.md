@@ -68,13 +68,13 @@ This opens Todoist OAuth in your browser. The default grant can read Comms data 
 
 All group management — `groups create`, `rename`, `delete`, `add-user`, `remove-user` — needs the `workspaces:write` scope, so it requires `tdc auth login --full-access`. Group reads (`groups`, `groups view`) work on a default login.
 
-Once approved, the token is stored in your OS credential manager:
+By default, the CLI stores the token in your OS credential manager:
 
 - macOS: Keychain
 - Windows: Credential Manager
 - Linux: Secret Service/libsecret
 
-If secure storage is unavailable, the CLI warns and falls back to `~/.config/comms-cli/config.json`. Non-secret settings such as the current workspace remain in the config file.
+If secure storage is unavailable, the CLI warns and falls back to `~/.config/comms-cli/config.json`. Use `--credential-store system` to fail instead of writing plaintext, or `--credential-store plaintext` to choose config-file storage explicitly. Both `tdc auth login` and `tdc auth token` support this option. Non-secret settings such as the current workspace remain in the config file.
 
 ### Alternative methods
 
@@ -168,11 +168,12 @@ tdc completion uninstall
 
 ## Machine-readable output
 
-All list/view commands support `--json` and `--ndjson` flags for scripting:
+List and view commands support `--json` and `--ndjson` for scripting. List commands with one clear entity ID also support `--ids-only`; check command help for the exact surface.
 
 ```bash
 tdc inbox --json                    # JSON array
 tdc inbox --ndjson                  # newline-delimited JSON
+tdc inbox --ids-only                # one thread ID per line
 tdc inbox --json --full             # include all fields
 ```
 

@@ -31,6 +31,7 @@ export function registerChannelCommand(program: Command): void {
         )
         .option('--json', 'Output as JSON')
         .option('--ndjson', 'Output as newline-delimited JSON')
+        .option('--ids-only', 'Output only channel IDs, one per line')
         .option('--full', 'Include all fields in JSON output')
         .addHelpText(
             'after',
@@ -177,6 +178,7 @@ Notes:
         .option('--cursor <cursor>', 'Pagination cursor from a previous response')
         .option('--json', 'Output as JSON')
         .option('--ndjson', 'Output as newline-delimited JSON')
+        .option('--ids-only', 'Output only thread IDs, one per line')
         .option('--full', 'Include all fields in JSON output')
         .addHelpText(
             'after',
@@ -204,6 +206,7 @@ Notes:
         .description("List a channel's members and groups fully present in the channel")
         .option('--json', 'Output as JSON')
         .option('--ndjson', 'Output as newline-delimited JSON')
+        .option('--ids-only', 'Output only member user IDs, one per line')
         .option('--full', 'Include all fields in JSON output')
         .addHelpText(
             'after',

@@ -127,6 +127,38 @@ describeEmptyMachineOutput('inbox empty output', {
         await program.parseAsync(['node', 'tdc', 'inbox', ...extraArgs])
     },
     humanMessage: 'No threads in inbox.',
+    idsOnly: true,
+})
+
+describe('inbox --ids-only', () => {
+    it('outputs thread IDs without fetching channel names when no channel filter is set', async () => {
+        vi.clearAllMocks()
+        apiMocks.getCurrentWorkspaceId.mockResolvedValue(1)
+        const { getChannel } = mockClient({
+            inboxThreads: [
+                {
+                    id: 'thread-1',
+                    channelId: 'channel-1',
+                    title: 'First',
+                    posted: '2026-05-01T00:00:00Z',
+                    url: 'https://example.test/thread-1',
+                },
+                {
+                    id: 'thread-2',
+                    channelId: 'channel-2',
+                    title: 'Second',
+                    posted: '2026-05-02T00:00:00Z',
+                    url: 'https://example.test/thread-2',
+                },
+            ],
+        })
+        const consoleSpy = captureConsole('log')
+
+        await createProgram().parseAsync(['node', 'tdc', 'inbox', '--ids-only'])
+
+        expect(consoleSpy).toHaveBeenCalledWith('thread-1\nthread-2')
+        expect(getChannel).not.toHaveBeenCalled()
+    })
 })
 
 describe('inbox empty output (channel filter)', () => {

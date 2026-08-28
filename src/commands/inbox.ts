@@ -1,3 +1,4 @@
+import { outputIds, printEmpty, resolveOutputMode } from '@doist/cli-core'
 import type { ArchiveFilter } from '@doist/comms-sdk'
 import chalk from 'chalk'
 import { Command, Option } from 'commander'
@@ -7,7 +8,7 @@ import { formatRelativeDate } from '../lib/dates.js'
 import { CliError } from '../lib/errors.js'
 import { includePrivateChannels, isAccessible } from '../lib/global-args.js'
 import { toDate, type PaginatedViewOptions } from '../lib/options.js'
-import { colors, formatJson, formatNdjson, printEmpty } from '../lib/output.js'
+import { colors, formatJson, formatNdjson } from '../lib/output.js'
 import { getPublicChannelIds } from '../lib/public-channels.js'
 import { resolveWorkspaceRef } from '../lib/refs.js'
 import { fetchUnreadThreadIds } from '../lib/threads.js'
@@ -20,6 +21,7 @@ type InboxOptions = PaginatedViewOptions & {
 }
 
 async function showInbox(workspaceRef: string | undefined, options: InboxOptions): Promise<void> {
+    const outputMode = resolveOutputMode(options)
     if (workspaceRef && options.workspace) {
         throw new CliError(
             'CONFLICTING_OPTIONS',
@@ -61,24 +63,27 @@ async function showInbox(workspaceRef: string | undefined, options: InboxOptions
     }
 
     if (inboxThreads.length === 0) {
-        printEmpty({ options, type: 'thread', message: 'No threads in inbox.' })
+        printEmpty({ options, message: 'No threads in inbox.' })
         return
     }
-
-    const channelIds = [...new Set(inboxThreads.map((t) => t.channelId))]
-    const channelEntries = await Promise.all(
-        channelIds.map(async (id) => [id, await client.channels.getChannel(id)] as const),
-    )
-    const channelMap = new Map(channelEntries.map(([id, ch]) => [id, ch.name]))
 
     if (!includePrivateChannels()) {
         const publicIds = await getPublicChannelIds(workspaceId)
         inboxThreads = inboxThreads.filter((t) => publicIds.has(t.channelId))
 
         if (inboxThreads.length === 0) {
-            printEmpty({ options, type: 'thread', message: 'No threads in public channels.' })
+            printEmpty({ options, message: 'No threads in public channels.' })
             return
         }
+    }
+
+    let channelMap = new Map<string, string>()
+    if (outputMode !== 'ids-only' || options.channel) {
+        const channelIds = [...new Set(inboxThreads.map((t) => t.channelId))]
+        const channelEntries = await Promise.all(
+            channelIds.map(async (id) => [id, await client.channels.getChannel(id)] as const),
+        )
+        channelMap = new Map(channelEntries.map(([id, channel]) => [id, channel.name]))
     }
 
     if (options.channel) {
@@ -93,7 +98,6 @@ async function showInbox(workspaceRef: string | undefined, options: InboxOptions
         if (inboxThreads.length === 0) {
             printEmpty({
                 options,
-                type: 'thread',
                 message: `No threads in channels matching "${options.channel}".`,
             })
             return
@@ -118,7 +122,12 @@ async function showInbox(workspaceRef: string | undefined, options: InboxOptions
         sortedChannelGroups.push(...unreads, ...reads)
     }
 
-    if (options.json) {
+    if (outputMode === 'ids-only') {
+        await outputIds(sortedChannelGroups, (thread) => thread.id)
+        return
+    }
+
+    if (outputMode === 'json') {
         const output = sortedChannelGroups.map((t) => ({
             ...t,
             channelName: channelMap.get(t.channelId),
@@ -127,7 +136,7 @@ async function showInbox(workspaceRef: string | undefined, options: InboxOptions
         return
     }
 
-    if (options.ndjson) {
+    if (outputMode === 'ndjson') {
         const output = sortedChannelGroups.map((t) => ({
             ...t,
             channelName: channelMap.get(t.channelId),
@@ -178,6 +187,7 @@ export function registerInboxCommand(program: Command): void {
         .option('--limit <n>', 'Max items (default: 50)')
         .option('--json', 'Output as JSON')
         .option('--ndjson', 'Output as newline-delimited JSON')
+        .option('--ids-only', 'Output only thread IDs, one per line')
         .option('--full', 'Include all fields in JSON output')
         .addHelpText(
             'after',

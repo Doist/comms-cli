@@ -2,6 +2,7 @@ import {
     type AccountRef,
     type AuthAccount,
     type AuthProvider,
+    type CredentialStore,
     createDcrProvider,
     createKeyringTokenStore,
     type DcrRegisteredClient,
@@ -95,6 +96,22 @@ export type CommsAccount = AuthAccount & {
 }
 
 export type CommsTokenStore = KeyringTokenStore<CommsAccount>
+
+export type CommsCredentialStore = CredentialStore
+export const CREDENTIAL_STORES = ['fallback', 'system', 'plaintext'] as const
+
+export function parseCredentialStore(value: string): CommsCredentialStore {
+    switch (value) {
+        case 'system':
+        case 'plaintext':
+        case 'fallback':
+            return value
+        default:
+            throw new CliError('INVALID_CREDENTIAL_STORE', `Invalid credential store '${value}'.`, [
+                'Expected one of: fallback, system, plaintext.',
+            ])
+    }
+}
 
 /**
  * Sentinel for the `{ id: '', label: '' }` snapshot that `tdc auth token`
@@ -580,12 +597,17 @@ export async function findAccountInStore(
  * supplied — cli-core's `KeyringTokenStore` doesn't know about the env var,
  * and an explicit ref means the caller targets a specific stored account.
  */
-export function createCommsTokenStore(): CommsTokenStore {
+export function createCommsTokenStore(
+    options: {
+        credentialStore?: CommsCredentialStore | (() => CommsCredentialStore)
+    } = {},
+): CommsTokenStore {
     const inner = createKeyringTokenStore<CommsAccount>({
         serviceName: SECURE_STORE_SERVICE,
         userRecords: createCommsUserRecordStore(),
         recordsLocation: getConfigPath(),
         matchAccount: matchCommsAccount,
+        credentialStore: options.credentialStore ?? 'fallback',
     })
     return Object.assign(Object.create(inner) as CommsTokenStore, {
         async active(ref?: AccountRef) {

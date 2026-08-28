@@ -232,6 +232,24 @@ describe('conversation unread --workspace conflict', () => {
     })
 })
 
+describe('conversation unread --ids-only', () => {
+    it('outputs IDs without fetching or enriching full conversations', async () => {
+        const client = createClient({})
+        client.conversations.getUnread.mockResolvedValue({
+            data: [{ conversationId: '42' }, { conversationId: '43' }],
+            version: 1,
+        })
+        apiMocks.getCommsClient.mockResolvedValue(client)
+        const consoleSpy = captureConsole('log')
+
+        await createProgram().parseAsync(['node', 'tdc', 'conversation', 'unread', '--ids-only'])
+
+        expect(consoleSpy).toHaveBeenCalledWith('42\n43')
+        expect(client.conversations.getConversation).not.toHaveBeenCalled()
+        expect(client.workspaceUsers.getWorkspaceUsers).not.toHaveBeenCalled()
+    })
+})
+
 describeEmptyMachineOutput('conversation unread empty output', {
     setup: () => {
         vi.clearAllMocks()
@@ -243,12 +261,31 @@ describeEmptyMachineOutput('conversation unread empty output', {
         await program.parseAsync(['node', 'tdc', 'conversation', 'unread', ...extraArgs])
     },
     humanMessage: 'No unread conversations.',
+    idsOnly: true,
 })
 
 describe('conversation with', () => {
     beforeEach(() => {
         vi.clearAllMocks()
         refsMocks.resolveUserRefs.mockResolvedValue([2])
+    })
+
+    it('rejects conflicting output modes before resolving refs or making API calls', async () => {
+        await expect(
+            createProgram().parseAsync([
+                'node',
+                'tdc',
+                'conversation',
+                'with',
+                'Alice',
+                '--json',
+                '--ndjson',
+            ]),
+        ).rejects.toThrow('Options --json, --ndjson are mutually exclusive.')
+
+        expect(apiMocks.getCurrentWorkspaceId).not.toHaveBeenCalled()
+        expect(refsMocks.resolveUserRefs).not.toHaveBeenCalled()
+        expect(apiMocks.getCommsClient).not.toHaveBeenCalled()
     })
 
     it('prints the exact 1:1 conversation for a user', async () => {
@@ -450,6 +487,23 @@ describe('conversation list', () => {
         expect(client.conversations.getConversations).not.toHaveBeenCalledWith(
             expect.objectContaining({ archived: true }),
         )
+    })
+
+    it('outputs one stable conversation ID per line without user enrichment', async () => {
+        const client = createClient({
+            activeConversations: [
+                titled(42, [1, 2], '2026-03-08T10:00:00.000Z', 'Older direct'),
+                titled(43, [1, 2, 3], '2026-03-09T10:00:00.000Z', 'Newer group'),
+            ],
+            users: standardUsers,
+        })
+        apiMocks.getCommsClient.mockResolvedValue(client)
+        const consoleSpy = captureConsole('log')
+
+        await createProgram().parseAsync(['node', 'tdc', 'conversation', 'list', '--ids-only'])
+
+        expect(consoleSpy).toHaveBeenCalledWith('43\n42')
+        expect(client.workspaceUsers.getWorkspaceUsers).not.toHaveBeenCalled()
     })
 
     it('filters to conversations that include a given participant', async () => {
