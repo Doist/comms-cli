@@ -11,12 +11,13 @@ import { toDate, type PaginatedViewOptions } from '../lib/options.js'
 import { colors, formatJson, formatNdjson } from '../lib/output.js'
 import { getPublicChannelIds } from '../lib/public-channels.js'
 import { resolveWorkspaceRef } from '../lib/refs.js'
-import { fetchUnreadThreadIds } from '../lib/threads.js'
+import { fetchUnreadThreads } from '../lib/threads.js'
 
 type InboxOptions = PaginatedViewOptions & {
     workspace?: string
     channel?: string
     unread?: boolean
+    mentions?: boolean
     archiveFilter?: ArchiveFilter
 }
 
@@ -42,7 +43,7 @@ async function showInbox(workspaceRef: string | undefined, options: InboxOptions
     const client = await getCommsClient()
     const limit = options.limit ? parseInt(options.limit, 10) : 50
 
-    const [threads, unreadThreadIds] = await Promise.all([
+    const [threads, unreadThreads] = await Promise.all([
         client.inbox.getInbox({
             workspaceId,
             newerThan: toDate(options.since),
@@ -50,15 +51,21 @@ async function showInbox(workspaceRef: string | undefined, options: InboxOptions
             limit,
             archiveFilter: options.archiveFilter ?? 'active',
         }),
-        fetchUnreadThreadIds(client, workspaceId),
+        fetchUnreadThreads(client, workspaceId),
     ])
 
-    let inboxThreads = threads.map((t) => ({
-        ...t,
-        isUnread: unreadThreadIds.has(t.id),
-    }))
+    let inboxThreads = threads.map((t) => {
+        const unread = unreadThreads.get(t.id)
+        return {
+            ...t,
+            isUnread: unread !== undefined,
+            hasUnreadMention: unread?.directMention === true,
+        }
+    })
 
-    if (options.unread) {
+    if (options.mentions) {
+        inboxThreads = inboxThreads.filter((t) => t.hasUnreadMention)
+    } else if (options.unread) {
         inboxThreads = inboxThreads.filter((t) => t.isUnread)
     }
 
@@ -104,7 +111,7 @@ async function showInbox(workspaceRef: string | undefined, options: InboxOptions
         }
     }
 
-    // Group by channel, unreads first within each channel, then sort by date (newest first)
+    // Group by channel; within each channel: unread mentions, then other unreads, then reads, each newest first
     const groupedByChannel = new Map<string, typeof inboxThreads>()
     for (const thread of inboxThreads) {
         const group = groupedByChannel.get(thread.channelId) || []
@@ -117,9 +124,10 @@ async function showInbox(workspaceRef: string | undefined, options: InboxOptions
 
     const sortedChannelGroups: typeof inboxThreads = []
     for (const [, threads] of groupedByChannel) {
-        const unreads = threads.filter((t) => t.isUnread).sort(sortByDate)
+        const mentions = threads.filter((t) => t.hasUnreadMention).sort(sortByDate)
+        const unreads = threads.filter((t) => t.isUnread && !t.hasUnreadMention).sort(sortByDate)
         const reads = threads.filter((t) => !t.isUnread).sort(sortByDate)
-        sortedChannelGroups.push(...unreads, ...reads)
+        sortedChannelGroups.push(...mentions, ...unreads, ...reads)
     }
 
     if (outputMode === 'ids-only') {
@@ -158,8 +166,11 @@ async function showInbox(workspaceRef: string | undefined, options: InboxOptions
         const title = thread.isUnread ? chalk.bold(thread.title) : thread.title
         const time = colors.timestamp(formatRelativeDate(thread.posted))
         const unreadBadge = thread.isUnread ? chalk.blue(isAccessible() ? ' (unread)' : ' *') : ''
+        const mentionBadge = thread.hasUnreadMention
+            ? chalk.yellow(isAccessible() ? ' (mention)' : ' @')
+            : ''
 
-        console.log(`  ${title}${unreadBadge}`)
+        console.log(`  ${title}${unreadBadge}${mentionBadge}`)
         console.log(`    ${time}  ${colors.timestamp(`id:${thread.id}`)}`)
         console.log(`    ${colors.url(thread.url)}`)
         console.log('')
@@ -173,6 +184,10 @@ export function registerInboxCommand(program: Command): void {
         .option('--workspace <ref>', 'Workspace ID or name')
         .option('--channel <filter>', 'Filter by channel name (fuzzy match)')
         .option('--unread', 'Only show unread threads')
+        .option(
+            '--mentions',
+            'Only show unread threads where you were mentioned (implies --unread)',
+        )
         .addOption(
             withCaseInsensitiveChoices(
                 new Option(
@@ -195,6 +210,7 @@ export function registerInboxCommand(program: Command): void {
 Examples:
   tdc inbox
   tdc inbox --unread
+  tdc inbox --mentions
   tdc inbox --archive-filter all
   tdc inbox --archive-filter archived
   tdc inbox --channel engineering --since 2025-01-01
