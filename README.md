@@ -125,6 +125,7 @@ tdc mentions --since 2026-04-01 --all --json
 tdc thread view <ref>               # view thread with comments
 tdc thread view <ref> --comment id:CbM8n2Kp4Qx6Rz9Lm3Va # view a specific comment
 tdc thread reply <ref>              # reply to a thread
+tdc thread reply <ref> "Update" --notify NONE # reply without notifying anyone
 tdc thread rename <ref> "New title" # rename a thread
 tdc thread update <ref> "New body"  # edit a thread's body (first post)
 tdc conversation unread             # list unread conversations

@@ -50,9 +50,9 @@ Examples:
             withUnvalidatedChoices(
                 new Option(
                     '--notify <recipients>',
-                    'Notification recipients: EVERYONE, EVERYONE_IN_THREAD, or comma-separated user and/or group IDs (default: EVERYONE_IN_THREAD)',
+                    'Notification recipients: NONE (notify nobody), EVERYONE, EVERYONE_IN_THREAD, or comma-separated user and/or group IDs (default: EVERYONE_IN_THREAD)',
                 ),
-                ['EVERYONE', 'EVERYONE_IN_THREAD'],
+                ['NONE', 'EVERYONE', 'EVERYONE_IN_THREAD'],
             ),
         )
         .option('--close', 'Close the thread after replying')
@@ -66,6 +66,8 @@ Examples:
             `
 Examples:
   tdc thread reply id:CbT8n2Kp4Qx6Rz9Lm3Va "Sounds good!"
+  tdc thread reply id:CbT8n2Kp4Qx6Rz9Lm3Va "For the record" --notify NONE
+  tdc thread reply id:CbT8n2Kp4Qx6Rz9Lm3Va "Done" --close --notify NONE --dry-run
   echo "Long reply" | tdc thread reply id:CbT8n2Kp4Qx6Rz9Lm3Va
   tdc thread reply id:CbT8n2Kp4Qx6Rz9Lm3Va "Done" --close --json
   tdc thread reply id:CbT8n2Kp4Qx6Rz9Lm3Va "Heads up" --notify 67890,Cbzzm11ZeYZoJYD4a6rti
