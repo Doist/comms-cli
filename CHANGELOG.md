@@ -1,3 +1,9 @@
+## [3.2.0](https://github.com/Doist/comms-cli/compare/v3.1.0...v3.2.0) (2026-09-15)
+
+### Features
+
+- add --notify NONE for thread replies ([#62](https://github.com/Doist/comms-cli/issues/62)) ([9e95c8d](https://github.com/Doist/comms-cli/commit/9e95c8ddf4197d2bc04b7158d3b01da69f835e1d))
+
 ## [3.1.0](https://github.com/Doist/comms-cli/compare/v3.0.0...v3.1.0) (2026-08-28)
 
 ### Features
