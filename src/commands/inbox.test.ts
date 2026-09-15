@@ -272,19 +272,6 @@ describe('inbox unread mentions', () => {
         expect(parsedJsonOutput().map((t) => t.id)).toEqual(['thread-mention'])
     })
 
-    it('--mentions takes precedence over --unread', async () => {
-        await createProgram().parseAsync([
-            'node',
-            'tdc',
-            'inbox',
-            '--unread',
-            '--mentions',
-            '--json',
-        ])
-
-        expect(parsedJsonOutput().map((t) => t.id)).toEqual(['thread-mention'])
-    })
-
     it('sorts mention threads before newer plain-unread threads within a channel', async () => {
         await createProgram().parseAsync(['node', 'tdc', 'inbox', '--json'])
 

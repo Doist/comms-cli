@@ -1,5 +1,5 @@
 import { outputIds, resolveOutputMode } from '@doist/cli-core'
-import type { ArchiveFilter, Thread } from '@doist/comms-sdk'
+import type { ArchiveFilter, Thread, UnreadThread } from '@doist/comms-sdk'
 import chalk from 'chalk'
 import { getCommsClient, getCurrentWorkspaceId } from '../../lib/api.js'
 import { formatRelativeDate } from '../../lib/dates.js'
@@ -14,7 +14,7 @@ import {
 } from '../../lib/output.js'
 import { assertChannelIsPublic } from '../../lib/public-channels.js'
 import { resolveChannelRef, resolveWorkspaceRef } from '../../lib/refs.js'
-import { fetchUnreadThreadIds } from '../../lib/threads.js'
+import { fetchUnreadThreads } from '../../lib/threads.js'
 import { decodeCursor, encodeCursor } from './helpers.js'
 
 type ChannelThreadsOptions = PaginatedViewOptions & {
@@ -80,21 +80,21 @@ export async function showChannelThreads(
     const client = await getCommsClient()
 
     const needsUnreadData = outputMode !== 'ids-only' || options.unread
-    const [threadsData, unreadThreadIds] = await Promise.all([
+    const [threadsData, unreadThreads] = await Promise.all([
         client.threads.getThreads(
             archived === undefined
                 ? { workspaceId, channelId: channel.id }
                 : { workspaceId, channelId: channel.id, archived },
         ),
         needsUnreadData
-            ? fetchUnreadThreadIds(client, workspaceId)
-            : Promise.resolve(new Set<string>()),
+            ? fetchUnreadThreads(client, workspaceId)
+            : Promise.resolve(new Map<string, UnreadThread>()),
     ])
 
     let threads = threadsData
 
     if (options.unread) {
-        threads = threads.filter((thread) => unreadThreadIds.has(thread.id))
+        threads = threads.filter((thread) => unreadThreads.has(thread.id))
     }
 
     if (sinceTs !== undefined) {
@@ -124,7 +124,7 @@ export async function showChannelThreads(
 
     const decoratedPage: DecoratedThread[] = page.map((thread) => ({
         ...thread,
-        isUnread: unreadThreadIds.has(thread.id),
+        isUnread: unreadThreads.has(thread.id),
     }))
     const paginated: PaginatedOutput<DecoratedThread> = {
         results: decoratedPage,

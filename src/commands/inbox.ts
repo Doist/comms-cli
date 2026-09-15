@@ -59,13 +59,14 @@ async function showInbox(workspaceRef: string | undefined, options: InboxOptions
         return {
             ...t,
             isUnread: unread !== undefined,
-            hasUnreadMention: unread?.directMention === true,
+            hasUnreadMention: unread?.directMention ?? false,
         }
     })
 
     if (options.mentions) {
         inboxThreads = inboxThreads.filter((t) => t.hasUnreadMention)
-    } else if (options.unread) {
+    }
+    if (options.unread) {
         inboxThreads = inboxThreads.filter((t) => t.isUnread)
     }
 
@@ -111,7 +112,7 @@ async function showInbox(workspaceRef: string | undefined, options: InboxOptions
         }
     }
 
-    // Group by channel; within each channel: unread mentions, then other unreads, then reads, each newest first
+    // Group by channel; within each channel sort by tier (mention, unread, read), then newest first
     const groupedByChannel = new Map<string, typeof inboxThreads>()
     for (const thread of inboxThreads) {
         const group = groupedByChannel.get(thread.channelId) || []
@@ -122,12 +123,10 @@ async function showInbox(workspaceRef: string | undefined, options: InboxOptions
     const sortByDate = (a: (typeof inboxThreads)[0], b: (typeof inboxThreads)[0]) =>
         new Date(b.posted).getTime() - new Date(a.posted).getTime()
 
+    const tier = (t: (typeof inboxThreads)[number]) => (t.hasUnreadMention ? 0 : t.isUnread ? 1 : 2)
     const sortedChannelGroups: typeof inboxThreads = []
     for (const [, threads] of groupedByChannel) {
-        const mentions = threads.filter((t) => t.hasUnreadMention).sort(sortByDate)
-        const unreads = threads.filter((t) => t.isUnread && !t.hasUnreadMention).sort(sortByDate)
-        const reads = threads.filter((t) => !t.isUnread).sort(sortByDate)
-        sortedChannelGroups.push(...mentions, ...unreads, ...reads)
+        sortedChannelGroups.push(...threads.sort((a, b) => tier(a) - tier(b) || sortByDate(a, b)))
     }
 
     if (outputMode === 'ids-only') {
