@@ -54,6 +54,7 @@ export async function replyToThread(
     const messageContent = replyContent ?? ''
 
     const notifyValue = options.notify ?? 'EVERYONE_IN_THREAD'
+    const notifyNone = notifyValue === 'NONE'
     const isSpecialRecipient = notifyValue === 'EVERYONE' || notifyValue === 'EVERYONE_IN_THREAD'
 
     const client = await getCommsClient()
@@ -62,7 +63,9 @@ export async function replyToThread(
 
     let recipients: string | number[] | undefined
     let resolved: ResolvedNotify | undefined
-    if (isSpecialRecipient) {
+    if (notifyNone) {
+        recipients = []
+    } else if (isSpecialRecipient) {
         recipients = notifyValue
     } else {
         const allIds = parseNotifyIdRefs(notifyValue)
@@ -84,7 +87,7 @@ export async function replyToThread(
             messageContent.length > 200 ? `${messageContent.slice(0, 200)}...` : messageContent
         printDryRun(`post comment to thread${actionSuffix}`, {
             Thread: `${thread.title} (${threadId})`,
-            Notify: isSpecialRecipient ? notifyValue : undefined,
+            Notify: isSpecialRecipient || notifyNone ? notifyValue : undefined,
             'Notify users':
                 !isSpecialRecipient && resolved && resolved.notified.users.length > 0
                     ? formatNotifyLabel(resolved.notified.users)
@@ -100,7 +103,11 @@ export async function replyToThread(
     }
 
     const attachments = hasFiles ? await uploadAttachments(files) : undefined
-    const groupsPayload = resolved?.groups ? { groups: resolved.groups } : {}
+    const notificationFields = notifyNone
+        ? { groups: [], directMentions: [], directGroupMentions: [] }
+        : resolved?.groups
+          ? { groups: resolved.groups }
+          : {}
 
     // Type-checked against the SDK contract — notably `attachments`. Only `recipients`
     // needs the assertion below: it carries the EVERYONE / EVERYONE_IN_THREAD sentinels
@@ -108,7 +115,7 @@ export async function replyToThread(
     const createCommentArgs = {
         threadId,
         content: messageContent,
-        ...groupsPayload,
+        ...notificationFields,
         ...(attachments ? { attachments } : {}),
     } satisfies Parameters<typeof client.comments.createComment>[0]
 
@@ -118,14 +125,14 @@ export async function replyToThread(
                   id: threadId,
                   content: messageContent,
                   recipients,
-                  ...groupsPayload,
+                  ...notificationFields,
               } as Parameters<typeof client.threads.closeThread>[0])
             : action === 'reopen'
               ? await client.threads.reopenThread({
                     id: threadId,
                     content: messageContent,
                     recipients,
-                    ...groupsPayload,
+                    ...notificationFields,
                 } as Parameters<typeof client.threads.reopenThread>[0])
               : await client.comments.createComment({
                     ...createCommentArgs,

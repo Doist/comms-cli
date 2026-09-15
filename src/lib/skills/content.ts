@@ -108,6 +108,8 @@ tdc thread create <channel-ref> "Title" "content" --no-unarchive  # Force archiv
 tdc thread create <channel-ref> "Title" "content" --dry-run  # Preview without posting
 tdc thread create <channel-ref> "Title" --file ./a.png  # Attach a file (repeatable; content optional)
 tdc thread reply <ref> "content"  # Post a comment (notifies EVERYONE_IN_THREAD by default)
+tdc thread reply <ref> "content" --notify NONE  # Post without notifying anyone
+tdc thread reply <ref> "content" --notify NONE --dry-run  # Preview without posting
 tdc thread reply <ref> "content" --notify EVERYONE  # Notify all workspace members
 tdc thread reply <ref> "content" --notify 123,id:456   # Notify specific users by ID
 tdc thread reply <ref> "content" --notify 123,Cbzzm11ZeYZoJYD4a6rti   # Notify a user and a group (group IDs are base58, not numeric)
@@ -115,6 +117,7 @@ tdc thread reply <ref> "content" --json  # Post and return comment as JSON
 tdc thread reply <ref> "content" --json --full  # Include all comment fields
 tdc thread reply <ref> "content" --close       # Reply and close the thread
 tdc thread reply <ref> "content" --reopen      # Reply and reopen a closed thread
+tdc thread reply <ref> "content" --close --notify NONE  # Reply and close without notifying anyone
 tdc thread reply <ref> "content" --file ./a.png  # Attach a file (repeatable; content optional)
 tdc thread done <ref>                 # Preview thread archive (requires --yes to execute)
 tdc thread done <ref> --yes           # Archive thread (mark done)
@@ -141,7 +144,9 @@ tdc thread update <ref> "New body" --json  # Update and return { id, content } a
 tdc thread update <ref> "New body" --json --full  # Update and return full thread as JSON
 \`\`\`
 
-Default \`--notify\` for reply is EVERYONE_IN_THREAD, which may notify more people than intended. Before posting, confirm with the user whether specific people should be notified instead (via \`--notify <ids>\`). Options: EVERYONE, EVERYONE_IN_THREAD, or comma-separated user and/or group IDs.
+Default \`--notify\` for reply is EVERYONE_IN_THREAD, which may notify more people than intended. Before posting, confirm with the user whether specific people should be notified instead (via \`--notify <ids>\`) or nobody (via \`--notify NONE\`). Options: NONE, EVERYONE, EVERYONE_IN_THREAD, or comma-separated user and/or group IDs.
+
+\`--notify NONE\` sends empty user, group, and direct-mention recipient lists without adding a notification audience. It also works with \`--close\` and \`--reopen\`. The \`--dry-run\` preview displays \`Notify: NONE\`.
 
 \`--notify\` automatically resolves IDs: group IDs are routed to the \`groups\` API field, user IDs to \`recipients\`. No special syntax needed.
 

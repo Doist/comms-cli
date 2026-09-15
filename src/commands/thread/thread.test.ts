@@ -2,6 +2,7 @@ import { mkdtemp, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { captureConsole, createTestProgram } from '@doist/cli-core/testing'
+import { CommsApi, type CustomFetch, generateId } from '@doist/comms-sdk'
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
 
 const apiMocks = vi.hoisted(() => ({
@@ -341,6 +342,167 @@ describe('thread implicit view', () => {
                 '--reopen',
             ]),
         ).rejects.toHaveProperty('code', 'CONFLICTING_OPTIONS')
+    })
+})
+
+describe.each(['reply', 'close', 'reopen'] as const)('thread %s notifications', (action) => {
+    const actionArgs = action === 'reply' ? [] : [`--${action}`]
+    const idField = action === 'reply' ? 'threadId' : 'id'
+    const commentMutation = (client: ReturnType<typeof createClient>) =>
+        action === 'close'
+            ? client.threads.closeThread
+            : action === 'reopen'
+              ? client.threads.reopenThread
+              : client.comments.createComment
+
+    beforeEach(() => {
+        vi.clearAllMocks()
+        groupsMock.getWorkspaceGroups.mockResolvedValue([])
+        groupsMock.getWorkspaceUsers.mockResolvedValue([])
+    })
+
+    it('posts with explicitly empty notification fields for --notify NONE', async () => {
+        const client = createClient()
+        apiMocks.getCommsClient.mockResolvedValue(client)
+        captureConsole('log')
+
+        await createProgram().parseAsync([
+            'node',
+            'tdc',
+            'thread',
+            'reply',
+            '500',
+            'Quiet update',
+            '--notify',
+            'NONE',
+            ...actionArgs,
+        ])
+
+        expect(commentMutation(client)).toHaveBeenCalledExactlyOnceWith({
+            [idField]: '500',
+            content: 'Quiet update',
+            recipients: [],
+            groups: [],
+            directMentions: [],
+            directGroupMentions: [],
+        })
+    })
+
+    it('preserves empty notification arrays through SDK serialization', async () => {
+        const threadId = generateId()
+        const comment = {
+            id: generateId(),
+            thread_id: threadId,
+            channel_id: generateId(),
+            workspace_id: 10,
+            content: 'Quiet update',
+            creator: 2,
+            posted_ts: 1772409600,
+        }
+        const customFetch = vi.fn<CustomFetch>().mockResolvedValue({
+            ok: true,
+            status: 200,
+            statusText: 'OK',
+            headers: {},
+            text: async () => JSON.stringify(comment),
+            json: async () => comment,
+        })
+        const client = new CommsApi('test-token', { customFetch })
+        vi.spyOn(client.threads, 'getThread').mockResolvedValue({
+            ...createThreadFixture(threadId),
+            snippet: 'Thread body',
+            snippetCreator: 1,
+            reactions: {},
+            lastComment: null,
+        })
+        apiMocks.getCommsClient.mockResolvedValue(client)
+        captureConsole('log')
+
+        await createProgram().parseAsync([
+            'node',
+            'tdc',
+            'thread',
+            'reply',
+            threadId,
+            'Quiet update',
+            '--notify',
+            'NONE',
+            ...actionArgs,
+        ])
+
+        expect(customFetch).toHaveBeenCalledOnce()
+        const [url, request] = customFetch.mock.calls[0]
+        expect(url).toMatch(/\/comments\/add$/)
+        expect(request?.method).toBe('POST')
+        expect(JSON.parse(String(request?.body))).toEqual({
+            id: expect.any(String),
+            thread_id: threadId,
+            content: 'Quiet update',
+            recipients: [],
+            groups: [],
+            direct_mentions: [],
+            direct_group_mentions: [],
+            ...(action === 'reply' ? {} : { thread_action: action }),
+        })
+    })
+
+    it.each([
+        { notify: undefined, expected: { recipients: 'EVERYONE_IN_THREAD' } },
+        { notify: 'EVERYONE_IN_THREAD', expected: { recipients: 'EVERYONE_IN_THREAD' } },
+        { notify: 'EVERYONE', expected: { recipients: 'EVERYONE' } },
+        { notify: 'id:123,456', expected: { recipients: [123, 456] } },
+        { notify: 'group1', expected: { recipients: undefined, groups: ['group1'] } },
+        { notify: '123,id:group1', expected: { recipients: [123], groups: ['group1'] } },
+    ])('preserves existing recipients for $notify', async ({ notify, expected }) => {
+        const client = createClient()
+        apiMocks.getCommsClient.mockResolvedValue(client)
+        groupsMock.getWorkspaceGroups.mockResolvedValue([{ id: 'group1', name: 'Team' }])
+        captureConsole('log')
+
+        await createProgram().parseAsync([
+            'node',
+            'tdc',
+            'thread',
+            'reply',
+            '500',
+            'Update',
+            ...(notify ? ['--notify', notify] : []),
+            ...actionArgs,
+        ])
+
+        expect(commentMutation(client)).toHaveBeenCalledExactlyOnceWith({
+            [idField]: '500',
+            content: 'Update',
+            ...expected,
+        })
+    })
+
+    it('shows NONE in the dry-run preview without posting', async () => {
+        const client = createClient()
+        apiMocks.getCommsClient.mockResolvedValue(client)
+        const consoleSpy = captureConsole('log')
+
+        await createProgram().parseAsync([
+            'node',
+            'tdc',
+            'thread',
+            'reply',
+            '500',
+            'Quiet update',
+            '--notify',
+            'NONE',
+            '--dry-run',
+            ...actionArgs,
+        ])
+
+        const output = consoleSpy.mock.calls.map((call) => call[0]).join('\n')
+        expect(output).toContain('Notify: NONE')
+        expect(output).toContain(
+            `Would post comment to thread${action === 'reply' ? '' : ` and ${action} it`}`,
+        )
+        expect(client.comments.createComment).not.toHaveBeenCalled()
+        expect(client.threads.closeThread).not.toHaveBeenCalled()
+        expect(client.threads.reopenThread).not.toHaveBeenCalled()
     })
 })
 
