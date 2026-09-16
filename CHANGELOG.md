@@ -1,3 +1,9 @@
+## [3.3.0](https://github.com/Doist/comms-cli/compare/v3.2.0...v3.3.0) (2026-09-16)
+
+### Features
+
+- **auth:** refresh an expiring OAuth token before `token view` / `status` ([#63](https://github.com/Doist/comms-cli/issues/63)) ([c1926bd](https://github.com/Doist/comms-cli/commit/c1926bda749426aff1bfca377872f195c6971d79))
+
 ## [3.2.0](https://github.com/Doist/comms-cli/compare/v3.1.0...v3.2.0) (2026-09-15)
 
 ### Features
