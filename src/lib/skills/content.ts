@@ -35,7 +35,7 @@ tdc --user <ref> auth <status|logout|token view|refresh-token view>  # Equivalen
 tdc auth logout                   # Remove saved token and auth metadata
 tdc auth logout --json            # Emits \`{"ok": true}\` (--ndjson is silent)
 tdc auth logout --user <ref>      # Target a specific stored account; mismatched ref errors with ACCOUNT_NOT_FOUND
-tdc auth token view               # Print the saved token to stdout (pipe-safe; refuses if COMMS_API_TOKEN is set)
+tdc auth token view               # Print the saved token to stdout (pipe-safe; refreshes an expiring OAuth token first; refuses if COMMS_API_TOKEN is set)
 tdc auth token view --user <ref>  # Print the saved token for a specific stored account
 tdc auth refresh-token view       # Print the saved OAuth refresh token to stdout (pipe-safe; OAuth logins only)
 tdc auth refresh-token view --user <ref>  # Print the saved OAuth refresh token for a specific stored account

@@ -5,7 +5,7 @@ import {
     createCommsTokenStore,
     parseCredentialStore,
 } from '../../lib/auth-provider.js'
-import { TOKEN_ENV_VAR } from '../../lib/auth.js'
+import { getTokenRefreshOptions, TOKEN_ENV_VAR } from '../../lib/auth.js'
 import { withUnvalidatedChoices } from '../../lib/completion.js'
 import { getRequestedUserRef } from '../../lib/global-args.js'
 import { attachCommsLoginCommand } from './login.js'
@@ -48,6 +48,7 @@ export function registerAuthCommand(program: Command): void {
         name: 'view',
         store: refAware,
         envVarName: TOKEN_ENV_VAR,
+        refresh: getTokenRefreshOptions(),
         description:
             'Print the stored API token for the active user (or --user <ref>) to stdout for use in scripts',
     })

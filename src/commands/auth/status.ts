@@ -6,7 +6,7 @@ import { createWrappedCommsClient } from '../../lib/api.js'
 import type { CommsAccount, CommsTokenStore } from '../../lib/auth-provider.js'
 import {
     type AuthMetadata,
-    getApiTokenSnapshot,
+    getTokenRefreshOptions,
     NoTokenError,
     TOKEN_ENV_VAR,
 } from '../../lib/auth.js'
@@ -85,11 +85,11 @@ function buildStatusJson({ user, metadata }: StatusData): Record<string, unknown
 /**
  * Attach `tdc auth status` via cli-core's generic `attachStatusCommand`.
  *
- * cli-core reads the selected account first. `fetchLive` then refreshes OAuth
- * accounts through the same auth shim as normal API calls before validating
- * the token against Comms. `onNotAuthenticated` only fires when nothing is
- * stored — it throws `NoTokenError` so the standard CliError envelope reaches
- * the operator unchanged.
+ * cli-core refreshes an expiring OAuth token for the selected account, then
+ * hands `fetchLive` the live token to validate against Comms.
+ * `onNotAuthenticated` only fires when nothing is stored — it throws
+ * `NoTokenError` so the standard CliError envelope reaches the operator
+ * unchanged.
  */
 export function attachCommsStatusCommand(auth: Command, store: CommsTokenStore): Command {
     let data: StatusData | null = null
@@ -97,9 +97,9 @@ export function attachCommsStatusCommand(auth: Command, store: CommsTokenStore):
     return attachStatusCommand<CommsAccount>(auth, {
         store,
         description: 'Show current authentication status',
+        refresh: getTokenRefreshOptions(),
         fetchLive: async ({ account, token }) => {
-            const snapshot = account.id ? await getApiTokenSnapshot(account.id) : { account, token }
-            data = await gatherStatusData(snapshot.token, snapshot.account)
+            data = await gatherStatusData(token, account)
             return {
                 id: String(data.user.id),
                 label: data.user.fullName,

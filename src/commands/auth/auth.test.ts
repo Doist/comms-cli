@@ -4,12 +4,14 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 // Mock the auth module (only the read-side shims are stubbed; the
 // write-side path now goes through `createCommsTokenStore` from
-// auth-provider.js, mocked below).
+// auth-provider.js, mocked below). `getTokenRefreshOptions` defaults to
+// `undefined` so the attachers run without a refresh path; the global
+// `--user` suite swaps in a fake provider to drive cli-core's real refresh.
 vi.mock('../../lib/auth.js', async (importOriginal) => {
     const actual = await importOriginal<typeof import('../../lib/auth.js')>()
     return {
         ...actual,
-        getApiTokenSnapshot: vi.fn(),
+        getTokenRefreshOptions: vi.fn(),
         probeApiToken: vi.fn(),
     }
 })
@@ -31,6 +33,7 @@ const storeMocks = vi.hoisted(() => ({
     clear: vi.fn(),
     active: vi.fn(),
     activeBundle: vi.fn(),
+    setBundle: vi.fn(),
     list: vi.fn(),
     setDefault: vi.fn(),
     getLastStorageResult: vi.fn(),
@@ -97,12 +100,15 @@ vi.mock('node:readline', () => ({
 // Mock chalk to avoid colors in tests
 vi.mock('chalk')
 
+import { mkdtemp, rm } from 'node:fs/promises'
+import { tmpdir } from 'node:os'
+import { join } from 'node:path'
 import { createInterface, type Interface } from 'node:readline'
-import { attachLoginCommand } from '@doist/cli-core/auth'
+import { attachLoginCommand, type AuthProvider } from '@doist/cli-core/auth'
 import { CommsRequestError, type User } from '@doist/comms-sdk'
 import { createWrappedCommsClient } from '../../lib/api.js'
 import { type CommsAccount, type CommsTokenStore } from '../../lib/auth-provider.js'
-import { getApiTokenSnapshot, TOKEN_ENV_VAR } from '../../lib/auth.js'
+import { getTokenRefreshOptions, TOKEN_ENV_VAR } from '../../lib/auth.js'
 import { getConfig, updateConfig } from '../../lib/config.js'
 import { resetGlobalArgs } from '../../lib/global-args.js'
 import { registerAuthCommand } from './index.js'
@@ -110,7 +116,7 @@ import { attachCommsStatusCommand } from './status.js'
 
 const mockCreateInterface = vi.mocked(createInterface)
 
-const mockGetApiTokenSnapshot = vi.mocked(getApiTokenSnapshot)
+const mockGetTokenRefreshOptions = vi.mocked(getTokenRefreshOptions)
 const mockCreateWrappedCommsClient = vi.mocked(createWrappedCommsClient)
 const mockAttachLoginCommand = vi.mocked(attachLoginCommand)
 const mockGetConfig = vi.mocked(getConfig)
@@ -150,6 +156,46 @@ describe('auth command', () => {
 
     const STORED_SNAPSHOT = { token: 'tk_stored_1234567890', account: STORED_ACCOUNT }
     const STORED_RECORDS = [{ account: STORED_ACCOUNT, isDefault: true }]
+
+    /**
+     * Point `getTokenRefreshOptions` at a fake provider so the real cli-core
+     * refresh runs end-to-end (lock file, bundle re-read, persist) without a
+     * network. Returns the provider spy and a cleanup that also resets the
+     * mock so later tests go back to the no-refresh path.
+     */
+    async function installFakeRefresh(): Promise<{
+        refreshToken: ReturnType<typeof vi.fn>
+        cleanup: () => Promise<void>
+    }> {
+        const lockDir = await mkdtemp(join(tmpdir(), 'tdc-auth-'))
+        const refreshToken = vi.fn(async () => ({
+            accessToken: 'tk_refreshed_1234567890',
+            refreshToken: 'rt_refreshed_1234567890',
+            expiresAt: Date.now() + 3_600_000,
+        }))
+        mockGetTokenRefreshOptions.mockReturnValue({
+            provider: { refreshToken } as unknown as AuthProvider<CommsAccount>,
+            lockPath: join(lockDir, 'refresh.lock'),
+            handshake: { clientId: 'tdd_123' },
+        })
+        storeMocks.list.mockResolvedValue(STORED_RECORDS)
+        storeMocks.activeBundle.mockResolvedValue({
+            account: { ...STORED_ACCOUNT, authResource: 'https://comms.staging.todoist.com' },
+            bundle: {
+                accessToken: 'tk_stored_1234567890',
+                refreshToken: 'rt_stored_1234567890',
+                accessTokenExpiresAt: Date.now() - 1_000,
+            },
+        })
+        storeMocks.setBundle.mockResolvedValue(undefined)
+        return {
+            refreshToken,
+            cleanup: async () => {
+                mockGetTokenRefreshOptions.mockReset()
+                await rm(lockDir, { recursive: true, force: true })
+            },
+        }
+    }
     const COMMS_SCOPE =
         'user:read comms:content:read comms:content:write comms:messages:read comms:messages:write'
 
@@ -356,6 +402,29 @@ describe('auth command', () => {
         afterEach(() => {
             writeSpy.mockRestore()
             vi.unstubAllEnvs()
+        })
+
+        it('prints the rotated token when the stored OAuth token is expiring', async () => {
+            vi.stubEnv(TOKEN_ENV_VAR, '')
+            const { refreshToken, cleanup } = await installFakeRefresh()
+
+            try {
+                await createProgram().parseAsync(['node', 'tdc', 'auth', 'token', 'view'])
+            } finally {
+                await cleanup()
+            }
+
+            expect(refreshToken).toHaveBeenCalledTimes(1)
+            expect(storeMocks.setBundle).toHaveBeenCalledWith(
+                expect.objectContaining({ id: '1' }),
+                expect.objectContaining({
+                    accessToken: 'tk_refreshed_1234567890',
+                    refreshToken: 'rt_refreshed_1234567890',
+                }),
+            )
+            expect(stdoutPayload()).toBe('tk_refreshed_1234567890')
+            // The stored-token read path is bypassed entirely on a refresh.
+            expect(storeMocks.active).not.toHaveBeenCalled()
         })
 
         it('prints exactly the stored token to stdout with no envelope (pipe-safe)', async () => {
@@ -573,20 +642,9 @@ describe('auth command', () => {
             )
         })
 
-        it('threads `tdc --user <ref> auth status` into the snapshot used by fetchLive', async () => {
+        it('threads `tdc --user <ref> auth status` into the refresh and probes with the rotated token', async () => {
             vi.stubEnv(TOKEN_ENV_VAR, '')
-            storeMocks.list.mockResolvedValue(STORED_RECORDS)
-            storeMocks.activeBundle.mockResolvedValue({
-                account: STORED_ACCOUNT,
-                bundle: { accessToken: 'tk_stored_1234567890' },
-            })
-            mockGetApiTokenSnapshot.mockResolvedValue({
-                token: 'tk_refreshed_1234567890',
-                account: {
-                    ...STORED_ACCOUNT,
-                    authResource: 'https://comms.staging.todoist.com',
-                },
-            })
+            const { refreshToken, cleanup } = await installFakeRefresh()
             mockCreateWrappedCommsClient.mockReturnValue({
                 users: { getSessionUser: vi.fn().mockResolvedValue(TEST_USER) },
                 // biome-ignore lint/suspicious/noExplicitAny: only the methods used in this test matter
@@ -594,10 +652,29 @@ describe('auth command', () => {
             process.argv = ['node', 'tdc', '--user', '1', 'auth', 'status']
             resetGlobalArgs()
 
-            await createProgram().parseAsync(['node', 'tdc', 'auth', 'status'])
+            try {
+                await createProgram().parseAsync(['node', 'tdc', 'auth', 'status'])
+            } finally {
+                await cleanup()
+            }
 
+            // The global ref reaches the bundle reads cli-core's refresh makes
+            // via the `withUserRefAware` wrapper, and the whole rotated pair
+            // (not just the access token) is persisted before `fetchLive`
+            // probes with the new token.
             expect(storeMocks.activeBundle).toHaveBeenCalledWith('1')
-            expect(mockGetApiTokenSnapshot).toHaveBeenCalledWith('1')
+            expect(refreshToken).toHaveBeenCalledWith({
+                refreshToken: 'rt_stored_1234567890',
+                handshake: { clientId: 'tdd_123' },
+            })
+            expect(storeMocks.setBundle).toHaveBeenCalledWith(
+                expect.objectContaining({ id: '1' }),
+                expect.objectContaining({
+                    accessToken: 'tk_refreshed_1234567890',
+                    refreshToken: 'rt_refreshed_1234567890',
+                    accessTokenExpiresAt: expect.any(Number),
+                }),
+            )
             expect(mockCreateWrappedCommsClient).toHaveBeenCalledWith('tk_refreshed_1234567890', {
                 baseUrl: 'https://comms.staging.todoist.com',
             })
@@ -676,10 +753,6 @@ describe('auth command', () => {
         }
 
         beforeEach(() => {
-            mockGetApiTokenSnapshot.mockResolvedValue({
-                token: 'snapshot_token',
-                account: SNAPSHOT_ACCOUNT,
-            })
             mockCreateWrappedCommsClient.mockReturnValue({
                 users: { getSessionUser: vi.fn().mockResolvedValue(TEST_USER) },
                 // biome-ignore lint/suspicious/noExplicitAny: only the methods used in this test matter

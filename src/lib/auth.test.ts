@@ -40,7 +40,14 @@ vi.mock('./config.js', async (importOriginal) => {
     }
 })
 
-import { getApiToken, getAuthMetadata, NoTokenError, probeApiToken, TOKEN_ENV_VAR } from './auth.js'
+import {
+    getApiToken,
+    getAuthMetadata,
+    getTokenRefreshOptions,
+    NoTokenError,
+    probeApiToken,
+    TOKEN_ENV_VAR,
+} from './auth.js'
 
 const STORED_ACCOUNT = {
     id: '42',
@@ -176,6 +183,38 @@ describe('auth shims over the cli-core keyring store', () => {
                     resource: 'https://comms.todoist.com',
                 }),
             }),
+        )
+    })
+
+    it('getTokenRefreshOptions resolves the DCR handshake from the account cli-core hands it', () => {
+        const options = getTokenRefreshOptions()
+
+        expect(options.lockPath).toBe('/home/user/.config/comms-cli/config.json.refresh.lock')
+        expect(options.skewMs).toBe(60_000)
+        expect(typeof options.provider.refreshToken).toBe('function')
+        expect(typeof options.handshake).toBe('function')
+        if (typeof options.handshake !== 'function') throw new Error('unreachable')
+
+        expect(
+            options.handshake({
+                account: {
+                    ...STORED_ACCOUNT,
+                    oauthClientId: 'tdd_123',
+                    authBaseUrl: 'https://todoist.com',
+                    authResource: 'https://comms.todoist.com',
+                },
+            }),
+        ).toMatchObject({
+            clientId: 'tdd_123',
+            accountId: '42',
+            authBaseUrl: 'https://todoist.com',
+            resource: 'https://comms.todoist.com',
+        })
+        // Partial metadata surfaces as the same NO_TOKEN the API path raises,
+        // rather than letting cli-core POST a refresh grant with no client id.
+        const handshake = options.handshake
+        expect(() => handshake({ account: STORED_ACCOUNT })).toThrow(
+            expect.objectContaining({ code: 'NO_TOKEN' }),
         )
     })
 
