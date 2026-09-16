@@ -1,4 +1,8 @@
-import { refreshAccessToken, SecureStoreUnavailableError } from '@doist/cli-core/auth'
+import {
+    refreshAccessToken,
+    SecureStoreUnavailableError,
+    type TokenRefreshOptions,
+} from '@doist/cli-core/auth'
 import type { CommsAccount } from './auth-provider.js'
 import {
     createCommsAuthProvider,
@@ -56,6 +60,25 @@ export type ActiveAuthSnapshot = {
 }
 
 const REFRESH_SKEW_MS = 60_000
+
+function refreshLockPath(): string {
+    return `${getConfigPath()}.refresh.lock`
+}
+
+/**
+ * Refresh wiring for cli-core's `auth status` / `auth token view` attachers,
+ * so both hand back a token that is usable right now rather than whatever
+ * was last stored. The handshake is resolved per account because cli-core
+ * doesn't persist the DCR client metadata the refresh grant needs.
+ */
+export function getTokenRefreshOptions(): TokenRefreshOptions<CommsAccount> {
+    return {
+        provider: createCommsAuthProvider(),
+        lockPath: refreshLockPath(),
+        skewMs: REFRESH_SKEW_MS,
+        handshake: ({ account }) => getCommsOAuthRefreshHandshake(account),
+    }
+}
 
 export class NoTokenError extends CliError {
     constructor() {
@@ -118,9 +141,10 @@ async function getActiveSnapshot({
             }
             const refreshed = await refreshAccessToken({
                 store,
+                ref,
                 provider: createCommsAuthProvider(),
                 skewMs: REFRESH_SKEW_MS,
-                lockPath: `${getConfigPath()}.refresh.lock`,
+                lockPath: refreshLockPath(),
                 handshake: getCommsOAuthRefreshHandshake(account),
             })
             return { token: refreshed.bundle.accessToken, account: refreshed.account }
