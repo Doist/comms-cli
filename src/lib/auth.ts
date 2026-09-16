@@ -139,12 +139,12 @@ async function getActiveSnapshot({
                     ['Run: tdc auth login'],
                 )
             }
+            // Same wiring as the attachers; the handshake is resolved up front
+            // because the missing-metadata check above already ran for it.
             const refreshed = await refreshAccessToken({
                 store,
                 ref,
-                provider: createCommsAuthProvider(),
-                skewMs: REFRESH_SKEW_MS,
-                lockPath: refreshLockPath(),
+                ...getTokenRefreshOptions(),
                 handshake: getCommsOAuthRefreshHandshake(account),
             })
             return { token: refreshed.bundle.accessToken, account: refreshed.account }

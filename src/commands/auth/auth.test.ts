@@ -156,6 +156,46 @@ describe('auth command', () => {
 
     const STORED_SNAPSHOT = { token: 'tk_stored_1234567890', account: STORED_ACCOUNT }
     const STORED_RECORDS = [{ account: STORED_ACCOUNT, isDefault: true }]
+
+    /**
+     * Point `getTokenRefreshOptions` at a fake provider so the real cli-core
+     * refresh runs end-to-end (lock file, bundle re-read, persist) without a
+     * network. Returns the provider spy and a cleanup that also resets the
+     * mock so later tests go back to the no-refresh path.
+     */
+    async function installFakeRefresh(): Promise<{
+        refreshToken: ReturnType<typeof vi.fn>
+        cleanup: () => Promise<void>
+    }> {
+        const lockDir = await mkdtemp(join(tmpdir(), 'tdc-auth-'))
+        const refreshToken = vi.fn(async () => ({
+            accessToken: 'tk_refreshed_1234567890',
+            refreshToken: 'rt_refreshed_1234567890',
+            expiresAt: Date.now() + 3_600_000,
+        }))
+        mockGetTokenRefreshOptions.mockReturnValue({
+            provider: { refreshToken } as unknown as AuthProvider<CommsAccount>,
+            lockPath: join(lockDir, 'refresh.lock'),
+            handshake: { clientId: 'tdd_123' },
+        })
+        storeMocks.list.mockResolvedValue(STORED_RECORDS)
+        storeMocks.activeBundle.mockResolvedValue({
+            account: { ...STORED_ACCOUNT, authResource: 'https://comms.staging.todoist.com' },
+            bundle: {
+                accessToken: 'tk_stored_1234567890',
+                refreshToken: 'rt_stored_1234567890',
+                accessTokenExpiresAt: Date.now() - 1_000,
+            },
+        })
+        storeMocks.setBundle.mockResolvedValue(undefined)
+        return {
+            refreshToken,
+            cleanup: async () => {
+                mockGetTokenRefreshOptions.mockReset()
+                await rm(lockDir, { recursive: true, force: true })
+            },
+        }
+    }
     const COMMS_SCOPE =
         'user:read comms:content:read comms:content:write comms:messages:read comms:messages:write'
 
@@ -362,6 +402,29 @@ describe('auth command', () => {
         afterEach(() => {
             writeSpy.mockRestore()
             vi.unstubAllEnvs()
+        })
+
+        it('prints the rotated token when the stored OAuth token is expiring', async () => {
+            vi.stubEnv(TOKEN_ENV_VAR, '')
+            const { refreshToken, cleanup } = await installFakeRefresh()
+
+            try {
+                await createProgram().parseAsync(['node', 'tdc', 'auth', 'token', 'view'])
+            } finally {
+                await cleanup()
+            }
+
+            expect(refreshToken).toHaveBeenCalledTimes(1)
+            expect(storeMocks.setBundle).toHaveBeenCalledWith(
+                expect.objectContaining({ id: '1' }),
+                expect.objectContaining({
+                    accessToken: 'tk_refreshed_1234567890',
+                    refreshToken: 'rt_refreshed_1234567890',
+                }),
+            )
+            expect(stdoutPayload()).toBe('tk_refreshed_1234567890')
+            // The stored-token read path is bypassed entirely on a refresh.
+            expect(storeMocks.active).not.toHaveBeenCalled()
         })
 
         it('prints exactly the stored token to stdout with no envelope (pipe-safe)', async () => {
@@ -581,30 +644,7 @@ describe('auth command', () => {
 
         it('threads `tdc --user <ref> auth status` into the refresh and probes with the rotated token', async () => {
             vi.stubEnv(TOKEN_ENV_VAR, '')
-            const lockDir = await mkdtemp(join(tmpdir(), 'tdc-auth-'))
-            const refreshToken = vi.fn(async () => ({
-                accessToken: 'tk_refreshed_1234567890',
-                refreshToken: 'rt_refreshed_1234567890',
-                expiresAt: Date.now() + 3_600_000,
-            }))
-            const provider = {
-                refreshToken,
-            } as unknown as AuthProvider<CommsAccount>
-            mockGetTokenRefreshOptions.mockReturnValue({
-                provider,
-                lockPath: join(lockDir, 'refresh.lock'),
-                handshake: { clientId: 'tdd_123' },
-            })
-            storeMocks.list.mockResolvedValue(STORED_RECORDS)
-            storeMocks.activeBundle.mockResolvedValue({
-                account: { ...STORED_ACCOUNT, authResource: 'https://comms.staging.todoist.com' },
-                bundle: {
-                    accessToken: 'tk_stored_1234567890',
-                    refreshToken: 'rt_stored_1234567890',
-                    accessTokenExpiresAt: Date.now() - 1_000,
-                },
-            })
-            storeMocks.setBundle.mockResolvedValue(undefined)
+            const { refreshToken, cleanup } = await installFakeRefresh()
             mockCreateWrappedCommsClient.mockReturnValue({
                 users: { getSessionUser: vi.fn().mockResolvedValue(TEST_USER) },
                 // biome-ignore lint/suspicious/noExplicitAny: only the methods used in this test matter
@@ -615,22 +655,25 @@ describe('auth command', () => {
             try {
                 await createProgram().parseAsync(['node', 'tdc', 'auth', 'status'])
             } finally {
-                mockGetTokenRefreshOptions.mockReset()
-                await rm(lockDir, { recursive: true, force: true })
+                await cleanup()
             }
 
-            // The global ref reaches every store read cli-core's refresh makes
-            // (pre-lock snapshot + under-lock re-read), and the rotated bundle
-            // is persisted before `fetchLive` probes with the new token.
+            // The global ref reaches the bundle reads cli-core's refresh makes
+            // via the `withUserRefAware` wrapper, and the whole rotated pair
+            // (not just the access token) is persisted before `fetchLive`
+            // probes with the new token.
             expect(storeMocks.activeBundle).toHaveBeenCalledWith('1')
-            expect(storeMocks.activeBundle).not.toHaveBeenCalledWith(undefined)
             expect(refreshToken).toHaveBeenCalledWith({
                 refreshToken: 'rt_stored_1234567890',
                 handshake: { clientId: 'tdd_123' },
             })
             expect(storeMocks.setBundle).toHaveBeenCalledWith(
                 expect.objectContaining({ id: '1' }),
-                expect.objectContaining({ accessToken: 'tk_refreshed_1234567890' }),
+                expect.objectContaining({
+                    accessToken: 'tk_refreshed_1234567890',
+                    refreshToken: 'rt_refreshed_1234567890',
+                    accessTokenExpiresAt: expect.any(Number),
+                }),
             )
             expect(mockCreateWrappedCommsClient).toHaveBeenCalledWith('tk_refreshed_1234567890', {
                 baseUrl: 'https://comms.staging.todoist.com',
