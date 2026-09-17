@@ -108,6 +108,8 @@ export type ReadStatePlan<Status> = {
 
 export type ReadStateMutation<Status> = {
     verb: 'read' | 'unread'
+    /** Runs on the full ref list (positional plus stdin) before anything is loaded. */
+    validateRefs?(rawRefs: string[]): void
     /**
      * Builds the per-thread plan. Runs before the unread lookup so an invalid
      * option (a bad `--from` ref) fails without a workspace-wide request.
@@ -127,6 +129,7 @@ export async function runThreadReadStateMutation<Status extends { id: string }>(
             'No thread references provided. Pass refs as arguments or pipe them via stdin.',
         )
     }
+    mutation.validateRefs?.(rawRefs)
 
     const needsConfirmation = rawRefs.length > 1 && !options.yes && !options.dryRun
     if (options.json && needsConfirmation) {

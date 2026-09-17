@@ -21,15 +21,17 @@ export async function markThreadUnread(
     options: MarkThreadUnreadOptions,
 ): Promise<void> {
     const from = options.from
-    if (from !== undefined && refs.length > 1) {
-        throw new CliError(
-            'CONFLICTING_OPTIONS',
-            '--from applies to a single thread; pass one thread ref when using it.',
-        )
-    }
 
     await runThreadReadStateMutation<MarkUnreadStatus>(refs, options, {
         verb: 'unread',
+        validateRefs: (rawRefs) => {
+            if (from !== undefined && rawRefs.length > 1) {
+                throw new CliError(
+                    'CONFLICTING_OPTIONS',
+                    '--from applies to a single thread; pass one thread ref when using it.',
+                )
+            }
+        },
         plan: async (client, threadId) => {
             const target =
                 from === undefined

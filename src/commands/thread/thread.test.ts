@@ -1803,7 +1803,7 @@ describe('thread done', () => {
 
         await program.parseAsync(['node', 'tdc', 'thread', 'done', '500'])
 
-        expect(consoleSpy).toHaveBeenCalledWith('Would archive: Test Thread')
+        expect(consoleSpy).toHaveBeenCalledWith('Would archive: Test Thread (500)')
         expect(consoleSpy).toHaveBeenCalledWith('Use --yes to confirm.')
         expect(client.inbox.archiveThread).not.toHaveBeenCalled()
     })
@@ -1890,7 +1890,7 @@ describe('thread undone', () => {
 
         await program.parseAsync(['node', 'tdc', 'thread', 'undone', '500'])
 
-        expect(consoleSpy).toHaveBeenCalledWith('Would unarchive: Test Thread')
+        expect(consoleSpy).toHaveBeenCalledWith('Would unarchive: Test Thread (500)')
         expect(consoleSpy).toHaveBeenCalledWith('Use --yes to confirm.')
         expect(client.inbox.unarchiveThread).not.toHaveBeenCalled()
     })
@@ -1997,6 +1997,8 @@ describe('thread mark-unread', () => {
             program.parseAsync(['node', 'tdc', 'thread', 'mark-unread', '500', '--from', '11']),
         ).rejects.toHaveProperty('code', 'INVALID_REF')
         expect(client.threads.markUnread).not.toHaveBeenCalled()
+        // The comment is validated before the workspace-wide unread lookup.
+        expect(client.threads.getUnread).not.toHaveBeenCalled()
     })
 
     it('rejects --from with more than one thread ref', async () => {
@@ -2020,11 +2022,41 @@ describe('thread mark-unread', () => {
         expect(client.threads.markUnread).not.toHaveBeenCalled()
     })
 
-    it('leaves a thread that is already unread at or before the target unchanged', async () => {
+    it('rejects --from when stdin adds a second thread ref', async () => {
+        vi.mocked(readStdinToEnd).mockResolvedValueOnce('501\n')
+        const client = createClient({ comments: [createComment(11, 1)] })
+        apiMocks.getCommsClient.mockResolvedValue(client)
+
+        const program = createProgram()
+
+        await expect(
+            program.parseAsync([
+                'node',
+                'tdc',
+                'thread',
+                'mark-unread',
+                '500',
+                '--from',
+                '11',
+                '--yes',
+            ]),
+        ).rejects.toHaveProperty('code', 'CONFLICTING_OPTIONS')
+        expect(client.threads.markUnread).not.toHaveBeenCalled()
+    })
+
+    it.each([
+        ['at the target', 0],
+        ['before the target', -1],
+    ])('leaves a thread already unread %s unchanged', async (_case, lastReadObjIndex) => {
         const client = createClient({
             comments: [createComment(11, 1)],
             unreadThreads: [
-                { threadId: '500', channelId: 'CH100', objIndex: 0, directMention: false },
+                {
+                    threadId: '500',
+                    channelId: 'CH100',
+                    objIndex: lastReadObjIndex,
+                    directMention: false,
+                },
             ],
         })
         apiMocks.getCommsClient.mockResolvedValue(client)
@@ -2038,6 +2070,34 @@ describe('thread mark-unread', () => {
         expect(consoleSpy).toHaveBeenCalledWith(
             'Thread Test Thread (500) is already unread from comment 11.',
         )
+    })
+
+    it('reports the current read position in JSON when nothing changes', async () => {
+        const client = createClient({
+            comments: [createComment(12, 2)],
+            unreadThreads: [
+                { threadId: '500', channelId: 'CH100', objIndex: 0, directMention: false },
+            ],
+        })
+        apiMocks.getCommsClient.mockResolvedValue(client)
+
+        const program = createProgram()
+        const consoleSpy = captureConsole('log')
+
+        await program.parseAsync([
+            'node',
+            'tdc',
+            'thread',
+            'mark-unread',
+            '500',
+            '--from',
+            '12',
+            '--json',
+        ])
+
+        expect(client.threads.markUnread).not.toHaveBeenCalled()
+        const jsonOutput = JSON.parse(consoleSpy.mock.calls[0][0])
+        expect(jsonOutput).toEqual([{ id: '500', isRead: false, lastReadObjIndex: 0 }])
     })
 
     it('still moves an unread thread further back when the target is earlier', async () => {
@@ -2158,18 +2218,6 @@ describe('thread mark-unread', () => {
             { id: '500', isRead: false, lastReadObjIndex: -1, dryRun: true },
             { id: '501', isRead: false, lastReadObjIndex: -1, dryRun: true },
         ])
-    })
-
-    it('rejects an invalid --from comment before loading the unread list', async () => {
-        const client = createClient({ comments: [{ ...createComment(11, 1), threadId: '999' }] })
-        apiMocks.getCommsClient.mockResolvedValue(client)
-
-        const program = createProgram()
-
-        await expect(
-            program.parseAsync(['node', 'tdc', 'thread', 'mark-unread', '500', '--from', '11']),
-        ).rejects.toHaveProperty('code', 'INVALID_REF')
-        expect(client.threads.getUnread).not.toHaveBeenCalled()
     })
 
     it('errors when --json is used for bulk refs without --yes', async () => {
