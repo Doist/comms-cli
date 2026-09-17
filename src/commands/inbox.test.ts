@@ -204,3 +204,95 @@ describe('inbox API errors', () => {
         ).rejects.toThrow('limit must be <= 500')
     })
 })
+
+describe('inbox unread mentions', () => {
+    const threads = [
+        {
+            id: 'thread-read',
+            channelId: 'CH1',
+            title: 'Read thread',
+            posted: '2026-05-03T00:00:00Z',
+            url: 'https://example.test/thread-read',
+        },
+        {
+            id: 'thread-unread',
+            channelId: 'CH1',
+            title: 'Plain unread',
+            posted: '2026-05-02T00:00:00Z',
+            url: 'https://example.test/thread-unread',
+        },
+        {
+            id: 'thread-mention',
+            channelId: 'CH1',
+            title: 'Mentioned thread',
+            posted: '2026-05-01T00:00:00Z',
+            url: 'https://example.test/thread-mention',
+        },
+    ]
+    const unreadData = [
+        { threadId: 'thread-unread', channelId: 'CH1', objIndex: 3, directMention: false },
+        { threadId: 'thread-mention', channelId: 'CH1', objIndex: 5, directMention: true },
+    ]
+    let logSpy: ReturnType<typeof vi.spyOn>
+
+    beforeEach(() => {
+        vi.clearAllMocks()
+        apiMocks.getCurrentWorkspaceId.mockResolvedValue(1)
+        mockClient({
+            inboxThreads: threads,
+            unreadData,
+            getChannel: vi.fn().mockResolvedValue({ id: 'CH1', name: 'engineering' }),
+        })
+        logSpy = captureConsole('log')
+    })
+
+    function parsedJsonOutput(): Array<Record<string, unknown>> {
+        expect(logSpy).toHaveBeenCalledTimes(1)
+        return JSON.parse(logSpy.mock.calls[0]?.[0] as string)
+    }
+
+    it('derives hasUnreadMention from the getUnread directMention flag', async () => {
+        await createProgram().parseAsync(['node', 'tdc', 'inbox', '--json'])
+
+        const byId = new Map(parsedJsonOutput().map((t) => [t.id, t]))
+        expect(byId.get('thread-read')).toMatchObject({ isUnread: false, hasUnreadMention: false })
+        expect(byId.get('thread-unread')).toMatchObject({
+            isUnread: true,
+            hasUnreadMention: false,
+        })
+        expect(byId.get('thread-mention')).toMatchObject({
+            isUnread: true,
+            hasUnreadMention: true,
+        })
+    })
+
+    it('--mentions keeps only unread threads with a direct mention', async () => {
+        await createProgram().parseAsync(['node', 'tdc', 'inbox', '--mentions', '--json'])
+
+        expect(parsedJsonOutput().map((t) => t.id)).toEqual(['thread-mention'])
+    })
+
+    it('sorts mention threads before newer plain-unread threads within a channel', async () => {
+        await createProgram().parseAsync(['node', 'tdc', 'inbox', '--json'])
+
+        expect(parsedJsonOutput().map((t) => t.id)).toEqual([
+            'thread-mention',
+            'thread-unread',
+            'thread-read',
+        ])
+    })
+
+    it('shows a mention marker next to the unread badge in human output', async () => {
+        vi.stubEnv('TDC_ACCESSIBLE', '0')
+        try {
+            await createProgram().parseAsync(['node', 'tdc', 'inbox'])
+        } finally {
+            vi.unstubAllEnvs()
+        }
+
+        const lines = logSpy.mock.calls.flat() as string[]
+        expect(lines).toContain('  Mentioned thread * @')
+        expect(lines).toContain('  Plain unread *')
+        expect(lines).toContain('  Read thread')
+    })
+})
