@@ -1249,6 +1249,22 @@ describe('conversation undone', () => {
         expect(consoleSpy).toHaveBeenCalledWith('Conversation 42 unarchived.')
     })
 
+    it('skips the write when the conversation is not archived', async () => {
+        const conversation = createConversation(42, [1, 2], '2026-03-08T10:00:00.000Z')
+        const client = createClient({ activeConversations: [conversation] })
+        apiMocks.getCommsClient.mockResolvedValue(client)
+
+        const program = createProgram()
+        const consoleSpy = captureConsole('log')
+
+        await program.parseAsync(['node', 'tdc', 'conversation', 'undone', '42', '--yes'])
+
+        expect(client.conversations.unarchiveConversation).not.toHaveBeenCalled()
+        expect(consoleSpy).toHaveBeenCalledWith(
+            'Conversation 42 unarchived (already in target state).',
+        )
+    })
+
     it('prompts for confirmation without --yes', async () => {
         const conversation = createConversation(42, [1, 2], '2026-03-08T10:00:00.000Z')
         const client = createClient({ archivedConversations: [conversation] })
@@ -1265,7 +1281,10 @@ describe('conversation undone', () => {
     })
 
     it('outputs JSON with --json --yes', async () => {
-        const conversation = createConversation(42, [1, 2], '2026-03-08T10:00:00.000Z')
+        const conversation = {
+            ...createConversation(42, [1, 2], '2026-03-08T10:00:00.000Z'),
+            archived: true,
+        }
         const client = createClient({ archivedConversations: [conversation] })
         apiMocks.getCommsClient.mockResolvedValue(client)
 
@@ -1274,6 +1293,7 @@ describe('conversation undone', () => {
 
         await program.parseAsync(['node', 'tdc', 'conversation', 'undone', '42', '--json', '--yes'])
 
+        expect(client.conversations.unarchiveConversation).toHaveBeenCalledWith('42')
         const jsonOutput = JSON.parse(consoleSpy.mock.calls[0][0])
         expect(jsonOutput).toEqual({ id: '42', archived: false })
     })

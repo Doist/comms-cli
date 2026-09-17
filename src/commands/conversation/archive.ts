@@ -15,8 +15,9 @@ async function setConversationArchiveState(
     const client = await getCommsClient()
     const conversation = await client.conversations.getConversation(conversationId)
 
+    const noop = conversation.archived === archive
+
     if (options.dryRun) {
-        const noop = conversation.archived === archive
         printDryRun(`${action} conversation`, {
             Conversation: conversationLabel(conversation),
             Status: noop ? (archive ? 'already archived' : 'not archived') : undefined,
@@ -36,10 +37,12 @@ async function setConversationArchiveState(
         return
     }
 
-    if (archive) {
-        await client.conversations.archiveConversation(conversationId)
-    } else {
-        await client.conversations.unarchiveConversation(conversationId)
+    if (!noop) {
+        if (archive) {
+            await client.conversations.archiveConversation(conversationId)
+        } else {
+            await client.conversations.unarchiveConversation(conversationId)
+        }
     }
 
     if (options.json) {
@@ -47,7 +50,9 @@ async function setConversationArchiveState(
         return
     }
 
-    console.log(`Conversation ${conversationId} ${action}d.`)
+    console.log(
+        `Conversation ${conversationId} ${action}d${noop ? ' (already in target state)' : ''}.`,
+    )
 }
 
 export async function markConversationDone(ref: string, options: DoneOptions): Promise<void> {

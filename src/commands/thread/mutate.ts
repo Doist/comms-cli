@@ -38,10 +38,13 @@ async function setThreadArchiveState(
         return
     }
 
-    if (archive) {
-        await client.inbox.archiveThread(threadId)
-    } else {
-        await client.inbox.unarchiveThread(threadId)
+    const noop = thread.isArchived === archive
+    if (!noop) {
+        if (archive) {
+            await client.inbox.archiveThread(threadId)
+        } else {
+            await client.inbox.unarchiveThread(threadId)
+        }
     }
 
     if (options.json) {
@@ -49,7 +52,7 @@ async function setThreadArchiveState(
         return
     }
 
-    console.log(`Thread ${threadId} ${action}d.`)
+    console.log(`Thread ${threadId} ${action}d${noop ? ' (already in target state)' : ''}.`)
 }
 
 export async function markThreadDone(ref: string, options: MutationOptions): Promise<void> {

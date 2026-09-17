@@ -1881,6 +1881,19 @@ describe('thread undone', () => {
         expect(consoleSpy).toHaveBeenCalledWith('Thread 500 unarchived.')
     })
 
+    it('skips the write when the thread is already in the inbox', async () => {
+        const client = createClient()
+        apiMocks.getCommsClient.mockResolvedValue(client)
+
+        const program = createProgram()
+        const consoleSpy = captureConsole('log')
+
+        await program.parseAsync(['node', 'tdc', 'thread', 'undone', '500', '--yes'])
+
+        expect(client.inbox.unarchiveThread).not.toHaveBeenCalled()
+        expect(consoleSpy).toHaveBeenCalledWith('Thread 500 unarchived (already in target state).')
+    })
+
     it('prompts for confirmation without --yes', async () => {
         const client = createClient()
         apiMocks.getCommsClient.mockResolvedValue(client)
@@ -1896,7 +1909,7 @@ describe('thread undone', () => {
     })
 
     it('outputs JSON with --json --yes', async () => {
-        const client = createClient()
+        const client = createClient({ thread: { ...createThreadFixture(500), isArchived: true } })
         apiMocks.getCommsClient.mockResolvedValue(client)
 
         const program = createProgram()
@@ -1904,6 +1917,7 @@ describe('thread undone', () => {
 
         await program.parseAsync(['node', 'tdc', 'thread', 'undone', '500', '--json', '--yes'])
 
+        expect(client.inbox.unarchiveThread).toHaveBeenCalledWith('500')
         const jsonOutput = JSON.parse(consoleSpy.mock.calls[0][0])
         expect(jsonOutput).toEqual({ id: '500', isArchived: false })
     })
@@ -1917,6 +1931,21 @@ describe('thread undone', () => {
             program.parseAsync(['node', 'tdc', 'thread', 'undone', '500', '--json']),
         ).rejects.toHaveProperty('code', 'MISSING_YES_FLAG')
 
+        expect(client.inbox.unarchiveThread).not.toHaveBeenCalled()
+    })
+
+    it('shows dry run output for an archived thread without a status line', async () => {
+        const client = createClient({ thread: { ...createThreadFixture(500), isArchived: true } })
+        apiMocks.getCommsClient.mockResolvedValue(client)
+
+        const program = createProgram()
+        const consoleSpy = captureConsole('log')
+
+        await program.parseAsync(['node', 'tdc', 'thread', 'undone', '500', '--dry-run'])
+
+        expect(consoleSpy).toHaveBeenCalledWith(expect.stringContaining('Would unarchive thread'))
+        expect(consoleSpy).toHaveBeenCalledWith('  Thread: Test Thread (500)')
+        expect(consoleSpy).not.toHaveBeenCalledWith(expect.stringContaining('Status:'))
         expect(client.inbox.unarchiveThread).not.toHaveBeenCalled()
     })
 
@@ -1999,6 +2028,20 @@ describe('thread mark-unread', () => {
         expect(client.threads.markUnread).not.toHaveBeenCalled()
         // The comment is validated before the workspace-wide unread lookup.
         expect(client.threads.getUnread).not.toHaveBeenCalled()
+    })
+
+    it('rejects a --from comment with no object index', async () => {
+        const client = createClient({
+            comments: [{ ...createComment(11, 1), objIndex: undefined as unknown as number }],
+        })
+        apiMocks.getCommsClient.mockResolvedValue(client)
+
+        const program = createProgram()
+
+        await expect(
+            program.parseAsync(['node', 'tdc', 'thread', 'mark-unread', '500', '--from', '11']),
+        ).rejects.toHaveProperty('code', 'INVALID_REF')
+        expect(client.threads.markUnread).not.toHaveBeenCalled()
     })
 
     it('rejects --from with more than one thread ref', async () => {
