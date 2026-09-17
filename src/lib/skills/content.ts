@@ -122,9 +122,14 @@ tdc thread reply <ref> "content" --file ./a.png  # Attach a file (repeatable; co
 tdc thread done <ref>                 # Preview thread archive (requires --yes to execute)
 tdc thread done <ref> --yes           # Archive thread (mark done)
 tdc thread done <ref> --yes --json    # Archive and return status as JSON
+tdc thread undone <ref> --yes         # Unarchive thread (move it back to your inbox); inverse of done
+tdc thread undone <ref> --yes --json  # Unarchive and return status as JSON
 tdc thread mark-read <ref>        # Mark a thread read
 tdc thread mark-read <ref> <ref> --yes # Mark multiple threads read
 printf "id:CbT8n2Kp4Qx6Rz9Lm3Va\\nid:CbT9m4Qr7Vz2Nx8Lp5Sa\\n" | tdc thread mark-read --dry-run # Preview bulk mark-read from stdin
+tdc thread mark-unread <ref>      # Mark a whole thread unread; inverse of mark-read
+tdc thread mark-unread <ref> --from <comment-ref> # Mark unread from that comment onward (single thread only)
+tdc thread mark-unread <ref> <ref> --yes # Mark multiple threads unread (also accepts refs on stdin)
 tdc thread mute <ref>             # Mute thread for 60 minutes (default)
 tdc thread mute <ref> --minutes 480  # Mute for custom duration
 tdc thread mute <ref> --json      # Mute and return { id, mutedUntil } as JSON
@@ -193,6 +198,8 @@ tdc conversation reply <ref> "content" --file ./a.png  # Attach a file (repeatab
 tdc conversation done <ref>                    # Preview conversation archive (requires --yes to execute)
 tdc conversation done <ref> --yes              # Archive conversation
 tdc conversation done <ref> --yes --json       # Archive and return status as JSON
+tdc conversation undone <ref> --yes            # Unarchive conversation; inverse of done
+tdc conversation undone <ref> --yes --json     # Unarchive and return status as JSON
 tdc conversation mute <ref>               # Mute conversation for 60 minutes (default)
 tdc conversation mute <ref> --minutes 480 # Mute for custom duration
 tdc conversation mute <ref> --json        # Mute and return { id, mutedUntil } as JSON
@@ -450,7 +457,7 @@ echo "Quick reply" | tdc conversation reply <ref>
 
 If no content argument is provided and no stdin is piped, the CLI opens \`$EDITOR\` for interactive input. In non-TTY environments (e.g. when called by an agent or in a pipeline), the editor is automatically skipped and the command fails fast with an actionable error message. Use \`--non-interactive\` to force this behavior even in a TTY, or \`--interactive\` to override auto-detection.
 
-\`tdc thread mark-read\` also accepts thread refs from stdin, one per line:
+\`tdc thread mark-read\` and \`tdc thread mark-unread\` also accept thread refs from stdin, one per line:
 
 \`\`\`bash
 printf "id:CbT8n2Kp4Qx6Rz9Lm3Va\\nid:CbT9m4Qr7Vz2Nx8Lp5Sa\\n" | tdc thread mark-read --yes
@@ -473,6 +480,7 @@ tdc inbox --unread --json
 tdc thread view <thread-ref> --unread
 tdc thread reply <thread-ref> "Thanks, I'll look into this."
 tdc thread done <thread-ref> --yes
+tdc thread undone <thread-ref> --yes       # Changed your mind: back to the inbox
 \`\`\`
 
 **Search and review:**

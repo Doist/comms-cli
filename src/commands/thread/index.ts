@@ -3,11 +3,12 @@ import { withUnvalidatedChoices } from '../../lib/completion.js'
 import { collect } from '../../lib/options.js'
 import { createThread } from './create.js'
 import { deleteThread } from './delete.js'
-import { markThreadDone } from './mutate.js'
+import { markThreadDone, markThreadUndone } from './mutate.js'
 import { muteThread, unmuteThread } from './mute.js'
 import { markThreadRead } from './read.js'
 import { renameThread } from './rename.js'
 import { replyToThread } from './reply.js'
+import { markThreadUnread } from './unread.js'
 import { updateThread } from './update.js'
 import { viewThread } from './view.js'
 
@@ -117,6 +118,22 @@ Examples:
         )
         .action(markThreadDone)
 
+    thread
+        .command('undone <thread-ref>')
+        .description('Unarchive a thread (move it back to your inbox); inverse of done')
+        .option('--yes', 'Confirm unarchive')
+        .option('--dry-run', 'Show what would happen without executing')
+        .option('--json', 'Output result as JSON')
+        .addHelpText(
+            'after',
+            `
+Examples:
+  tdc thread undone id:CbT8n2Kp4Qx6Rz9Lm3Va --yes
+  tdc thread undone id:CbT8n2Kp4Qx6Rz9Lm3Va --dry-run
+  tdc thread undone id:CbT8n2Kp4Qx6Rz9Lm3Va --json --yes`,
+        )
+        .action(markThreadUndone)
+
     const markReadCmd = thread
         .command('mark-read [thread-refs...]')
         .description('Mark a thread read for the current user')
@@ -137,6 +154,33 @@ Examples:
                 return
             }
             return markThreadRead(refs, options)
+        })
+
+    const markUnreadCmd = thread
+        .command('mark-unread [thread-refs...]')
+        .description('Mark a thread unread for the current user; inverse of mark-read')
+        .option(
+            '--from <comment-ref>',
+            'Mark unread from this comment onward (single thread only; default: whole thread)',
+        )
+        .option('--yes', 'Skip confirmation for bulk operations')
+        .option('--dry-run', 'Show what would happen without executing')
+        .option('--json', 'Output result as JSON')
+        .addHelpText(
+            'after',
+            `
+Examples:
+  tdc thread mark-unread id:CbT8n2Kp4Qx6Rz9Lm3Va
+  tdc thread mark-unread id:CbT8n2Kp4Qx6Rz9Lm3Va --from id:CbM8n2Kp4Qx6Rz9Lm3Va
+  tdc thread mark-unread id:CbT8n2Kp4Qx6Rz9Lm3Va id:CbT9m4Qr7Vz2Nx8Lp5Sa --yes
+  printf "id:CbT8n2Kp4Qx6Rz9Lm3Va\\nid:CbT9m4Qr7Vz2Nx8Lp5Sa\\n" | tdc thread mark-unread --yes`,
+        )
+        .action((refs, options) => {
+            if (refs.length === 0 && process.stdin.isTTY) {
+                markUnreadCmd.help()
+                return
+            }
+            return markThreadUnread(refs, options)
         })
 
     thread

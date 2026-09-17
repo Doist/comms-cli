@@ -36,6 +36,7 @@ const API_SPINNER_MESSAGES: Record<string, { text: string; color?: 'blue' | 'gre
         'threads.reopenThread': { text: 'Reopening thread...', color: 'yellow' },
         'threads.updateThread': { text: 'Updating thread...', color: 'yellow' },
         'threads.markRead': { text: 'Marking thread read...', color: 'yellow' },
+        'threads.markUnread': { text: 'Marking thread unread...', color: 'yellow' },
         'threads.muteThread': { text: 'Muting thread...', color: 'yellow' },
         'threads.unmuteThread': { text: 'Unmuting thread...', color: 'yellow' },
         'threads.deleteThread': { text: 'Deleting thread...', color: 'yellow' },

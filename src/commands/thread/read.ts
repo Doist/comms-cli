@@ -1,25 +1,23 @@
-import type { CommsApi, Thread } from '@doist/comms-sdk'
 import { getCommsClient } from '../../lib/api.js'
 import { CliError } from '../../lib/errors.js'
-import { readStdinToEnd } from '../../lib/input.js'
 import type { MutationOptions } from '../../lib/options.js'
-import { formatJson, pluralize } from '../../lib/output.js'
-import { assertChannelIsPublic } from '../../lib/public-channels.js'
+import { formatJson } from '../../lib/output.js'
 import { resolveThreadId } from '../../lib/refs.js'
+import {
+    collectThreadRefs,
+    getLatestObjIndex,
+    loadThreadReadState,
+    printReadStateSummary,
+    type ReadStateTextStatus,
+    threadLabel,
+} from './helpers.js'
 
 export type MarkThreadReadOptions = MutationOptions
-
-type LoadedThread = {
-    thread: Thread
-    isUnread: boolean
-}
 
 type MarkReadStatus = {
     id: string
     isRead: true
 }
-
-type TextStatus = 'changed' | 'preview' | 'unchanged'
 
 export async function markThreadRead(
     refs: string[],
@@ -42,15 +40,15 @@ export async function markThreadRead(
     }
 
     const client = await getCommsClient()
-    const unreadCache = new Map<number, Set<string>>()
+    const unreadCache = new Map<number, Map<string, number>>()
     const jsonStatuses: MarkReadStatus[] = []
-    const textStatuses: TextStatus[] = []
+    const textStatuses: ReadStateTextStatus[] = []
 
     for (const rawRef of rawRefs) {
         const threadId = resolveThreadId(rawRef)
-        const loaded = await loadThread(client, unreadCache, threadId)
+        const loaded = await loadThreadReadState(client, unreadCache, threadId)
 
-        if (!loaded.isUnread) {
+        if (loaded.lastReadObjIndex === null) {
             jsonStatuses.push({ id: threadId, isRead: true })
             textStatuses.push('unchanged')
             if (!options.json) {
@@ -88,75 +86,10 @@ export async function markThreadRead(
     }
 
     if (!options.json && rawRefs.length > 1) {
-        printSummary(textStatuses)
+        printReadStateSummary(textStatuses)
     }
 
     if (!options.json && needsConfirmation) {
         console.log('Use --yes to confirm.')
     }
-}
-
-async function collectThreadRefs(refs: string[]): Promise<string[]> {
-    const inlineRefs = refs.map((ref) => ref.trim()).filter(Boolean)
-
-    const stdinContent = await readStdinToEnd()
-    if (!stdinContent) return inlineRefs
-
-    const stdinRefs = stdinContent
-        .split(/\r?\n/)
-        .map((line) => line.trim())
-        .filter((line) => line !== '' && !line.startsWith('#'))
-
-    return [...inlineRefs, ...stdinRefs]
-}
-
-async function loadThread(
-    client: CommsApi,
-    unreadCache: Map<number, Set<string>>,
-    threadId: string,
-): Promise<LoadedThread> {
-    const thread = await client.threads.getThread(threadId)
-    await assertChannelIsPublic(thread.channelId, thread.workspaceId)
-
-    let unreadIds = unreadCache.get(thread.workspaceId)
-    if (!unreadIds) {
-        const unread = await client.threads.getUnread(thread.workspaceId)
-        unreadIds = new Set(unread.data.map((unreadThread) => unreadThread.threadId))
-        unreadCache.set(thread.workspaceId, unreadIds)
-    }
-
-    return { thread, isUnread: unreadIds.has(thread.id) }
-}
-
-function getLatestObjIndex(thread: Thread): number {
-    return Math.max(
-        ...[thread.lastComment?.objIndex, thread.lastObjIndex, thread.commentCount, 0]
-            .filter((value): value is number => typeof value === 'number')
-            .map((value) => Math.max(value, 0)),
-    )
-}
-
-function threadLabel(thread: Thread): string {
-    return `${thread.title} (${thread.id})`
-}
-
-function printSummary(statuses: TextStatus[]): void {
-    const summary = [
-        summarizeStatus(statuses, 'changed'),
-        summarizeStatus(statuses, 'unchanged'),
-        summarizeStatus(statuses, 'preview'),
-    ].filter(Boolean)
-
-    console.log('')
-    console.log(`Summary: ${summary.join(', ')}`)
-}
-
-function summarizeStatus(statuses: TextStatus[], status: TextStatus): string | null {
-    const count = statuses.filter((value) => value === status).length
-    if (count === 0) {
-        return null
-    }
-
-    const noun = status === 'preview' ? pluralize(count, 'preview') : pluralize(count, 'thread')
-    return status === 'preview' ? `${count} ${noun}` : `${count} ${status} ${noun}`
 }

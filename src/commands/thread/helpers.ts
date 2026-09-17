@@ -1,9 +1,12 @@
+import type { CommsApi, Thread } from '@doist/comms-sdk'
 import chalk from 'chalk'
 import { getWorkspaceGroups, getWorkspaceUsers } from '../../lib/api.js'
 import { formatRelativeDate } from '../../lib/dates.js'
 import { isAccessible } from '../../lib/global-args.js'
+import { readStdinToEnd } from '../../lib/input.js'
 import { renderMarkdown } from '../../lib/markdown.js'
-import { colors } from '../../lib/output.js'
+import { colors, pluralize } from '../../lib/output.js'
+import { assertChannelIsPublic } from '../../lib/public-channels.js'
 import { partitionNotifyIds } from '../../lib/refs.js'
 
 export function printSeparator(label: string): void {
@@ -74,4 +77,94 @@ export async function resolveNotifyIds(
 
 export function formatNotifyLabel(items: NamedEntity[]): string {
     return items.map((i) => `${i.name} (${i.id})`).join(', ')
+}
+
+// Shared by `mark-read` and `mark-unread`: bulk ref collection, the per-workspace
+// unread lookup, and the text summary.
+
+export type ReadStateTextStatus = 'changed' | 'preview' | 'unchanged'
+
+export type ThreadReadState = {
+    thread: Thread
+    /**
+     * Object index of the last comment the user has read, or `null` when the
+     * thread is fully read (absent from the workspace's unread list). `-1`
+     * means nothing has been read, including the thread body.
+     */
+    lastReadObjIndex: number | null
+}
+
+export async function collectThreadRefs(refs: string[]): Promise<string[]> {
+    const inlineRefs = refs.map((ref) => ref.trim()).filter(Boolean)
+
+    const stdinContent = await readStdinToEnd()
+    if (!stdinContent) return inlineRefs
+
+    const stdinRefs = stdinContent
+        .split(/\r?\n/)
+        .map((line) => line.trim())
+        .filter((line) => line !== '' && !line.startsWith('#'))
+
+    return [...inlineRefs, ...stdinRefs]
+}
+
+/**
+ * Loads a thread and its unread position. `unreadCache` maps a workspace id to
+ * its unread threads (`threadId` -> last read `objIndex`) so bulk runs fetch
+ * the unread list once per workspace; callers update it after mutating.
+ */
+export async function loadThreadReadState(
+    client: CommsApi,
+    unreadCache: Map<number, Map<string, number>>,
+    threadId: string,
+): Promise<ThreadReadState> {
+    const thread = await client.threads.getThread(threadId)
+    await assertChannelIsPublic(thread.channelId, thread.workspaceId)
+
+    let unreadByThread = unreadCache.get(thread.workspaceId)
+    if (!unreadByThread) {
+        const unread = await client.threads.getUnread(thread.workspaceId)
+        unreadByThread = new Map(
+            unread.data.map((unreadThread) => [unreadThread.threadId, unreadThread.objIndex]),
+        )
+        unreadCache.set(thread.workspaceId, unreadByThread)
+    }
+
+    return { thread, lastReadObjIndex: unreadByThread.get(thread.id) ?? null }
+}
+
+export function getLatestObjIndex(thread: Thread): number {
+    return Math.max(
+        ...[thread.lastComment?.objIndex, thread.lastObjIndex, thread.commentCount, 0]
+            .filter((value): value is number => typeof value === 'number')
+            .map((value) => Math.max(value, 0)),
+    )
+}
+
+export function threadLabel(thread: Thread): string {
+    return `${thread.title} (${thread.id})`
+}
+
+export function printReadStateSummary(statuses: ReadStateTextStatus[]): void {
+    const summary = [
+        summarizeStatus(statuses, 'changed'),
+        summarizeStatus(statuses, 'unchanged'),
+        summarizeStatus(statuses, 'preview'),
+    ].filter(Boolean)
+
+    console.log('')
+    console.log(`Summary: ${summary.join(', ')}`)
+}
+
+function summarizeStatus(
+    statuses: ReadStateTextStatus[],
+    status: ReadStateTextStatus,
+): string | null {
+    const count = statuses.filter((value) => value === status).length
+    if (count === 0) {
+        return null
+    }
+
+    const noun = status === 'preview' ? pluralize(count, 'preview') : pluralize(count, 'thread')
+    return status === 'preview' ? `${count} ${noun}` : `${count} ${status} ${noun}`
 }

@@ -40,3 +40,40 @@ export async function markThreadDone(ref: string, options: MutationOptions): Pro
 
     console.log(`Thread ${threadId} archived.`)
 }
+
+export async function markThreadUndone(ref: string, options: MutationOptions): Promise<void> {
+    const threadId = resolveThreadId(ref)
+
+    const client = await getCommsClient()
+    const thread = await client.threads.getThread(threadId)
+    await assertChannelIsPublic(thread.channelId, thread.workspaceId)
+
+    if (options.dryRun) {
+        printDryRun('unarchive thread', {
+            Thread: `${thread.title} (${threadId})`,
+            Status: thread.isArchived ? undefined : 'already in inbox',
+        })
+        return
+    }
+
+    if (!options.yes) {
+        if (options.json) {
+            throw new CliError(
+                'MISSING_YES_FLAG',
+                '--yes is required to execute unarchive in --json mode.',
+            )
+        }
+        console.log(`Would unarchive: ${thread.title}`)
+        console.log('Use --yes to confirm.')
+        return
+    }
+
+    await client.inbox.unarchiveThread(threadId)
+
+    if (options.json) {
+        console.log(formatJson({ id: threadId, isArchived: false }))
+        return
+    }
+
+    console.log(`Thread ${threadId} unarchived.`)
+}
