@@ -1,13 +1,15 @@
 import type { CommsApi, Thread } from '@doist/comms-sdk'
 import chalk from 'chalk'
-import { getWorkspaceGroups, getWorkspaceUsers } from '../../lib/api.js'
+import { getCommsClient, getWorkspaceGroups, getWorkspaceUsers } from '../../lib/api.js'
 import { formatRelativeDate } from '../../lib/dates.js'
+import { CliError } from '../../lib/errors.js'
 import { isAccessible } from '../../lib/global-args.js'
 import { readStdinToEnd } from '../../lib/input.js'
 import { renderMarkdown } from '../../lib/markdown.js'
-import { colors, pluralize } from '../../lib/output.js'
+import type { MutationOptions } from '../../lib/options.js'
+import { colors, formatJson, pluralize } from '../../lib/output.js'
 import { assertChannelIsPublic } from '../../lib/public-channels.js'
-import { partitionNotifyIds } from '../../lib/refs.js'
+import { partitionNotifyIds, resolveThreadId } from '../../lib/refs.js'
 
 export function printSeparator(label: string): void {
     const totalWidth = 60
@@ -79,8 +81,8 @@ export function formatNotifyLabel(items: NamedEntity[]): string {
     return items.map((i) => `${i.name} (${i.id})`).join(', ')
 }
 
-// Shared by `mark-read` and `mark-unread`: bulk ref collection, the per-workspace
-// unread lookup, and the text summary.
+// Shared by `mark-read` and `mark-unread`: the bulk-ref loop, the per-workspace
+// unread lookup, confirmation, and output. Each verb supplies a per-thread plan.
 
 export type ReadStateTextStatus = 'changed' | 'preview' | 'unchanged'
 
@@ -94,7 +96,112 @@ export type ThreadReadState = {
     lastReadObjIndex: number | null
 }
 
-export async function collectThreadRefs(refs: string[]): Promise<string[]> {
+export type ReadStatePlan<Status> = {
+    /** Appended to messages, e.g. `' from comment X'`; empty for the whole thread. */
+    scope: string
+    isUnchanged(state: ThreadReadState): boolean
+    /** JSON row; `outcome` is `'unchanged'` when nothing needs to move. */
+    status(state: ThreadReadState, outcome: 'planned' | 'unchanged'): Status
+    /** Performs the mutation and returns the thread's new `lastReadObjIndex`. */
+    apply(client: CommsApi, state: ThreadReadState): Promise<number | null>
+}
+
+export type ReadStateMutation<Status> = {
+    verb: 'read' | 'unread'
+    /**
+     * Builds the per-thread plan. Runs before the unread lookup so an invalid
+     * option (a bad `--from` ref) fails without a workspace-wide request.
+     */
+    plan(client: CommsApi, threadId: string): Promise<ReadStatePlan<Status>>
+}
+
+export async function runThreadReadStateMutation<Status extends { id: string }>(
+    refs: string[],
+    options: MutationOptions,
+    mutation: ReadStateMutation<Status>,
+): Promise<void> {
+    const rawRefs = await collectThreadRefs(refs)
+    if (rawRefs.length === 0) {
+        throw new CliError(
+            'INVALID_REF',
+            'No thread references provided. Pass refs as arguments or pipe them via stdin.',
+        )
+    }
+
+    const needsConfirmation = rawRefs.length > 1 && !options.yes && !options.dryRun
+    if (options.json && needsConfirmation) {
+        throw new CliError(
+            'MISSING_YES_FLAG',
+            `--yes is required to execute bulk mark-${mutation.verb} in --json mode.`,
+        )
+    }
+
+    const client = await getCommsClient()
+    const unreadCache = new Map<number, Map<string, number>>()
+    const jsonStatuses: Status[] = []
+    const textStatuses: ReadStateTextStatus[] = []
+
+    for (const rawRef of rawRefs) {
+        const threadId = resolveThreadId(rawRef)
+        const plan = await mutation.plan(client, threadId)
+        const state = await loadThreadReadState(client, unreadCache, threadId)
+        const label = threadLabel(state.thread)
+
+        if (plan.isUnchanged(state)) {
+            jsonStatuses.push(plan.status(state, 'unchanged'))
+            textStatuses.push('unchanged')
+            if (!options.json) {
+                console.log(`Thread ${label} is already ${mutation.verb}${plan.scope}.`)
+            }
+            continue
+        }
+
+        if (needsConfirmation || options.dryRun) {
+            jsonStatuses.push(plan.status(state, 'planned'))
+            textStatuses.push('preview')
+            if (!options.json) {
+                const prefix = options.dryRun ? 'Dry run: would' : 'Would'
+                console.log(`${prefix} mark ${mutation.verb} thread ${label}${plan.scope}.`)
+            }
+            continue
+        }
+
+        const lastReadObjIndex = await plan.apply(client, state)
+        const unreadByThread = unreadCache.get(state.thread.workspaceId)
+        if (lastReadObjIndex === null) {
+            unreadByThread?.delete(threadId)
+        } else {
+            unreadByThread?.set(threadId, lastReadObjIndex)
+        }
+
+        jsonStatuses.push(plan.status(state, 'planned'))
+        textStatuses.push('changed')
+        if (!options.json) {
+            console.log(`Thread ${label} marked ${mutation.verb}${plan.scope}.`)
+        }
+    }
+
+    if (options.json) {
+        console.log(
+            formatJson(
+                options.dryRun
+                    ? jsonStatuses.map((status) => ({ ...status, dryRun: true }))
+                    : jsonStatuses,
+            ),
+        )
+        return
+    }
+
+    if (rawRefs.length > 1) {
+        printReadStateSummary(textStatuses)
+    }
+
+    if (needsConfirmation) {
+        console.log('Use --yes to confirm.')
+    }
+}
+
+async function collectThreadRefs(refs: string[]): Promise<string[]> {
     const inlineRefs = refs.map((ref) => ref.trim()).filter(Boolean)
 
     const stdinContent = await readStdinToEnd()
@@ -111,9 +218,9 @@ export async function collectThreadRefs(refs: string[]): Promise<string[]> {
 /**
  * Loads a thread and its unread position. `unreadCache` maps a workspace id to
  * its unread threads (`threadId` -> last read `objIndex`) so bulk runs fetch
- * the unread list once per workspace; callers update it after mutating.
+ * the unread list once per workspace.
  */
-export async function loadThreadReadState(
+async function loadThreadReadState(
     client: CommsApi,
     unreadCache: Map<number, Map<string, number>>,
     threadId: string,
@@ -133,19 +240,11 @@ export async function loadThreadReadState(
     return { thread, lastReadObjIndex: unreadByThread.get(thread.id) ?? null }
 }
 
-export function getLatestObjIndex(thread: Thread): number {
-    return Math.max(
-        ...[thread.lastComment?.objIndex, thread.lastObjIndex, thread.commentCount, 0]
-            .filter((value): value is number => typeof value === 'number')
-            .map((value) => Math.max(value, 0)),
-    )
-}
-
-export function threadLabel(thread: Thread): string {
+export function threadLabel(thread: Pick<Thread, 'id' | 'title'>): string {
     return `${thread.title} (${thread.id})`
 }
 
-export function printReadStateSummary(statuses: ReadStateTextStatus[]): void {
+function printReadStateSummary(statuses: ReadStateTextStatus[]): void {
     const summary = [
         summarizeStatus(statuses, 'changed'),
         summarizeStatus(statuses, 'unchanged'),

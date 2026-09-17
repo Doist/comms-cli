@@ -4,6 +4,7 @@ import type { MutationOptions } from '../../lib/options.js'
 import { formatJson, printDryRun } from '../../lib/output.js'
 import { assertChannelIsPublic } from '../../lib/public-channels.js'
 import { resolveThreadId } from '../../lib/refs.js'
+import { threadLabel } from './helpers.js'
 
 export async function markThreadDone(ref: string, options: MutationOptions): Promise<void> {
     const threadId = resolveThreadId(ref)
@@ -14,7 +15,7 @@ export async function markThreadDone(ref: string, options: MutationOptions): Pro
 
     if (options.dryRun) {
         printDryRun('archive thread', {
-            Thread: `${thread.title} (${threadId})`,
+            Thread: threadLabel(thread),
         })
         return
     }
@@ -50,7 +51,7 @@ export async function markThreadUndone(ref: string, options: MutationOptions): P
 
     if (options.dryRun) {
         printDryRun('unarchive thread', {
-            Thread: `${thread.title} (${threadId})`,
+            Thread: threadLabel(thread),
             Status: thread.isArchived ? undefined : 'already in inbox',
         })
         return
