@@ -1,7 +1,7 @@
 import { Command, Option } from 'commander'
 import { withCaseInsensitiveChoices } from '../../lib/completion.js'
 import { collect } from '../../lib/options.js'
-import { markConversationDone } from './done.js'
+import { markConversationDone, markConversationUndone } from './archive.js'
 import { listConversations } from './list.js'
 import { muteConversation } from './mute.js'
 import { replyToConversation } from './reply.js'
@@ -159,6 +159,21 @@ Examples:
   tdc conversation done id:CbV8n2Kp4Qx6Rz9Lm3Va --dry-run`,
         )
         .action(markConversationDone)
+
+    conversation
+        .command('undone <conversation-ref>')
+        .description('Unarchive a conversation; inverse of done')
+        .option('--yes', 'Confirm unarchive')
+        .option('--dry-run', 'Show what would happen without executing')
+        .option('--json', 'Output result as JSON')
+        .addHelpText(
+            'after',
+            `
+Examples:
+  tdc conversation undone id:CbV8n2Kp4Qx6Rz9Lm3Va --yes
+  tdc conversation undone id:CbV8n2Kp4Qx6Rz9Lm3Va --dry-run`,
+        )
+        .action(markConversationUndone)
 
     conversation
         .command('mute <conversation-ref>')

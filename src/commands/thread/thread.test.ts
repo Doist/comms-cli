@@ -122,6 +122,12 @@ function createClient({
             markRead: vi.fn(async ({ id }: { id: string; objIndex: number }) => {
                 unreadState = unreadState.filter((unread) => unread.threadId !== id)
             }),
+            markUnread: vi.fn(async ({ id, objIndex }: { id: string; objIndex: number }) => {
+                unreadState = [
+                    ...unreadState.filter((unread) => unread.threadId !== id),
+                    { threadId: id, channelId: 'CH100', objIndex, directMention: false },
+                ]
+            }),
             muteThread: vi.fn(async (_args: { id: string; minutes: number }) => ({
                 ...thread,
                 mutedUntil: new Date(Date.now() + _args.minutes * 60000),
@@ -1273,6 +1279,32 @@ describe('thread read', () => {
         expect(jsonOutput).toEqual([{ id: '500', isRead: true }])
     })
 
+    it('emits the planned statuses with --json --dry-run', async () => {
+        const client = createClient({
+            unreadThreads: [
+                { threadId: '500', channelId: 'CH100', objIndex: 1, directMention: false },
+            ],
+        })
+        apiMocks.getCommsClient.mockResolvedValue(client)
+
+        const program = createProgram()
+        const consoleSpy = captureConsole('log')
+
+        await program.parseAsync([
+            'node',
+            'tdc',
+            'thread',
+            'mark-read',
+            '500',
+            '--json',
+            '--dry-run',
+        ])
+
+        expect(client.threads.markRead).not.toHaveBeenCalled()
+        const jsonOutput = JSON.parse(consoleSpy.mock.calls[0][0])
+        expect(jsonOutput).toEqual([{ id: '500', isRead: true, dryRun: true }])
+    })
+
     it('runs validation in dry-run mode', async () => {
         const client = createClient()
         apiMocks.getCommsClient.mockResolvedValue(client)
@@ -1771,7 +1803,7 @@ describe('thread done', () => {
 
         await program.parseAsync(['node', 'tdc', 'thread', 'done', '500'])
 
-        expect(consoleSpy).toHaveBeenCalledWith('Would archive: Test Thread')
+        expect(consoleSpy).toHaveBeenCalledWith('Would archive: Test Thread (500)')
         expect(consoleSpy).toHaveBeenCalledWith('Use --yes to confirm.')
         expect(client.inbox.archiveThread).not.toHaveBeenCalled()
     })
@@ -1815,6 +1847,19 @@ describe('thread done', () => {
         expect(client.inbox.archiveThread).not.toHaveBeenCalled()
     })
 
+    it('flags an already archived thread in dry run', async () => {
+        const client = createClient({ thread: { ...createThreadFixture(500), isArchived: true } })
+        apiMocks.getCommsClient.mockResolvedValue(client)
+
+        const program = createProgram()
+        const consoleSpy = captureConsole('log')
+
+        await program.parseAsync(['node', 'tdc', 'thread', 'done', '500', '--dry-run'])
+
+        expect(consoleSpy).toHaveBeenCalledWith('  Status: already archived')
+        expect(client.inbox.archiveThread).not.toHaveBeenCalled()
+    })
+
     it('runs validation in dry-run mode', async () => {
         const client = createClient()
         apiMocks.getCommsClient.mockResolvedValue(client)
@@ -1826,6 +1871,433 @@ describe('thread done', () => {
             program.parseAsync(['node', 'tdc', 'thread', 'done', '500', '--dry-run']),
         ).rejects.toThrow('thread not found')
         expect(client.inbox.archiveThread).not.toHaveBeenCalled()
+    })
+})
+
+describe('thread undone', () => {
+    beforeEach(() => {
+        clearWorkspaceUserCache()
+        vi.clearAllMocks()
+    })
+
+    it('unarchives a thread with --yes', async () => {
+        const client = createClient({ thread: { ...createThreadFixture(500), isArchived: true } })
+        apiMocks.getCommsClient.mockResolvedValue(client)
+
+        const program = createProgram()
+        const consoleSpy = captureConsole('log')
+
+        await program.parseAsync(['node', 'tdc', 'thread', 'undone', '500', '--yes'])
+
+        expect(client.inbox.unarchiveThread).toHaveBeenCalledWith('500')
+        expect(client.inbox.archiveThread).not.toHaveBeenCalled()
+        expect(consoleSpy).toHaveBeenCalledWith('Thread 500 unarchived.')
+    })
+
+    it('skips the write when the thread is already in the inbox', async () => {
+        const client = createClient()
+        apiMocks.getCommsClient.mockResolvedValue(client)
+
+        const program = createProgram()
+        const consoleSpy = captureConsole('log')
+
+        await program.parseAsync(['node', 'tdc', 'thread', 'undone', '500', '--yes'])
+
+        expect(client.inbox.unarchiveThread).not.toHaveBeenCalled()
+        expect(consoleSpy).toHaveBeenCalledWith('Thread 500 unarchived (already in target state).')
+    })
+
+    it('prompts for confirmation without --yes', async () => {
+        const client = createClient()
+        apiMocks.getCommsClient.mockResolvedValue(client)
+
+        const program = createProgram()
+        const consoleSpy = captureConsole('log')
+
+        await program.parseAsync(['node', 'tdc', 'thread', 'undone', '500'])
+
+        expect(consoleSpy).toHaveBeenCalledWith('Would unarchive: Test Thread (500)')
+        expect(consoleSpy).toHaveBeenCalledWith('Use --yes to confirm.')
+        expect(client.inbox.unarchiveThread).not.toHaveBeenCalled()
+    })
+
+    it('outputs JSON with --json --yes', async () => {
+        const client = createClient({ thread: { ...createThreadFixture(500), isArchived: true } })
+        apiMocks.getCommsClient.mockResolvedValue(client)
+
+        const program = createProgram()
+        const consoleSpy = captureConsole('log')
+
+        await program.parseAsync(['node', 'tdc', 'thread', 'undone', '500', '--json', '--yes'])
+
+        expect(client.inbox.unarchiveThread).toHaveBeenCalledWith('500')
+        const jsonOutput = JSON.parse(consoleSpy.mock.calls[0][0])
+        expect(jsonOutput).toEqual({ id: '500', isArchived: false })
+    })
+
+    it('errors when --json is used without --yes', async () => {
+        const client = createClient()
+        apiMocks.getCommsClient.mockResolvedValue(client)
+        const program = createProgram()
+
+        await expect(
+            program.parseAsync(['node', 'tdc', 'thread', 'undone', '500', '--json']),
+        ).rejects.toHaveProperty('code', 'MISSING_YES_FLAG')
+
+        expect(client.inbox.unarchiveThread).not.toHaveBeenCalled()
+    })
+
+    it('shows dry run output for an archived thread without a status line', async () => {
+        const client = createClient({ thread: { ...createThreadFixture(500), isArchived: true } })
+        apiMocks.getCommsClient.mockResolvedValue(client)
+
+        const program = createProgram()
+        const consoleSpy = captureConsole('log')
+
+        await program.parseAsync(['node', 'tdc', 'thread', 'undone', '500', '--dry-run'])
+
+        expect(consoleSpy).toHaveBeenCalledWith(expect.stringContaining('Would unarchive thread'))
+        expect(consoleSpy).toHaveBeenCalledWith('  Thread: Test Thread (500)')
+        expect(consoleSpy).not.toHaveBeenCalledWith(expect.stringContaining('Status:'))
+        expect(client.inbox.unarchiveThread).not.toHaveBeenCalled()
+    })
+
+    it('shows dry run output and flags a thread already in the inbox', async () => {
+        const client = createClient()
+        apiMocks.getCommsClient.mockResolvedValue(client)
+
+        const program = createProgram()
+        const consoleSpy = captureConsole('log')
+
+        await program.parseAsync(['node', 'tdc', 'thread', 'undone', '500', '--dry-run'])
+
+        expect(consoleSpy).toHaveBeenCalledWith(expect.stringContaining('Would unarchive thread'))
+        expect(consoleSpy).toHaveBeenCalledWith('  Thread: Test Thread (500)')
+        expect(consoleSpy).toHaveBeenCalledWith('  Status: already in inbox')
+        expect(client.inbox.unarchiveThread).not.toHaveBeenCalled()
+    })
+
+    it('runs validation in dry-run mode', async () => {
+        const client = createClient()
+        apiMocks.getCommsClient.mockResolvedValue(client)
+        client.threads.getThread.mockRejectedValueOnce(new Error('thread not found'))
+
+        const program = createProgram()
+
+        await expect(
+            program.parseAsync(['node', 'tdc', 'thread', 'undone', '500', '--dry-run']),
+        ).rejects.toThrow('thread not found')
+        expect(client.inbox.unarchiveThread).not.toHaveBeenCalled()
+    })
+})
+
+describe('thread mark-unread', () => {
+    beforeEach(() => {
+        clearWorkspaceUserCache()
+        vi.clearAllMocks()
+        vi.mocked(readStdinToEnd).mockResolvedValue('')
+    })
+
+    it('marks a read thread unread from the start without requiring --yes', async () => {
+        const client = createClient()
+        apiMocks.getCommsClient.mockResolvedValue(client)
+
+        const program = createProgram()
+        const consoleSpy = captureConsole('log')
+
+        await program.parseAsync(['node', 'tdc', 'thread', 'mark-unread', '500'])
+
+        expect(client.threads.markUnread).toHaveBeenCalledWith({ id: '500', objIndex: -1 })
+        expect(consoleSpy).toHaveBeenCalledWith('Thread Test Thread (500) marked unread.')
+    })
+
+    it('marks unread from a comment by passing the previous object index', async () => {
+        const client = createClient({ comments: [createComment(10, 0), createComment(11, 1)] })
+        apiMocks.getCommsClient.mockResolvedValue(client)
+
+        const program = createProgram()
+        const consoleSpy = captureConsole('log')
+
+        await program.parseAsync(['node', 'tdc', 'thread', 'mark-unread', '500', '--from', '11'])
+
+        expect(client.comments.getComment).toHaveBeenCalledWith('11')
+        expect(client.threads.markUnread).toHaveBeenCalledWith({ id: '500', objIndex: 0 })
+        expect(consoleSpy).toHaveBeenCalledWith(
+            'Thread Test Thread (500) marked unread from comment 11.',
+        )
+    })
+
+    it('rejects a --from comment that belongs to another thread', async () => {
+        const client = createClient({
+            comments: [{ ...createComment(11, 1), threadId: '999' }],
+        })
+        apiMocks.getCommsClient.mockResolvedValue(client)
+
+        const program = createProgram()
+
+        await expect(
+            program.parseAsync(['node', 'tdc', 'thread', 'mark-unread', '500', '--from', '11']),
+        ).rejects.toHaveProperty('code', 'INVALID_REF')
+        expect(client.threads.markUnread).not.toHaveBeenCalled()
+        // The comment is validated before the workspace-wide unread lookup.
+        expect(client.threads.getUnread).not.toHaveBeenCalled()
+    })
+
+    it('rejects a --from comment with no object index', async () => {
+        const client = createClient({
+            comments: [{ ...createComment(11, 1), objIndex: undefined as unknown as number }],
+        })
+        apiMocks.getCommsClient.mockResolvedValue(client)
+
+        const program = createProgram()
+
+        await expect(
+            program.parseAsync(['node', 'tdc', 'thread', 'mark-unread', '500', '--from', '11']),
+        ).rejects.toHaveProperty('code', 'INVALID_REF')
+        expect(client.threads.markUnread).not.toHaveBeenCalled()
+    })
+
+    it('rejects --from with more than one thread ref', async () => {
+        const client = createClient({ comments: [createComment(11, 1)] })
+        apiMocks.getCommsClient.mockResolvedValue(client)
+
+        const program = createProgram()
+
+        await expect(
+            program.parseAsync([
+                'node',
+                'tdc',
+                'thread',
+                'mark-unread',
+                '500',
+                '501',
+                '--from',
+                '11',
+            ]),
+        ).rejects.toHaveProperty('code', 'CONFLICTING_OPTIONS')
+        expect(client.threads.markUnread).not.toHaveBeenCalled()
+    })
+
+    it('rejects --from when stdin adds a second thread ref', async () => {
+        vi.mocked(readStdinToEnd).mockResolvedValueOnce('501\n')
+        const client = createClient({ comments: [createComment(11, 1)] })
+        apiMocks.getCommsClient.mockResolvedValue(client)
+
+        const program = createProgram()
+
+        await expect(
+            program.parseAsync([
+                'node',
+                'tdc',
+                'thread',
+                'mark-unread',
+                '500',
+                '--from',
+                '11',
+                '--yes',
+            ]),
+        ).rejects.toHaveProperty('code', 'CONFLICTING_OPTIONS')
+        expect(client.threads.markUnread).not.toHaveBeenCalled()
+    })
+
+    it.each([
+        ['at the target', 0],
+        ['before the target', -1],
+    ])('leaves a thread already unread %s unchanged', async (_case, lastReadObjIndex) => {
+        const client = createClient({
+            comments: [createComment(11, 1)],
+            unreadThreads: [
+                {
+                    threadId: '500',
+                    channelId: 'CH100',
+                    objIndex: lastReadObjIndex,
+                    directMention: false,
+                },
+            ],
+        })
+        apiMocks.getCommsClient.mockResolvedValue(client)
+
+        const program = createProgram()
+        const consoleSpy = captureConsole('log')
+
+        await program.parseAsync(['node', 'tdc', 'thread', 'mark-unread', '500', '--from', '11'])
+
+        expect(client.threads.markUnread).not.toHaveBeenCalled()
+        expect(consoleSpy).toHaveBeenCalledWith(
+            'Thread Test Thread (500) is already unread from comment 11.',
+        )
+    })
+
+    it('reports the current read position in JSON when nothing changes', async () => {
+        const client = createClient({
+            comments: [createComment(12, 2)],
+            unreadThreads: [
+                { threadId: '500', channelId: 'CH100', objIndex: 0, directMention: false },
+            ],
+        })
+        apiMocks.getCommsClient.mockResolvedValue(client)
+
+        const program = createProgram()
+        const consoleSpy = captureConsole('log')
+
+        await program.parseAsync([
+            'node',
+            'tdc',
+            'thread',
+            'mark-unread',
+            '500',
+            '--from',
+            '12',
+            '--json',
+        ])
+
+        expect(client.threads.markUnread).not.toHaveBeenCalled()
+        const jsonOutput = JSON.parse(consoleSpy.mock.calls[0][0])
+        expect(jsonOutput).toEqual([{ id: '500', isRead: false, lastReadObjIndex: 0 }])
+    })
+
+    it('still moves an unread thread further back when the target is earlier', async () => {
+        const client = createClient({
+            unreadThreads: [
+                { threadId: '500', channelId: 'CH100', objIndex: 1, directMention: false },
+            ],
+        })
+        apiMocks.getCommsClient.mockResolvedValue(client)
+
+        const program = createProgram()
+        captureConsole('log')
+
+        await program.parseAsync(['node', 'tdc', 'thread', 'mark-unread', '500'])
+
+        expect(client.threads.markUnread).toHaveBeenCalledWith({ id: '500', objIndex: -1 })
+    })
+
+    it('shows dry run output', async () => {
+        const client = createClient()
+        apiMocks.getCommsClient.mockResolvedValue(client)
+
+        const program = createProgram()
+        const consoleSpy = captureConsole('log')
+
+        await program.parseAsync(['node', 'tdc', 'thread', 'mark-unread', '500', '--dry-run'])
+
+        expect(consoleSpy).toHaveBeenCalledWith(
+            'Dry run: would mark unread thread Test Thread (500).',
+        )
+        expect(client.threads.markUnread).not.toHaveBeenCalled()
+    })
+
+    it('outputs JSON with --json', async () => {
+        const client = createClient()
+        apiMocks.getCommsClient.mockResolvedValue(client)
+
+        const program = createProgram()
+        const consoleSpy = captureConsole('log')
+
+        await program.parseAsync(['node', 'tdc', 'thread', 'mark-unread', '500', '--json'])
+
+        const jsonOutput = JSON.parse(consoleSpy.mock.calls[0][0])
+        expect(jsonOutput).toEqual([{ id: '500', isRead: false, lastReadObjIndex: -1 }])
+    })
+
+    it('previews bulk refs from stdin and asks for --yes', async () => {
+        vi.mocked(readStdinToEnd).mockResolvedValueOnce('# refs\n500\n501\n')
+        const originalIsTTY = process.stdin.isTTY
+        Object.defineProperty(process.stdin, 'isTTY', { value: false, configurable: true })
+
+        try {
+            const client = createClient()
+            client.threads.getThread.mockImplementation(async (id: string) =>
+                createThreadFixture(id),
+            )
+            apiMocks.getCommsClient.mockResolvedValue(client)
+
+            const program = createProgram()
+            const consoleSpy = captureConsole('log')
+
+            await program.parseAsync(['node', 'tdc', 'thread', 'mark-unread'])
+
+            expect(readStdinToEnd).toHaveBeenCalled()
+            expect(client.threads.markUnread).not.toHaveBeenCalled()
+            expect(consoleSpy).toHaveBeenCalledWith('Would mark unread thread Test Thread (500).')
+            expect(consoleSpy).toHaveBeenCalledWith('Would mark unread thread Test Thread (501).')
+            expect(consoleSpy).toHaveBeenCalledWith('Summary: 2 previews')
+            expect(consoleSpy).toHaveBeenCalledWith('Use --yes to confirm.')
+        } finally {
+            Object.defineProperty(process.stdin, 'isTTY', {
+                value: originalIsTTY,
+                configurable: true,
+            })
+        }
+    })
+
+    it('marks bulk refs unread with --yes', async () => {
+        const client = createClient()
+        client.threads.getThread.mockImplementation(async (id: string) => createThreadFixture(id))
+        apiMocks.getCommsClient.mockResolvedValue(client)
+
+        const program = createProgram()
+        const consoleSpy = captureConsole('log')
+
+        await program.parseAsync(['node', 'tdc', 'thread', 'mark-unread', '500', '501', '--yes'])
+
+        expect(client.threads.markUnread).toHaveBeenCalledWith({ id: '500', objIndex: -1 })
+        expect(client.threads.markUnread).toHaveBeenCalledWith({ id: '501', objIndex: -1 })
+        expect(client.threads.markUnread).toHaveBeenCalledTimes(2)
+        expect(consoleSpy).toHaveBeenCalledWith('Thread Test Thread (500) marked unread.')
+        expect(consoleSpy).toHaveBeenCalledWith('Thread Test Thread (501) marked unread.')
+        expect(consoleSpy).toHaveBeenCalledWith('Summary: 2 changed threads')
+    })
+
+    it('emits the planned statuses with --json --dry-run', async () => {
+        const client = createClient()
+        client.threads.getThread.mockImplementation(async (id: string) => createThreadFixture(id))
+        apiMocks.getCommsClient.mockResolvedValue(client)
+
+        const program = createProgram()
+        const consoleSpy = captureConsole('log')
+
+        await program.parseAsync([
+            'node',
+            'tdc',
+            'thread',
+            'mark-unread',
+            '500',
+            '501',
+            '--json',
+            '--dry-run',
+        ])
+
+        expect(client.threads.markUnread).not.toHaveBeenCalled()
+        const jsonOutput = JSON.parse(consoleSpy.mock.calls[0][0])
+        expect(jsonOutput).toEqual([
+            { id: '500', isRead: false, lastReadObjIndex: -1, dryRun: true },
+            { id: '501', isRead: false, lastReadObjIndex: -1, dryRun: true },
+        ])
+    })
+
+    it('errors when --json is used for bulk refs without --yes', async () => {
+        const client = createClient()
+        apiMocks.getCommsClient.mockResolvedValue(client)
+
+        const program = createProgram()
+
+        await expect(
+            program.parseAsync(['node', 'tdc', 'thread', 'mark-unread', '500', '501', '--json']),
+        ).rejects.toHaveProperty('code', 'MISSING_YES_FLAG')
+        expect(client.threads.markUnread).not.toHaveBeenCalled()
+    })
+
+    it('surfaces markUnread failures through the shared error path', async () => {
+        const client = createClient()
+        client.threads.markUnread.mockRejectedValueOnce(new Error('mark failed'))
+        apiMocks.getCommsClient.mockResolvedValue(client)
+
+        const program = createProgram()
+
+        await expect(
+            program.parseAsync(['node', 'tdc', 'thread', 'mark-unread', '500']),
+        ).rejects.toThrow('mark failed')
     })
 })
 

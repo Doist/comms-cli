@@ -128,9 +128,15 @@ tdc thread reply <ref>              # reply to a thread
 tdc thread reply <ref> "Update" --notify NONE # reply without notifying anyone
 tdc thread rename <ref> "New title" # rename a thread
 tdc thread update <ref> "New body"  # edit a thread's body (first post)
+tdc thread done <ref> --yes         # archive a thread (mark done)
+tdc thread undone <ref> --yes       # move it back to your inbox
+tdc thread mark-read <ref>          # mark a thread read
+tdc thread mark-unread <ref>        # mark it unread again (--from <comment-ref> for part of it)
 tdc conversation unread             # list unread conversations
 tdc conversation list               # list conversations (--kind, --participant, --name, --state)
 tdc conversation view <ref>         # view conversation messages
+tdc conversation done <ref> --yes   # archive a conversation
+tdc conversation undone <ref> --yes # unarchive it
 tdc msg view <ref>                  # view a conversation message
 tdc search "keyword"                # search across workspace
 tdc search "keyword" --all          # fetch all result pages
