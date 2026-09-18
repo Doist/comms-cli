@@ -1847,6 +1847,19 @@ describe('thread done', () => {
         expect(client.inbox.archiveThread).not.toHaveBeenCalled()
     })
 
+    it('flags an already archived thread in dry run', async () => {
+        const client = createClient({ thread: { ...createThreadFixture(500), isArchived: true } })
+        apiMocks.getCommsClient.mockResolvedValue(client)
+
+        const program = createProgram()
+        const consoleSpy = captureConsole('log')
+
+        await program.parseAsync(['node', 'tdc', 'thread', 'done', '500', '--dry-run'])
+
+        expect(consoleSpy).toHaveBeenCalledWith('  Status: already archived')
+        expect(client.inbox.archiveThread).not.toHaveBeenCalled()
+    })
+
     it('runs validation in dry-run mode', async () => {
         const client = createClient()
         apiMocks.getCommsClient.mockResolvedValue(client)

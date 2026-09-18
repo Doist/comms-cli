@@ -18,10 +18,12 @@ async function setThreadArchiveState(
     const thread = await client.threads.getThread(threadId)
     await assertChannelIsPublic(thread.channelId, thread.workspaceId)
 
+    const noop = thread.isArchived === archive
+
     if (options.dryRun) {
         printDryRun(`${action} thread`, {
             Thread: threadLabel(thread),
-            Status: !archive && !thread.isArchived ? 'already in inbox' : undefined,
+            Status: noop ? (archive ? 'already archived' : 'already in inbox') : undefined,
         })
         return
     }
@@ -38,7 +40,6 @@ async function setThreadArchiveState(
         return
     }
 
-    const noop = thread.isArchived === archive
     if (!noop) {
         if (archive) {
             await client.inbox.archiveThread(threadId)

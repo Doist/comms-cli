@@ -1311,6 +1311,27 @@ describe('conversation undone', () => {
         expect(client.conversations.unarchiveConversation).not.toHaveBeenCalled()
     })
 
+    it('shows dry run output for an archived conversation without a status line', async () => {
+        const conversation = {
+            ...createConversation(42, [1, 2], '2026-03-08T10:00:00.000Z'),
+            archived: true,
+        }
+        const client = createClient({ archivedConversations: [conversation] })
+        apiMocks.getCommsClient.mockResolvedValue(client)
+
+        const program = createProgram()
+        const consoleSpy = captureConsole('log')
+
+        await program.parseAsync(['node', 'tdc', 'conversation', 'undone', '42', '--dry-run'])
+
+        expect(consoleSpy).toHaveBeenCalledWith(
+            expect.stringContaining('Would unarchive conversation'),
+        )
+        expect(consoleSpy).toHaveBeenCalledWith('  Conversation: conversation 42')
+        expect(consoleSpy).not.toHaveBeenCalledWith(expect.stringContaining('Status:'))
+        expect(client.conversations.unarchiveConversation).not.toHaveBeenCalled()
+    })
+
     it('shows dry run output and flags a conversation that is not archived', async () => {
         const conversation = createConversation(42, [1, 2], '2026-03-08T10:00:00.000Z')
         const client = createClient({ activeConversations: [conversation] })
