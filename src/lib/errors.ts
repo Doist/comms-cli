@@ -86,15 +86,9 @@ function hasCommsStatusCode(error: unknown, status: number): error is { httpStat
  * Works with any error shaped like CommsRequestError (httpStatusCode + responseData).
  */
 export function isInsufficientScope(error: unknown): boolean {
-    if (!hasCommsStatusCode(error, 403)) return false
-    if (!('responseData' in error)) return false
-    const data = error.responseData
     return (
-        typeof data === 'object' &&
-        data !== null &&
-        'error_string' in data &&
-        typeof data.error_string === 'string' &&
-        data.error_string.includes('Insufficient scope')
+        hasCommsStatusCode(error, 403) &&
+        (getCommsErrorString(error)?.includes('Insufficient scope') ?? false)
     )
 }
 
@@ -127,12 +121,23 @@ export function isConflict(error: unknown): boolean {
     return hasCommsStatusCode(error, 409)
 }
 
+function getCommsResponseField(error: unknown, field: string): unknown {
+    if (typeof error !== 'object' || error === null || !('responseData' in error)) return undefined
+    const data = error.responseData
+    if (typeof data !== 'object' || data === null || !(field in data)) return undefined
+    return (data as Record<string, unknown>)[field]
+}
+
 /** The server's `error_string`, when the response body carried one. */
 export function getCommsErrorString(error: unknown): string | null {
-    if (typeof error !== 'object' || error === null || !('responseData' in error)) return null
-    const data = error.responseData
-    if (typeof data !== 'object' || data === null || !('error_string' in data)) return null
-    return typeof data.error_string === 'string' ? data.error_string : null
+    const value = getCommsResponseField(error, 'error_string')
+    return typeof value === 'string' ? value : null
+}
+
+/** The server's numeric `error_code`, when the response body carried one. */
+export function getCommsErrorCode(error: unknown): number | null {
+    const value = getCommsResponseField(error, 'error_code')
+    return typeof value === 'number' ? value : null
 }
 
 /**
@@ -140,7 +145,7 @@ export function getCommsErrorString(error: unknown): string | null {
  * 16 bytes. That is a bad reference, not a conflict.
  */
 export function isMalformedId(error: unknown): boolean {
-    return isConflict(error) && (getCommsErrorString(error)?.includes('must decode to') ?? false)
+    return isConflict(error) && getCommsErrorCode(error) === 217
 }
 
 /**
