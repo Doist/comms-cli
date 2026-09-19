@@ -292,6 +292,18 @@ describe('wrapResult — central 403 translation', () => {
         })
     })
 
+    it('gives a 217 without an error_string a readable message', async () => {
+        sdkMocks.deleteChannel.mockRejectedValueOnce(
+            new CommsRequestError('Request failed with status 409', 409, { error_code: 217 }),
+        )
+        const client = createWrappedCommsClient('test-token')
+
+        await expect(client.channels.deleteChannel('nope')).rejects.toMatchObject({
+            code: 'INVALID_REF',
+            message: 'Comms rejected the id: it does not decode to a Comms id (409)',
+        })
+    })
+
     it('translates any other 409 into CONFLICT, keeping the server message', async () => {
         sdkMocks.deleteChannel.mockRejectedValueOnce(
             new CommsRequestError('Request failed with status 409', 409, {

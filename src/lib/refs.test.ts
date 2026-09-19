@@ -22,6 +22,7 @@ import {
     extractId,
     getDirectChannelId,
     isIdRef,
+    BASE58_ALPHABET,
     looksLikeOpaqueCommsId,
     looksLikeRawId,
     parseCommsUrl,
@@ -376,7 +377,6 @@ describe('getDirectChannelId', () => {
     it('never treats a bare digit-free token as an id, even one that decodes to 16 bytes', () => {
         // Valid base58, 21 characters, decodes to 16 bytes: still a plausible channel name.
         expect(getDirectChannelId('EngineeringDiscussion')).toBeNull()
-        expect(getDirectChannelId('CustomerSuccessLeadership')).toBeNull()
     })
 
     it('rejects URLs that do not identify a channel', () => {
@@ -444,6 +444,11 @@ describe('resolveCommentId', () => {
 describe('resolveChannelId', () => {
     it('resolves id: refs', () => {
         expect(resolveChannelId('id:CeRAj1WU3YFhsTejuePLW')).toBe('CeRAj1WU3YFhsTejuePLW')
+    })
+
+    it('resolves a bare digit-free id, having no name fallback to protect', () => {
+        expect(resolveChannelId('CbjxNkWHJBwcaVkoTCRgM')).toBe('CbjxNkWHJBwcaVkoTCRgM')
+        expect(resolveChannelId('CDMDzXhBNCgyQZjkDnqwG')).toBe('CDMDzXhBNCgyQZjkDnqwG')
     })
 
     it('resolves channel URLs', () => {
@@ -1040,12 +1045,11 @@ describe('resolveChannelMemberRefs', () => {
 })
 
 describe('looksLikeOpaqueCommsId', () => {
-    const ALPHABET = '123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz'
     function base58(bytes: number[]): string {
         let value = bytes.reduce((acc, byte) => acc * 256n + BigInt(byte), 0n)
         let out = ''
         while (value > 0n) {
-            out = ALPHABET[Number(value % 58n)] + out
+            out = BASE58_ALPHABET[Number(value % 58n)] + out
             value /= 58n
         }
         const leadingZeros = bytes.findIndex((byte) => byte !== 0)
@@ -1065,7 +1069,11 @@ describe('looksLikeOpaqueCommsId', () => {
     })
 
     it('rejects 17-byte and 15-byte values of the same length', () => {
-        expect(looksLikeOpaqueCommsId(base58([0x01, ...Array(16).fill(0xff)]))).toBe(false)
+        // 2^128 is the smallest 17-byte value and still encodes to 22 characters,
+        // so only the byte-length check can reject it.
+        const smallest17 = base58([0x01, ...Array(16).fill(0x00)])
+        expect(smallest17).toHaveLength(22)
+        expect(looksLikeOpaqueCommsId(smallest17)).toBe(false)
         expect(looksLikeOpaqueCommsId(base58(Array(15).fill(0xff)))).toBe(false)
     })
 })

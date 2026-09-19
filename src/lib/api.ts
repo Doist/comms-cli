@@ -234,7 +234,7 @@ function wrapResult(
             if (isMalformedId(error)) {
                 throw new CliError(
                     'INVALID_REF',
-                    `Comms rejected the id: ${getCommsErrorString(error)}`,
+                    `Comms rejected the id: ${getCommsErrorString(error) ?? 'it does not decode to a Comms id (409)'}`,
                 )
             }
             if (isConflict(error)) {

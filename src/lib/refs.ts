@@ -72,7 +72,7 @@ export function looksLikeRawId(ref: string): boolean {
     return /\d/.test(normalized)
 }
 
-const BASE58_ALPHABET = '123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz'
+export const BASE58_ALPHABET = '123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz'
 
 /**
  * Comms entity ids are 16 bytes, base58-encoded. About 3% of them carry no
@@ -363,6 +363,11 @@ export async function resolveChannelRef(ref: string, workspaceId: number): Promi
 export function resolveChannelId(ref: string): string {
     const channelId = getDirectChannelId(ref)
     if (channelId) return channelId
+
+    // Id-only, like the thread and conversation resolvers: there is no name
+    // to protect, so a bare digit-free token that decodes is an id.
+    const opaqueId = getOpaqueNameId(parseRef(ref))
+    if (opaqueId) return opaqueId
 
     throw new CliError(
         'INVALID_REF',
