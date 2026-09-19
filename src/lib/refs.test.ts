@@ -604,6 +604,8 @@ describe('resolveChannelRef', () => {
         await expect(resolveChannelRef('EngineeringDiscussion', 1)).rejects.toMatchObject({
             code: 'CHANNEL_NOT_FOUND',
         })
+        // Without this the test passes on an empty name list even with the fallback deleted.
+        expect(mockGetChannel).toHaveBeenCalledWith('EngineeringDiscussion')
     })
 
     it('lets any other id-fallback failure through', async () => {
@@ -898,6 +900,13 @@ describe('resolveGroupRef', () => {
             code: 'GROUP_NOT_FOUND',
             hints: ['Run: tdc groups to list available groups'],
         })
+    })
+
+    it('lets a non-NOT_FOUND CliError from getGroup through unchanged', async () => {
+        apiMocks.getGroup.mockRejectedValue(
+            new CliError('FORBIDDEN', 'Comms refused this action: 403 Forbidden.'),
+        )
+        await expect(resolveGroupRef('id:GR999', 1)).rejects.toMatchObject({ code: 'FORBIDDEN' })
     })
 
     it('throws GROUP_NOT_FOUND when group belongs to different workspace', async () => {

@@ -2,7 +2,9 @@ import { CommsRequestError } from '@doist/comms-sdk'
 import { describe, expect, it } from 'vitest'
 
 import {
+    CliError,
     getCommsErrorString,
+    isCliErrorCode,
     isConflict,
     isForbidden,
     isInsufficientScope,
@@ -164,5 +166,16 @@ describe('isMalformedId', () => {
             isMalformedId(new CommsRequestError('Request failed with status 409', 409, {})),
         ).toBe(false)
         expect(getCommsErrorString(new CommsRequestError('x', 409, undefined))).toBeNull()
+    })
+})
+
+describe('isCliErrorCode', () => {
+    it('matches a CliError by any of the given codes and nothing else', () => {
+        const notFound = new CliError('NOT_FOUND', 'x')
+        expect(isCliErrorCode(notFound, 'NOT_FOUND')).toBe(true)
+        expect(isCliErrorCode(notFound, 'INVALID_REF', 'NOT_FOUND')).toBe(true)
+        expect(isCliErrorCode(notFound, 'INVALID_REF')).toBe(false)
+        expect(isCliErrorCode(new Error('x'), 'NOT_FOUND')).toBe(false)
+        expect(isCliErrorCode(new CommsRequestError('x', 404, {}), 'NOT_FOUND')).toBe(false)
     })
 })

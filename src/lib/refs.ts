@@ -1,6 +1,6 @@
 import { type Channel, type Group, parseCommsURL, type Workspace } from '@doist/comms-sdk'
 import { fetchWorkspaces, getGroup, getWorkspaceGroups, getCommsClient } from './api.js'
-import { CliError, type ErrorCode } from './errors.js'
+import { CliError, type ErrorCode, isCliErrorCode } from './errors.js'
 
 function normalizeRef(ref: string): string {
     return ref.trim()
@@ -270,10 +270,6 @@ export function resolveThreadId(ref: string): string {
     )
 }
 
-function isChannelNotFound(error: unknown): boolean {
-    return error instanceof CliError && error.code === 'CHANNEL_NOT_FOUND'
-}
-
 function assertChannelInWorkspace(channel: Channel, workspaceId: number): void {
     if (channel.workspaceId !== workspaceId) {
         throw new CliError(
@@ -334,7 +330,12 @@ export async function resolveChannelRef(ref: string, workspaceId: number): Promi
                 listHint: 'Run: tdc channels to list available channels',
             })
         } catch (error) {
-            if (!isChannelNotFound(error) || !looksLikeOpaqueCommsId(parsed.name)) throw error
+            if (
+                !isCliErrorCode(error, 'CHANNEL_NOT_FOUND') ||
+                !looksLikeOpaqueCommsId(parsed.name)
+            ) {
+                throw error
+            }
             // Nothing by that name, and the token decodes to a Comms id: a bare
             // digit-free channel id lands here rather than in `getDirectChannelId`.
             try {
@@ -344,12 +345,7 @@ export async function resolveChannelRef(ref: string, workspaceId: number): Promi
             } catch (idError) {
                 // A miss (404) or a token the server will not take as an id
                 // (409, "must be UUIDv7") both mean it was a name after all.
-                if (
-                    idError instanceof CliError &&
-                    (idError.code === 'NOT_FOUND' || idError.code === 'INVALID_REF')
-                ) {
-                    throw error
-                }
+                if (isCliErrorCode(idError, 'NOT_FOUND', 'INVALID_REF')) throw error
                 throw idError
             }
         }
@@ -539,7 +535,7 @@ export async function resolveGroupRef(ref: string, workspaceId: number): Promise
         } catch (error) {
             // The wrapped client already turns a 404 into NOT_FOUND; the
             // group-specific code and hint are still the better answer.
-            if (error instanceof CliError && error.code !== 'NOT_FOUND') throw error
+            if (error instanceof CliError && !isCliErrorCode(error, 'NOT_FOUND')) throw error
             throw new CliError('GROUP_NOT_FOUND', `Group with ID ${parsed.id} not found`, [
                 'Run: tdc groups to list available groups',
             ])

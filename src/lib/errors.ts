@@ -113,6 +113,11 @@ export function isInvalidToken(error: unknown): boolean {
     return hasCommsStatusCode(error, 401)
 }
 
+/** True when `error` is a CliError carrying one of the given codes. */
+export function isCliErrorCode(error: unknown, ...codes: ErrorCode[]): boolean {
+    return error instanceof CliError && codes.includes(error.code)
+}
+
 export function isNotFound(error: unknown): boolean {
     return hasCommsStatusCode(error, 404)
 }
