@@ -72,8 +72,25 @@ export function looksLikeRawId(ref: string): boolean {
     return /\d/.test(normalized)
 }
 
-function looksLikeOpaqueCommsId(ref: string): boolean {
-    return /^Cb[A-Za-z0-9_-]{18,}$/.test(ref)
+export const BASE58_ALPHABET = '123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz'
+
+/**
+ * Comms entity ids are 16 bytes, base58-encoded. About 3% of them carry no
+ * digit, so `looksLikeRawId` misses them; decoding is the only check that
+ * also keeps a long single-word name a name. Ids are timestamp-led, so they
+ * encode to 21 characters today and 22 at most (58^22 > 2^128).
+ */
+export function looksLikeOpaqueCommsId(ref: string): boolean {
+    if (ref.length < 21 || ref.length > 22) return false
+    let value = 0n
+    for (const char of ref) {
+        const digit = BASE58_ALPHABET.indexOf(char)
+        if (digit === -1) return false
+        value = value * 58n + BigInt(digit)
+    }
+    const leadingZeroBytes = ref.length - ref.replace(/^1+/, '').length
+    const byteLength = value === 0n ? 0 : Math.ceil(value.toString(16).length / 2)
+    return leadingZeroBytes + byteLength === 16
 }
 
 function getOpaqueNameId(parsed: ParsedRef): string | null {
@@ -253,6 +270,10 @@ export function resolveThreadId(ref: string): string {
     )
 }
 
+function isChannelNotFound(error: unknown): boolean {
+    return error instanceof CliError && error.code === 'CHANNEL_NOT_FOUND'
+}
+
 function assertChannelInWorkspace(channel: Channel, workspaceId: number): void {
     if (channel.workspaceId !== workspaceId) {
         throw new CliError(
@@ -305,12 +326,33 @@ export async function resolveChannelRef(ref: string, workspaceId: number): Promi
             ...joined,
             ...publicChannels.filter((channel) => !joinedIds.has(channel.id)),
         ]
-        return matchByName(channels, parsed.name, {
-            ambiguousCode: 'AMBIGUOUS_CHANNEL',
-            notFoundCode: 'CHANNEL_NOT_FOUND',
-            ref,
-            listHint: 'Run: tdc channels to list available channels',
-        })
+        try {
+            return matchByName(channels, parsed.name, {
+                ambiguousCode: 'AMBIGUOUS_CHANNEL',
+                notFoundCode: 'CHANNEL_NOT_FOUND',
+                ref,
+                listHint: 'Run: tdc channels to list available channels',
+            })
+        } catch (error) {
+            if (!isChannelNotFound(error) || !looksLikeOpaqueCommsId(parsed.name)) throw error
+            // Nothing by that name, and the token decodes to a Comms id: a bare
+            // digit-free channel id lands here rather than in `getDirectChannelId`.
+            try {
+                const channel = await client.channels.getChannel(parsed.name)
+                assertChannelInWorkspace(channel, workspaceId)
+                return channel
+            } catch (idError) {
+                // A miss (404) or a token the server will not take as an id
+                // (409, "must be UUIDv7") both mean it was a name after all.
+                if (
+                    idError instanceof CliError &&
+                    (idError.code === 'NOT_FOUND' || idError.code === 'INVALID_REF')
+                ) {
+                    throw error
+                }
+                throw idError
+            }
+        }
     }
 
     throw new CliError('CHANNEL_NOT_FOUND', `Channel "${ref}" not found`, [
@@ -321,6 +363,11 @@ export async function resolveChannelRef(ref: string, workspaceId: number): Promi
 export function resolveChannelId(ref: string): string {
     const channelId = getDirectChannelId(ref)
     if (channelId) return channelId
+
+    // Id-only, like the thread and conversation resolvers: there is no name
+    // to protect, so a bare digit-free token that decodes is an id.
+    const opaqueId = getOpaqueNameId(parseRef(ref))
+    if (opaqueId) return opaqueId
 
     throw new CliError(
         'INVALID_REF',
@@ -345,9 +392,8 @@ export function getDirectChannelId(ref: string): string | null {
         )
     }
 
-    const opaqueId = getOpaqueNameId(parsed)
-    if (opaqueId) return opaqueId
-
+    // A bare digit-free token could be a channel name, so it goes to name
+    // lookup; `resolveChannelRef` tries it as an id only when no name matches.
     return null
 }
 
@@ -491,7 +537,9 @@ export async function resolveGroupRef(ref: string, workspaceId: number): Promise
             }
             return group
         } catch (error) {
-            if (error instanceof CliError) throw error
+            // The wrapped client already turns a 404 into NOT_FOUND; the
+            // group-specific code and hint are still the better answer.
+            if (error instanceof CliError && error.code !== 'NOT_FOUND') throw error
             throw new CliError('GROUP_NOT_FOUND', `Group with ID ${parsed.id} not found`, [
                 'Run: tdc groups to list available groups',
             ])

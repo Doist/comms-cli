@@ -1,7 +1,15 @@
 import { CommsRequestError } from '@doist/comms-sdk'
 import { describe, expect, it } from 'vitest'
 
-import { isForbidden, isInsufficientScope, isInvalidToken } from './errors.js'
+import {
+    getCommsErrorString,
+    isConflict,
+    isForbidden,
+    isInsufficientScope,
+    isInvalidToken,
+    isMalformedId,
+    isNotFound,
+} from './errors.js'
 
 describe('isInsufficientScope', () => {
     it('returns true for a 403 with "Insufficient scope" error_string', () => {
@@ -116,5 +124,45 @@ describe('isInvalidToken', () => {
         expect(isInvalidToken(null)).toBe(false)
         expect(isInvalidToken(undefined)).toBe(false)
         expect(isInvalidToken('string')).toBe(false)
+    })
+})
+
+describe('isNotFound / isConflict', () => {
+    it('match on status alone', () => {
+        expect(isNotFound(new CommsRequestError('Request failed with status 404', 404, {}))).toBe(
+            true,
+        )
+        expect(isConflict(new CommsRequestError('Request failed with status 409', 409, {}))).toBe(
+            true,
+        )
+        expect(isNotFound(new CommsRequestError('Request failed with status 409', 409, {}))).toBe(
+            false,
+        )
+        expect(isConflict(new CommsRequestError('Request failed with status 404', 404, {}))).toBe(
+            false,
+        )
+        expect(isNotFound(new Error('something'))).toBe(false)
+    })
+})
+
+describe('isMalformedId', () => {
+    it('is true only for the 409 the API sends for an id that does not decode', () => {
+        const malformed = new CommsRequestError('Request failed with status 409', 409, {
+            error_string: 'id must decode to 16 bytes. Regenerate the ID and retry.',
+            error_code: 217,
+        })
+        expect(isMalformedId(malformed)).toBe(true)
+        expect(getCommsErrorString(malformed)).toBe(
+            'id must decode to 16 bytes. Regenerate the ID and retry.',
+        )
+
+        const otherConflict = new CommsRequestError('Request failed with status 409', 409, {
+            error_string: 'Channel name already taken',
+        })
+        expect(isMalformedId(otherConflict)).toBe(false)
+        expect(
+            isMalformedId(new CommsRequestError('Request failed with status 409', 409, {})),
+        ).toBe(false)
+        expect(getCommsErrorString(new CommsRequestError('x', 409, undefined))).toBeNull()
     })
 })

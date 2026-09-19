@@ -260,7 +260,66 @@ describe('wrapResult — central 403 translation', () => {
         })
     })
 
-    it('passes non-403 errors through untranslated', async () => {
+    it('translates a 404 into NOT_FOUND', async () => {
+        sdkMocks.deleteChannel.mockRejectedValueOnce(
+            new CommsRequestError('Request failed with status 404', 404, {
+                error_string: 'Resource not found',
+                error_code: 110,
+            }),
+        )
+        const client = createWrappedCommsClient('test-token')
+
+        await expect(client.channels.deleteChannel('CH404')).rejects.toMatchObject({
+            code: 'NOT_FOUND',
+            message: 'Comms could not find that resource: 404.',
+            hints: ['Check the id, or pass the Comms URL instead'],
+        })
+    })
+
+    it('translates a malformed-id 409 into INVALID_REF', async () => {
+        sdkMocks.deleteChannel.mockRejectedValueOnce(
+            new CommsRequestError('Request failed with status 409', 409, {
+                error_string: 'id must decode to 16 bytes. Regenerate the ID and retry.',
+                error_code: 217,
+            }),
+        )
+        const client = createWrappedCommsClient('test-token')
+
+        await expect(client.channels.deleteChannel('nope')).rejects.toMatchObject({
+            code: 'INVALID_REF',
+            message:
+                'Comms rejected the id: id must decode to 16 bytes. Regenerate the ID and retry.',
+        })
+    })
+
+    it('gives a 217 without an error_string a readable message', async () => {
+        sdkMocks.deleteChannel.mockRejectedValueOnce(
+            new CommsRequestError('Request failed with status 409', 409, { error_code: 217 }),
+        )
+        const client = createWrappedCommsClient('test-token')
+
+        await expect(client.channels.deleteChannel('nope')).rejects.toMatchObject({
+            code: 'INVALID_REF',
+            message: 'Comms rejected the id: it does not decode to a Comms id (409)',
+        })
+    })
+
+    it('translates any other 409 into CONFLICT, keeping the server message', async () => {
+        sdkMocks.deleteChannel.mockRejectedValueOnce(
+            new CommsRequestError('Request failed with status 409', 409, {
+                error_string: 'Channel name already taken',
+                error_code: 300,
+            }),
+        )
+        const client = createWrappedCommsClient('test-token')
+
+        await expect(client.channels.deleteChannel('CH409')).rejects.toMatchObject({
+            code: 'CONFLICT',
+            message: 'Comms refused this request: Channel name already taken',
+        })
+    })
+
+    it('passes unmapped errors through untranslated', async () => {
         const originalError = new CommsRequestError('Request failed with status 500', 500, {})
         sdkMocks.deleteChannel.mockRejectedValueOnce(originalError)
         const client = createWrappedCommsClient('test-token')
