@@ -62,6 +62,7 @@ export type ErrorCode =
     | 'UNKNOWN_AGENT'
     // API & internal
     | 'API_ERROR'
+    | 'CONFLICT'
     | 'INTERNAL_ERROR'
     // Config file inspection
     | 'CONFIG_READ_FAILED'
@@ -116,6 +117,30 @@ export function isForbidden(error: unknown): boolean {
  */
 export function isInvalidToken(error: unknown): boolean {
     return hasCommsStatusCode(error, 401)
+}
+
+export function isNotFound(error: unknown): boolean {
+    return hasCommsStatusCode(error, 404)
+}
+
+export function isConflict(error: unknown): boolean {
+    return hasCommsStatusCode(error, 409)
+}
+
+/** The server's `error_string`, when the response body carried one. */
+export function getCommsErrorString(error: unknown): string | null {
+    if (typeof error !== 'object' || error === null || !('responseData' in error)) return null
+    const data = error.responseData
+    if (typeof data !== 'object' || data === null || !('error_string' in data)) return null
+    return typeof data.error_string === 'string' ? data.error_string : null
+}
+
+/**
+ * Comms answers 409 with error_code 217 when an id does not base58-decode to
+ * 16 bytes. That is a bad reference, not a conflict.
+ */
+export function isMalformedId(error: unknown): boolean {
+    return isConflict(error) && (getCommsErrorString(error)?.includes('must decode to') ?? false)
 }
 
 /**

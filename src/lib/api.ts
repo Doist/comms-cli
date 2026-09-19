@@ -7,7 +7,16 @@ import {
 } from '@doist/comms-sdk'
 import { getApiTokenSnapshot } from './auth.js'
 import { getConfig, updateConfig } from './config.js'
-import { CliError, isForbidden, isInsufficientScope, isInvalidToken } from './errors.js'
+import {
+    CliError,
+    getCommsErrorString,
+    isConflict,
+    isForbidden,
+    isInsufficientScope,
+    isInvalidToken,
+    isMalformedId,
+    isNotFound,
+} from './errors.js'
 import { ensureMutationAllowed, isMutatingMethod } from './permissions.js'
 import { getProgressTracker } from './progress.js'
 import { withSpinner } from './spinner.js'
@@ -216,6 +225,23 @@ function wrapResult(
                 throw new CliError('INVALID_TOKEN', 'Comms rejected the token: 401.', [
                     'Re-authenticate with `tdc auth login`, then check `tdc auth status`',
                 ])
+            }
+            if (isNotFound(error)) {
+                throw new CliError('NOT_FOUND', 'Comms could not find that resource: 404.', [
+                    'Check the id, or pass the Comms URL instead',
+                ])
+            }
+            if (isMalformedId(error)) {
+                throw new CliError(
+                    'INVALID_REF',
+                    `Comms rejected the id: ${getCommsErrorString(error)}`,
+                )
+            }
+            if (isConflict(error)) {
+                throw new CliError(
+                    'CONFLICT',
+                    `Comms refused this request: ${getCommsErrorString(error) ?? '409 Conflict'}`,
+                )
             }
             throw error
         })

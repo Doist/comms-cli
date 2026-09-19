@@ -1,4 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { CliError } from './errors.js'
 
 const apiMocks = vi.hoisted(() => ({
     getCommsClient: vi.fn(),
@@ -371,6 +372,13 @@ describe('getDirectChannelId', () => {
         expect(getDirectChannelId('Engineering')).toBeNull()
     })
 
+    it('keeps long single-word names as names, not ids', () => {
+        // 25 base58-looking characters: too long to decode to 16 bytes.
+        expect(getDirectChannelId('CustomerSuccessLeadership')).toBeNull()
+        // Base58 has no 0, O, I or l.
+        expect(getDirectChannelId('ProductOperationsIOlead')).toBeNull()
+    })
+
     it('rejects URLs that do not identify a channel', () => {
         expect(() =>
             getDirectChannelId('https://comms.todoist.com/a/12345/msg/CeRAj1WU3YFhsatbAs43L'),
@@ -621,6 +629,15 @@ describe('resolveChannelRef', () => {
 describe('resolveConversationId', () => {
     it('resolves id: refs', () => {
         expect(resolveConversationId('id:CeRAj1WU3YFhsatbAs43L')).toBe('CeRAj1WU3YFhsatbAs43L')
+    })
+
+    it('resolves bare ids that carry no digit and no Cb prefix', () => {
+        // A real conversation id: about 3% of base58 ids have no digit.
+        expect(resolveConversationId('CDMDzXhBNCgyQZjkDnqwG')).toBe('CDMDzXhBNCgyQZjkDnqwG')
+    })
+
+    it('rejects a 22-character base58 token that decodes to more than 16 bytes', () => {
+        expect(() => resolveConversationId('zzzzzzzzzzzzzzzzzzzzzz')).toThrow(CliError)
     })
 
     it('resolves conversation URLs', () => {

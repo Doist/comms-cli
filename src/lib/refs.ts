@@ -72,8 +72,22 @@ export function looksLikeRawId(ref: string): boolean {
     return /\d/.test(normalized)
 }
 
+const BASE58_ALPHABET = '123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz'
+
+/**
+ * Comms entity ids are 16 bytes, base58-encoded (21 or 22 characters). About
+ * 3% of them carry no digit, so `looksLikeRawId` misses them; decoding is the
+ * only check that also keeps a long single-word channel name a name.
+ */
 function looksLikeOpaqueCommsId(ref: string): boolean {
-    return /^Cb[A-Za-z0-9_-]{18,}$/.test(ref)
+    if (!/^[1-9A-HJ-NP-Za-km-z]{21,22}$/.test(ref)) return false
+    let value = 0n
+    for (const char of ref) {
+        value = value * 58n + BigInt(BASE58_ALPHABET.indexOf(char))
+    }
+    const leadingZeroBytes = ref.length - ref.replace(/^1+/, '').length
+    const byteLength = value === 0n ? 0 : Math.ceil(value.toString(16).length / 2)
+    return leadingZeroBytes + byteLength === 16
 }
 
 function getOpaqueNameId(parsed: ParsedRef): string | null {
