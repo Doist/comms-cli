@@ -86,7 +86,7 @@ function setupClient({
     unread = [],
 }: {
     threads?: Thread[]
-    unread?: { threadId: string }[] | null
+    unread?: { threadId: string; directMention?: boolean }[] | null
 } = {}) {
     const mockGetThreads = vi.fn().mockResolvedValue(threads)
     const mockGetUnread = vi.fn().mockResolvedValue({ data: unread ?? [], version: 1 })
@@ -505,10 +505,10 @@ describe('channel threads', () => {
         expect(consoleSpy).toHaveBeenCalledWith('No threads in #general.')
     })
 
-    it('--json emits isUnread and url without --full', async () => {
+    it('--json emits isUnread, hasUnreadMention and url without --full', async () => {
         setupClient({
             threads: [createThread(1)],
-            unread: [{ threadId: '1' }],
+            unread: [{ threadId: '1', directMention: true }],
         })
         const consoleSpy = captureConsole('log')
         const program = createProgram()
@@ -519,6 +519,7 @@ describe('channel threads', () => {
         expect(output.results[0]).toMatchObject({
             id: '1',
             isUnread: true,
+            hasUnreadMention: true,
             url: 'https://comms.todoist.com/a/1/ch/CH100/t/1',
         })
     })

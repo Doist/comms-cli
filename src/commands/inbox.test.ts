@@ -228,9 +228,17 @@ describe('inbox unread mentions', () => {
             posted: '2026-05-01T00:00:00Z',
             url: 'https://example.test/thread-mention',
         },
+        {
+            id: 'thread-unread-older',
+            channelId: 'CH1',
+            title: 'Older plain unread',
+            posted: '2026-04-30T00:00:00Z',
+            url: 'https://example.test/thread-unread-older',
+        },
     ]
     const unreadData = [
         { threadId: 'thread-unread', channelId: 'CH1', objIndex: 3, directMention: false },
+        { threadId: 'thread-unread-older', channelId: 'CH1', objIndex: 1, directMention: false },
         { threadId: 'thread-mention', channelId: 'CH1', objIndex: 5, directMention: true },
     ]
     let logSpy: ReturnType<typeof vi.spyOn>
@@ -272,12 +280,13 @@ describe('inbox unread mentions', () => {
         expect(parsedJsonOutput().map((t) => t.id)).toEqual(['thread-mention'])
     })
 
-    it('sorts mention threads before newer plain-unread threads within a channel', async () => {
+    it('sorts by tier, then newest first within a tier', async () => {
         await createProgram().parseAsync(['node', 'tdc', 'inbox', '--json'])
 
         expect(parsedJsonOutput().map((t) => t.id)).toEqual([
             'thread-mention',
             'thread-unread',
+            'thread-unread-older',
             'thread-read',
         ])
     })
