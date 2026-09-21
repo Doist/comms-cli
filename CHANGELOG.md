@@ -1,3 +1,9 @@
+## [3.4.1](https://github.com/Doist/comms-cli/compare/v3.4.0...v3.4.1) (2026-09-21)
+
+### Bug Fixes
+
+- accept digit-free opaque ids and map 404/409 to CliError ([#66](https://github.com/Doist/comms-cli/issues/66)) ([45052b3](https://github.com/Doist/comms-cli/commit/45052b3aa488caa1c2a51a856285bc81859cd391)), closes [#65](https://github.com/Doist/comms-cli/issues/65)
+
 ## [3.4.0](https://github.com/Doist/comms-cli/compare/v3.3.0...v3.4.0) (2026-09-18)
 
 ### Features
