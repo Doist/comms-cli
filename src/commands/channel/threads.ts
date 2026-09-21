@@ -1,5 +1,5 @@
 import { outputIds, resolveOutputMode } from '@doist/cli-core'
-import type { ArchiveFilter, Thread, UnreadThread } from '@doist/comms-sdk'
+import type { ArchiveFilter, Thread } from '@doist/comms-sdk'
 import chalk from 'chalk'
 import { getCommsClient, getCurrentWorkspaceId } from '../../lib/api.js'
 import { formatRelativeDate } from '../../lib/dates.js'
@@ -14,7 +14,7 @@ import {
 } from '../../lib/output.js'
 import { assertChannelIsPublic } from '../../lib/public-channels.js'
 import { resolveChannelRef, resolveWorkspaceRef } from '../../lib/refs.js'
-import { fetchUnreadThreads } from '../../lib/threads.js'
+import { fetchUnreadThreads, unreadFlags, type UnreadThreadMap } from '../../lib/threads.js'
 import { decodeCursor, encodeCursor } from './helpers.js'
 
 type ChannelThreadsOptions = PaginatedViewOptions & {
@@ -24,7 +24,7 @@ type ChannelThreadsOptions = PaginatedViewOptions & {
     cursor?: string
 }
 
-type DecoratedThread = Thread & { isUnread: boolean }
+type DecoratedThread = Thread & ReturnType<typeof unreadFlags>
 
 function archiveFilterToFlag(filter: ArchiveFilter | undefined): boolean | undefined {
     switch (filter ?? 'active') {
@@ -88,7 +88,7 @@ export async function showChannelThreads(
         ),
         needsUnreadData
             ? fetchUnreadThreads(client, workspaceId)
-            : Promise.resolve(new Map<string, UnreadThread>()),
+            : Promise.resolve(new Map() as UnreadThreadMap),
     ])
 
     let threads = threadsData
@@ -124,7 +124,7 @@ export async function showChannelThreads(
 
     const decoratedPage: DecoratedThread[] = page.map((thread) => ({
         ...thread,
-        isUnread: unreadThreads.has(thread.id),
+        ...unreadFlags(thread.id, unreadThreads),
     }))
     const paginated: PaginatedOutput<DecoratedThread> = {
         results: decoratedPage,

@@ -11,7 +11,7 @@ import { toDate, type PaginatedViewOptions } from '../lib/options.js'
 import { colors, formatJson, formatNdjson } from '../lib/output.js'
 import { getPublicChannelIds } from '../lib/public-channels.js'
 import { resolveWorkspaceRef } from '../lib/refs.js'
-import { fetchUnreadThreads } from '../lib/threads.js'
+import { fetchUnreadThreads, unreadFlags } from '../lib/threads.js'
 
 type InboxOptions = PaginatedViewOptions & {
     workspace?: string
@@ -54,14 +54,7 @@ async function showInbox(workspaceRef: string | undefined, options: InboxOptions
         fetchUnreadThreads(client, workspaceId),
     ])
 
-    let inboxThreads = threads.map((t) => {
-        const unread = unreadThreads.get(t.id)
-        return {
-            ...t,
-            isUnread: unread !== undefined,
-            hasUnreadMention: unread?.directMention ?? false,
-        }
-    })
+    let inboxThreads = threads.map((t) => ({ ...t, ...unreadFlags(t.id, unreadThreads) }))
 
     if (options.mentions) {
         inboxThreads = inboxThreads.filter((t) => t.hasUnreadMention)
@@ -112,7 +105,7 @@ async function showInbox(workspaceRef: string | undefined, options: InboxOptions
         }
     }
 
-    // Group by channel; within each channel sort by tier (mention, unread, read), then newest first
+    // Group by channel, then order within each channel
     const groupedByChannel = new Map<string, typeof inboxThreads>()
     for (const thread of inboxThreads) {
         const group = groupedByChannel.get(thread.channelId) || []
@@ -120,10 +113,11 @@ async function showInbox(workspaceRef: string | undefined, options: InboxOptions
         groupedByChannel.set(thread.channelId, group)
     }
 
-    const sortByDate = (a: (typeof inboxThreads)[0], b: (typeof inboxThreads)[0]) =>
+    type InboxThread = (typeof inboxThreads)[number]
+    const sortByDate = (a: InboxThread, b: InboxThread) =>
         new Date(b.posted).getTime() - new Date(a.posted).getTime()
 
-    const tier = (t: (typeof inboxThreads)[number]) => (t.hasUnreadMention ? 0 : t.isUnread ? 1 : 2)
+    const tier = (t: InboxThread) => (t.hasUnreadMention ? 0 : t.isUnread ? 1 : 2)
     const sortedChannelGroups: typeof inboxThreads = []
     for (const [, threads] of groupedByChannel) {
         sortedChannelGroups.push(...threads.sort((a, b) => tier(a) - tier(b) || sortByDate(a, b)))
