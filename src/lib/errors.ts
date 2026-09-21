@@ -62,6 +62,7 @@ export type ErrorCode =
     | 'UNKNOWN_AGENT'
     // API & internal
     | 'API_ERROR'
+    | 'CONFLICT'
     | 'INTERNAL_ERROR'
     // Config file inspection
     | 'CONFIG_READ_FAILED'
@@ -85,15 +86,9 @@ function hasCommsStatusCode(error: unknown, status: number): error is { httpStat
  * Works with any error shaped like CommsRequestError (httpStatusCode + responseData).
  */
 export function isInsufficientScope(error: unknown): boolean {
-    if (!hasCommsStatusCode(error, 403)) return false
-    if (!('responseData' in error)) return false
-    const data = error.responseData
     return (
-        typeof data === 'object' &&
-        data !== null &&
-        'error_string' in data &&
-        typeof data.error_string === 'string' &&
-        data.error_string.includes('Insufficient scope')
+        hasCommsStatusCode(error, 403) &&
+        (getCommsErrorString(error)?.includes('Insufficient scope') ?? false)
     )
 }
 
@@ -116,6 +111,46 @@ export function isForbidden(error: unknown): boolean {
  */
 export function isInvalidToken(error: unknown): boolean {
     return hasCommsStatusCode(error, 401)
+}
+
+/** True when `error` is a CliError carrying one of the given codes. */
+export function isCliErrorCode(error: unknown, ...codes: ErrorCode[]): boolean {
+    return error instanceof CliError && codes.includes(error.code)
+}
+
+export function isNotFound(error: unknown): boolean {
+    return hasCommsStatusCode(error, 404)
+}
+
+export function isConflict(error: unknown): boolean {
+    return hasCommsStatusCode(error, 409)
+}
+
+function getCommsResponseField(error: unknown, field: string): unknown {
+    if (typeof error !== 'object' || error === null || !('responseData' in error)) return undefined
+    const data = error.responseData
+    if (typeof data !== 'object' || data === null || !(field in data)) return undefined
+    return (data as Record<string, unknown>)[field]
+}
+
+/** The server's `error_string`, when the response body carried one. */
+export function getCommsErrorString(error: unknown): string | null {
+    const value = getCommsResponseField(error, 'error_string')
+    return typeof value === 'string' ? value : null
+}
+
+/** The server's numeric `error_code`, when the response body carried one. */
+export function getCommsErrorCode(error: unknown): number | null {
+    const value = getCommsResponseField(error, 'error_code')
+    return typeof value === 'number' ? value : null
+}
+
+/**
+ * Comms answers 409 with error_code 217 when an id does not base58-decode to
+ * 16 bytes. That is a bad reference, not a conflict.
+ */
+export function isMalformedId(error: unknown): boolean {
+    return isConflict(error) && getCommsErrorCode(error) === 217
 }
 
 /**
