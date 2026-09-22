@@ -88,7 +88,7 @@ export async function showChannelThreads(
         ),
         needsUnreadData
             ? fetchUnreadThreads(client, workspaceId)
-            : Promise.resolve(new Map() as UnreadThreadMap),
+            : Promise.resolve<UnreadThreadMap>(new Map()),
     ])
 
     let threads = threadsData
