@@ -22,8 +22,6 @@ import {
     extractId,
     getDirectChannelId,
     isIdRef,
-    BASE58_ALPHABET,
-    looksLikeOpaqueCommsId,
     looksLikeRawId,
     parseCommsUrl,
     parseNumericIdRefs,
@@ -374,9 +372,15 @@ describe('getDirectChannelId', () => {
         expect(getDirectChannelId('Engineering')).toBeNull()
     })
 
-    it('never treats a bare digit-free token as an id, even one that decodes to 16 bytes', () => {
-        // Valid base58, 21 characters, decodes to 16 bytes: still a plausible channel name.
+    it('keeps a name that decodes to 16 bytes a name', () => {
+        // 21 characters of valid base58 decoding to 16 bytes, so the old local
+        // check took it for an id. It carries no v7 version nibble, so the SDK
+        // validator refuses it and the name path keeps it.
         expect(getDirectChannelId('EngineeringDiscussion')).toBeNull()
+    })
+
+    it('resolves a bare digit-free id', () => {
+        expect(getDirectChannelId('CbjxNkWHJBwcaVkoTCRgM')).toBe('CbjxNkWHJBwcaVkoTCRgM')
     })
 
     it('rejects URLs that do not identify a channel', () => {
@@ -575,17 +579,7 @@ describe('resolveChannelRef', () => {
         )
     })
 
-    it('falls back to getChannel for a bare digit-free id when no name matches', async () => {
-        mockChannelLists([createChannel('CeRAj1WU3YFhsTejuePLW', 'Engineering')])
-        mockGetChannel.mockResolvedValue(createChannel('CDMDzXhBNCgyQZjkDnqwG', 'Ops'))
-
-        const channel = await resolveChannelRef('CDMDzXhBNCgyQZjkDnqwG', 1)
-
-        expect(channel.id).toBe('CDMDzXhBNCgyQZjkDnqwG')
-        expect(mockGetChannel).toHaveBeenCalledWith('CDMDzXhBNCgyQZjkDnqwG')
-    })
-
-    it('prefers a name match over the id fallback for a token that decodes to 16 bytes', async () => {
+    it('resolves a name that decodes to 16 bytes by name, never as an id', async () => {
         mockChannelLists([createChannel('CeRAj1WU3YFhsTejuePLW', 'EngineeringDiscussion')])
 
         const channel = await resolveChannelRef('EngineeringDiscussion', 1)
@@ -594,29 +588,13 @@ describe('resolveChannelRef', () => {
         expect(mockGetChannel).not.toHaveBeenCalled()
     })
 
-    it.each([
-        ['NOT_FOUND', 'Comms could not find that resource: 404.'],
-        ['INVALID_REF', 'Comms rejected the id: id must be UUIDv7 (version nibble mismatch).'],
-    ])('keeps CHANNEL_NOT_FOUND when the id fallback fails with %s', async (code, message) => {
+    it('throws CHANNEL_NOT_FOUND for such a name when nothing matches', async () => {
         mockChannelLists([])
-        mockGetChannel.mockRejectedValue(new CliError(code, message))
 
         await expect(resolveChannelRef('EngineeringDiscussion', 1)).rejects.toMatchObject({
             code: 'CHANNEL_NOT_FOUND',
         })
-        // Without this the test passes on an empty name list even with the fallback deleted.
-        expect(mockGetChannel).toHaveBeenCalledWith('EngineeringDiscussion')
-    })
-
-    it('lets any other id-fallback failure through', async () => {
-        mockChannelLists([])
-        mockGetChannel.mockRejectedValue(
-            new CliError('FORBIDDEN', 'Comms refused this action: 403 Forbidden.'),
-        )
-
-        await expect(resolveChannelRef('EngineeringDiscussion', 1)).rejects.toMatchObject({
-            code: 'FORBIDDEN',
-        })
+        expect(mockGetChannel).not.toHaveBeenCalled()
     })
 
     it('throws CHANNEL_NOT_FOUND when no match', async () => {
@@ -1053,36 +1031,20 @@ describe('resolveChannelMemberRefs', () => {
     })
 })
 
-describe('looksLikeOpaqueCommsId', () => {
-    function base58(bytes: number[]): string {
-        let value = bytes.reduce((acc, byte) => acc * 256n + BigInt(byte), 0n)
-        let out = ''
-        while (value > 0n) {
-            out = BASE58_ALPHABET[Number(value % 58n)] + out
-            value /= 58n
+describe('opaque-id recognition (delegated to the SDK validator)', () => {
+    it('accepts real ids and refuses base58 look-alikes', () => {
+        // Real ids carry the v7 version nibble; the look-alikes below decode to
+        // 16 bytes but do not, which is the distinction the SDK validator makes
+        // and the local check used to miss.
+        for (const id of [
+            'CDMDzXhBNCgyQZjkDnqwG',
+            'Cf9TR6CPC2dKQL5fB2EoL',
+            'CbjxNkWHJBwcaVkoTCRgM',
+        ]) {
+            expect(resolveConversationId(id)).toBe(id)
         }
-        const leadingZeros = bytes.findIndex((byte) => byte !== 0)
-        return '1'.repeat(leadingZeros === -1 ? bytes.length : leadingZeros) + out
-    }
-
-    it('accepts both length extremes a 16-byte id can encode to', () => {
-        const longest = base58(Array(16).fill(0xff))
-        const leadingZero = base58([0, ...Array(15).fill(0xff)])
-        const timestampLed = base58([0x01, 0x90, ...Array(14).fill(0xff)])
-        expect(longest).toHaveLength(22)
-        expect(leadingZero).toHaveLength(22)
-        expect(timestampLed).toHaveLength(21)
-        for (const id of [longest, leadingZero, timestampLed]) {
-            expect(looksLikeOpaqueCommsId(id)).toBe(true)
+        for (const name of ['EngineeringDiscussion', 'CustomerSuccessLeadership', 'nope']) {
+            expect(() => resolveConversationId(name)).toThrow(CliError)
         }
-    })
-
-    it('rejects 17-byte and 15-byte values of the same length', () => {
-        // 2^128 is the smallest 17-byte value and still encodes to 22 characters,
-        // so only the byte-length check can reject it.
-        const smallest17 = base58([0x01, ...Array(16).fill(0x00)])
-        expect(smallest17).toHaveLength(22)
-        expect(looksLikeOpaqueCommsId(smallest17)).toBe(false)
-        expect(looksLikeOpaqueCommsId(base58(Array(15).fill(0xff)))).toBe(false)
     })
 })

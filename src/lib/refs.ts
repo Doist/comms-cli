@@ -1,4 +1,10 @@
-import { type Channel, type Group, parseCommsURL, type Workspace } from '@doist/comms-sdk'
+import {
+    type Channel,
+    type Group,
+    isValidUuidV7Base58,
+    parseCommsURL,
+    type Workspace,
+} from '@doist/comms-sdk'
 import { fetchWorkspaces, getGroup, getWorkspaceGroups, getCommsClient } from './api.js'
 import { CliError, type ErrorCode, isCliErrorCode } from './errors.js'
 
@@ -72,29 +78,8 @@ export function looksLikeRawId(ref: string): boolean {
     return /\d/.test(normalized)
 }
 
-export const BASE58_ALPHABET = '123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz'
-
-/**
- * Comms entity ids are 16 bytes, base58-encoded. About 3% of them carry no
- * digit, so `looksLikeRawId` misses them; decoding is the only check that
- * also keeps a long single-word name a name. Ids are timestamp-led, so they
- * encode to 21 characters today and 22 at most (58^22 > 2^128).
- */
-export function looksLikeOpaqueCommsId(ref: string): boolean {
-    if (ref.length < 21 || ref.length > 22) return false
-    let value = 0n
-    for (const char of ref) {
-        const digit = BASE58_ALPHABET.indexOf(char)
-        if (digit === -1) return false
-        value = value * 58n + BigInt(digit)
-    }
-    const leadingZeroBytes = ref.length - ref.replace(/^1+/, '').length
-    const byteLength = value === 0n ? 0 : Math.ceil(value.toString(16).length / 2)
-    return leadingZeroBytes + byteLength === 16
-}
-
 function getOpaqueNameId(parsed: ParsedRef): string | null {
-    return parsed.type === 'name' && looksLikeOpaqueCommsId(parsed.name) ? parsed.name : null
+    return parsed.type === 'name' && isValidUuidV7Base58(parsed.name) ? parsed.name : null
 }
 
 export interface ParsedCommsUrl {
@@ -322,33 +307,12 @@ export async function resolveChannelRef(ref: string, workspaceId: number): Promi
             ...joined,
             ...publicChannels.filter((channel) => !joinedIds.has(channel.id)),
         ]
-        try {
-            return matchByName(channels, parsed.name, {
-                ambiguousCode: 'AMBIGUOUS_CHANNEL',
-                notFoundCode: 'CHANNEL_NOT_FOUND',
-                ref,
-                listHint: 'Run: tdc channels to list available channels',
-            })
-        } catch (error) {
-            if (
-                !isCliErrorCode(error, 'CHANNEL_NOT_FOUND') ||
-                !looksLikeOpaqueCommsId(parsed.name)
-            ) {
-                throw error
-            }
-            // Nothing by that name, and the token decodes to a Comms id: a bare
-            // digit-free channel id lands here rather than in `getDirectChannelId`.
-            try {
-                const channel = await client.channels.getChannel(parsed.name)
-                assertChannelInWorkspace(channel, workspaceId)
-                return channel
-            } catch (idError) {
-                // A miss (404) or a token the server will not take as an id
-                // (409, "must be UUIDv7") both mean it was a name after all.
-                if (isCliErrorCode(idError, 'NOT_FOUND', 'INVALID_REF')) throw error
-                throw idError
-            }
-        }
+        return matchByName(channels, parsed.name, {
+            ambiguousCode: 'AMBIGUOUS_CHANNEL',
+            notFoundCode: 'CHANNEL_NOT_FOUND',
+            ref,
+            listHint: 'Run: tdc channels to list available channels',
+        })
     }
 
     throw new CliError('CHANNEL_NOT_FOUND', `Channel "${ref}" not found`, [
@@ -388,9 +352,7 @@ export function getDirectChannelId(ref: string): string | null {
         )
     }
 
-    // A bare digit-free token could be a channel name, so it goes to name
-    // lookup; `resolveChannelRef` tries it as an id only when no name matches.
-    return null
+    return getOpaqueNameId(parsed)
 }
 
 export function resolveCommentId(ref: string): string {
