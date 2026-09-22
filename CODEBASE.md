@@ -159,7 +159,7 @@ don't duplicate it here.
 - **`search-api.ts` / `search-helpers.ts`** — extended search params/response
   (`extendedSearch`) + shared `--search`/options wiring (`addSharedSearchOptions`,
   `runSearch`, `printSearchResults`). See `docs/comms-search.md`.
-- **`threads.ts`** — `fetchUnreadThreadIds`; **`public-channels.ts`** —
+- **`threads.ts`** — `fetchUnreadThreads`, `unreadFlags`; **`public-channels.ts`** —
   public-channel id cache + `assertChannelIsPublic`.
 - **`spinner.ts`** — re-exports `LoadingSpinner`, `withSpinner`,
   `startEarlySpinner`, `stopEarlySpinner` from cli-core.
@@ -176,7 +176,7 @@ don't duplicate it here.
 ## Canonical examples
 
 - **Read:** `src/commands/inbox.ts` — `getCommsClient()`, parallel fetches
-  (`getInbox` + `fetchUnreadThreadIds`), public-channel handling, then
+  (`getInbox` + `fetchUnreadThreads`), public-channel handling, then
   `formatJson` / `formatNdjson` / `printEmpty`.
 - **Mutation with `--json`:** `src/commands/channel/create.ts` — the reference
   impl for `MutationOptions`, `ensureWriteAllowed`, `printDryRun`, and

@@ -1,10 +1,18 @@
-import type { CommsApi } from '@doist/comms-sdk'
+import type { CommsApi, UnreadThread } from '@doist/comms-sdk'
 
-/** Normalises the SDK's `{ data, version }` unread response into a Set for O(1) joins. */
-export async function fetchUnreadThreadIds(
+export type UnreadThreadMap = Map<string, UnreadThread>
+
+/** Normalises the SDK's `{ data, version }` unread response into a Map keyed by thread ID. */
+export async function fetchUnreadThreads(
     client: CommsApi,
     workspaceId: number,
-): Promise<Set<string>> {
+): Promise<UnreadThreadMap> {
     const unread = await client.threads.getUnread(workspaceId)
-    return new Set(unread.data.map((u) => u.threadId))
+    return new Map(unread.data.map((u) => [u.threadId, u]))
+}
+
+/** Per-thread unread state for list output. `hasUnreadMention` is only ever true for an unread thread. */
+export function unreadFlags(threadId: string, unreadThreads: UnreadThreadMap) {
+    const unread = unreadThreads.get(threadId)
+    return { isUnread: unread !== undefined, hasUnreadMention: unread?.directMention ?? false }
 }
