@@ -307,12 +307,27 @@ export async function resolveChannelRef(ref: string, workspaceId: number): Promi
             ...joined,
             ...publicChannels.filter((channel) => !joinedIds.has(channel.id)),
         ]
-        return matchByName(channels, parsed.name, {
-            ambiguousCode: 'AMBIGUOUS_CHANNEL',
-            notFoundCode: 'CHANNEL_NOT_FOUND',
-            ref,
-            listHint: 'Run: tdc channels to list available channels',
-        })
+        try {
+            return matchByName(channels, parsed.name, {
+                ambiguousCode: 'AMBIGUOUS_CHANNEL',
+                notFoundCode: 'CHANNEL_NOT_FOUND',
+                ref,
+                listHint: 'Run: tdc channels to list available channels',
+            })
+        } catch (error) {
+            const opaqueId = getOpaqueNameId(parsed)
+            if (!opaqueId || !isCliErrorCode(error, 'CHANNEL_NOT_FOUND')) throw error
+            // No channel by that name, and the token is a valid id: a bare
+            // digit-free channel id lands here rather than in `getDirectChannelId`.
+            try {
+                const channel = await client.channels.getChannel(opaqueId)
+                assertChannelInWorkspace(channel, workspaceId)
+                return channel
+            } catch (idError) {
+                if (isCliErrorCode(idError, 'NOT_FOUND', 'INVALID_REF')) throw error
+                throw idError
+            }
+        }
     }
 
     throw new CliError('CHANNEL_NOT_FOUND', `Channel "${ref}" not found`, [
@@ -352,7 +367,9 @@ export function getDirectChannelId(ref: string): string | null {
         )
     }
 
-    return getOpaqueNameId(parsed)
+    // A bare digit-free token could be a channel name, so it goes to name
+    // lookup; `resolveChannelRef` tries it as an id only when no name matches.
+    return null
 }
 
 export function resolveCommentId(ref: string): string {

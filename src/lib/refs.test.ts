@@ -379,8 +379,10 @@ describe('getDirectChannelId', () => {
         expect(getDirectChannelId('EngineeringDiscussion')).toBeNull()
     })
 
-    it('resolves a bare digit-free id', () => {
-        expect(getDirectChannelId('CbjxNkWHJBwcaVkoTCRgM')).toBe('CbjxNkWHJBwcaVkoTCRgM')
+    it('leaves a bare digit-free id to the name path', () => {
+        // It could also be a channel name, and a name in the current workspace
+        // must win; `resolveChannelRef` tries it as an id only when none matches.
+        expect(getDirectChannelId('CbjxNkWHJBwcaVkoTCRgM')).toBeNull()
     })
 
     it('rejects URLs that do not identify a channel', () => {
@@ -595,6 +597,61 @@ describe('resolveChannelRef', () => {
             code: 'CHANNEL_NOT_FOUND',
         })
         expect(mockGetChannel).not.toHaveBeenCalled()
+    })
+
+    describe('bare digit-free id', () => {
+        const id = 'CbjxNkWHJBwcaVkoTCRgM'
+
+        it('falls back to getChannel when no name matches', async () => {
+            mockChannelLists([createChannel('CeRAj1WU3YFhsTejuePLW', 'Engineering')])
+            mockGetChannel.mockResolvedValue(createChannel(id, 'CX: Education'))
+
+            const channel = await resolveChannelRef(id, 1)
+
+            expect(channel.id).toBe(id)
+            expect(mockGetChannel).toHaveBeenCalledWith(id)
+        })
+
+        it('prefers a channel with that exact name over the id', async () => {
+            mockChannelLists([createChannel('CeRAj1WU3YFhsTejuePLW', id)])
+
+            const channel = await resolveChannelRef(id, 1)
+
+            expect(channel.id).toBe('CeRAj1WU3YFhsTejuePLW')
+            expect(mockGetChannel).not.toHaveBeenCalled()
+        })
+
+        it('refuses an id that belongs to another workspace', async () => {
+            mockChannelLists([])
+            mockGetChannel.mockResolvedValue(createChannel(id, 'Elsewhere', { workspaceId: 2 }))
+
+            await expect(resolveChannelRef(id, 1)).rejects.toMatchObject({
+                code: 'CHANNEL_NOT_FOUND',
+            })
+        })
+
+        it.each([
+            ['NOT_FOUND', 'Comms could not find that resource: 404.'],
+            ['INVALID_REF', 'Comms rejected the id: id must be UUIDv7 (version nibble mismatch).'],
+        ])('keeps CHANNEL_NOT_FOUND when the id lookup fails with %s', async (code, message) => {
+            mockChannelLists([])
+            mockGetChannel.mockRejectedValue(new CliError(code, message))
+
+            await expect(resolveChannelRef(id, 1)).rejects.toMatchObject({
+                code: 'CHANNEL_NOT_FOUND',
+            })
+            // Without this the test passes on an empty list with no fallback at all.
+            expect(mockGetChannel).toHaveBeenCalledWith(id)
+        })
+
+        it('lets any other id lookup failure through', async () => {
+            mockChannelLists([])
+            mockGetChannel.mockRejectedValue(
+                new CliError('FORBIDDEN', 'Comms refused this action: 403 Forbidden.'),
+            )
+
+            await expect(resolveChannelRef(id, 1)).rejects.toMatchObject({ code: 'FORBIDDEN' })
+        })
     })
 
     it('throws CHANNEL_NOT_FOUND when no match', async () => {
