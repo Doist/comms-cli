@@ -324,6 +324,8 @@ export async function resolveChannelRef(ref: string, workspaceId: number): Promi
                 assertChannelInWorkspace(channel, workspaceId)
                 return channel
             } catch (idError) {
+                // A miss (404) or a token the server will not take as an id
+                // (409, "must be UUIDv7") both mean it was a name after all.
                 if (isCliErrorCode(idError, 'NOT_FOUND', 'INVALID_REF')) throw error
                 throw idError
             }
