@@ -324,8 +324,8 @@ export async function resolveChannelRef(ref: string, workspaceId: number): Promi
                 assertChannelInWorkspace(channel, workspaceId)
                 return channel
             } catch (idError) {
-                // A miss (404) or a token the server will not take as an id
-                // (409, "must be UUIDv7") both mean it was a name after all.
+                // A miss (404), or an id the server refuses on a rule the SDK
+                // does not check (409), both mean it was a name after all.
                 if (isCliErrorCode(idError, 'NOT_FOUND', 'INVALID_REF')) throw error
                 throw idError
             }
@@ -342,7 +342,7 @@ export function resolveChannelId(ref: string): string {
     if (channelId) return channelId
 
     // Id-only, like the thread and conversation resolvers: there is no name
-    // to protect, so a bare digit-free token that decodes is an id.
+    // to protect, so a bare digit-free token that is a valid id is an id.
     const opaqueId = getOpaqueNameId(parseRef(ref))
     if (opaqueId) return opaqueId
 

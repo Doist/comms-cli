@@ -445,6 +445,10 @@ describe('resolveCommentId', () => {
             ),
         ).toBe('CeRAj1WU3YFhsY6fUxMhj')
     })
+
+    it('resolves generated Comms IDs without digits', () => {
+        expect(resolveCommentId('CbjxNkWHJBwcaVkoTCRgM')).toBe('CbjxNkWHJBwcaVkoTCRgM')
+    })
 })
 
 describe('resolveChannelId', () => {
@@ -761,6 +765,10 @@ describe('resolveMessageId', () => {
                 'https://comms.todoist.com/a/12345/msg/CeRAj1WU3YFhsatbAs43L/m/CeRAj1WU3YFhsbp9GT1ir',
             ),
         ).toBe('CeRAj1WU3YFhsbp9GT1ir')
+    })
+
+    it('resolves generated Comms IDs without digits', () => {
+        expect(resolveMessageId('CbjxNkWHJBwcaVkoTCRgM')).toBe('CbjxNkWHJBwcaVkoTCRgM')
     })
 })
 
