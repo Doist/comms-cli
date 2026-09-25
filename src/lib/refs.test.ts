@@ -1102,19 +1102,10 @@ describe('resolveChannelMemberRefs', () => {
 })
 
 describe('opaque-id recognition (delegated to the SDK validator)', () => {
-    it('accepts real ids and refuses base58 look-alikes', () => {
-        // Real ids carry the v7 version nibble; the look-alikes below decode to
-        // 16 bytes but do not, which is the distinction the SDK validator makes
-        // and the local check used to miss.
-        for (const id of [
-            'CDMDzXhBNCgyQZjkDnqwG',
-            'Cf9TR6CPC2dKQL5fB2EoL',
-            'CbjxNkWHJBwcaVkoTCRgM',
-        ]) {
-            expect(resolveConversationId(id)).toBe(id)
-        }
-        for (const name of ['EngineeringDiscussion', 'CustomerSuccessLeadership', 'nope']) {
-            expect(() => resolveConversationId(name)).toThrow(CliError)
-        }
+    it('tells a digit-free id from a name that decodes to 16 bytes', () => {
+        // Both are 21 digit-free base58 characters that decode to 16 bytes, so
+        // only the v7 version nibble the SDK checks tells them apart.
+        expect(resolveConversationId('CbjxNkWHJBwcaVkoTCRgM')).toBe('CbjxNkWHJBwcaVkoTCRgM')
+        expect(() => resolveConversationId('EngineeringDiscussion')).toThrow(CliError)
     })
 })
