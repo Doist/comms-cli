@@ -373,9 +373,8 @@ describe('getDirectChannelId', () => {
     })
 
     it('keeps a name that decodes to 16 bytes a name', () => {
-        // 21 characters of valid base58 decoding to 16 bytes, so the old local
-        // check took it for an id. It carries no v7 version nibble, so the SDK
-        // validator refuses it and the name path keeps it.
+        // Every bare digit-free token goes to the name path here; the id-vs-name
+        // distinction is pinned on `resolveConversationId` below.
         expect(getDirectChannelId('EngineeringDiscussion')).toBeNull()
     })
 
@@ -645,6 +644,7 @@ describe('resolveChannelRef', () => {
             await expect(resolveChannelRef(id, 1)).rejects.toMatchObject({
                 code: 'CHANNEL_NOT_FOUND',
             })
+            expect(mockGetChannel).toHaveBeenCalledWith(id)
         })
 
         it.each([
