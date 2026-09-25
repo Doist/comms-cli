@@ -621,6 +621,19 @@ describe('resolveChannelRef', () => {
             expect(mockGetChannel).not.toHaveBeenCalled()
         })
 
+        it('reports an ambiguous name rather than trying the id', async () => {
+            mockChannelLists([
+                createChannel('CeRAj1WU3YFhsTejuePLW', `${id} one`),
+                createChannel('Cf9TR6CPC2dKQL5fB2EoL', `${id} two`),
+            ])
+            mockGetChannel.mockResolvedValue(createChannel(id, 'CX: Education'))
+
+            await expect(resolveChannelRef(id, 1)).rejects.toMatchObject({
+                code: 'AMBIGUOUS_CHANNEL',
+            })
+            expect(mockGetChannel).not.toHaveBeenCalled()
+        })
+
         it('refuses an id that belongs to another workspace', async () => {
             mockChannelLists([])
             mockGetChannel.mockResolvedValue(createChannel(id, 'Elsewhere', { workspaceId: 2 }))
