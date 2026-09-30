@@ -9,12 +9,14 @@ interface InstallerConfig {
     name: string
     description: string
     dirName: string
+    globalDirName?: string
 }
 
 export function createInstaller(config: InstallerConfig): SkillInstaller {
     function getInstallPath(options: { local?: boolean }): string {
         const base = options.local ? process.cwd() : homedir()
-        return join(base, config.dirName, 'skills', SKILL_NAME, 'SKILL.md')
+        const dirName = options.local ? config.dirName : (config.globalDirName ?? config.dirName)
+        return join(base, dirName, 'skills', SKILL_NAME, 'SKILL.md')
     }
 
     return {
