@@ -22,8 +22,6 @@ import {
     extractId,
     getDirectChannelId,
     isIdRef,
-    BASE58_ALPHABET,
-    looksLikeOpaqueCommsId,
     looksLikeRawId,
     parseCommsUrl,
     parseNumericIdRefs,
@@ -374,9 +372,16 @@ describe('getDirectChannelId', () => {
         expect(getDirectChannelId('Engineering')).toBeNull()
     })
 
-    it('never treats a bare digit-free token as an id, even one that decodes to 16 bytes', () => {
-        // Valid base58, 21 characters, decodes to 16 bytes: still a plausible channel name.
+    it('keeps a name that decodes to 16 bytes a name', () => {
+        // Every bare digit-free token goes to the name path here; the id-vs-name
+        // distinction is pinned on `resolveConversationId` below.
         expect(getDirectChannelId('EngineeringDiscussion')).toBeNull()
+    })
+
+    it('leaves a bare digit-free id to the name path', () => {
+        // It could also be a channel name, and a name in the current workspace
+        // must win; `resolveChannelRef` tries it as an id only when none matches.
+        expect(getDirectChannelId('CbjxNkWHJBwcaVkoTCRgM')).toBeNull()
     })
 
     it('rejects URLs that do not identify a channel', () => {
@@ -438,6 +443,10 @@ describe('resolveCommentId', () => {
                 'https://comms.todoist.com/a/12345/ch/CeRAj1WU3YFhsTejuePLW/t/CeRAj1WU3YFhsVZGDyPr9/c/CeRAj1WU3YFhsY6fUxMhj',
             ),
         ).toBe('CeRAj1WU3YFhsY6fUxMhj')
+    })
+
+    it('resolves generated Comms IDs without digits', () => {
+        expect(resolveCommentId('CbjxNkWHJBwcaVkoTCRgM')).toBe('CbjxNkWHJBwcaVkoTCRgM')
     })
 })
 
@@ -575,17 +584,7 @@ describe('resolveChannelRef', () => {
         )
     })
 
-    it('falls back to getChannel for a bare digit-free id when no name matches', async () => {
-        mockChannelLists([createChannel('CeRAj1WU3YFhsTejuePLW', 'Engineering')])
-        mockGetChannel.mockResolvedValue(createChannel('CDMDzXhBNCgyQZjkDnqwG', 'Ops'))
-
-        const channel = await resolveChannelRef('CDMDzXhBNCgyQZjkDnqwG', 1)
-
-        expect(channel.id).toBe('CDMDzXhBNCgyQZjkDnqwG')
-        expect(mockGetChannel).toHaveBeenCalledWith('CDMDzXhBNCgyQZjkDnqwG')
-    })
-
-    it('prefers a name match over the id fallback for a token that decodes to 16 bytes', async () => {
+    it('resolves a name that decodes to 16 bytes by name, never as an id', async () => {
         mockChannelLists([createChannel('CeRAj1WU3YFhsTejuePLW', 'EngineeringDiscussion')])
 
         const channel = await resolveChannelRef('EngineeringDiscussion', 1)
@@ -594,28 +593,81 @@ describe('resolveChannelRef', () => {
         expect(mockGetChannel).not.toHaveBeenCalled()
     })
 
-    it.each([
-        ['NOT_FOUND', 'Comms could not find that resource: 404.'],
-        ['INVALID_REF', 'Comms rejected the id: id must be UUIDv7 (version nibble mismatch).'],
-    ])('keeps CHANNEL_NOT_FOUND when the id fallback fails with %s', async (code, message) => {
+    it('throws CHANNEL_NOT_FOUND for such a name when nothing matches', async () => {
         mockChannelLists([])
-        mockGetChannel.mockRejectedValue(new CliError(code, message))
 
         await expect(resolveChannelRef('EngineeringDiscussion', 1)).rejects.toMatchObject({
             code: 'CHANNEL_NOT_FOUND',
         })
-        // Without this the test passes on an empty name list even with the fallback deleted.
-        expect(mockGetChannel).toHaveBeenCalledWith('EngineeringDiscussion')
+        expect(mockGetChannel).not.toHaveBeenCalled()
     })
 
-    it('lets any other id-fallback failure through', async () => {
-        mockChannelLists([])
-        mockGetChannel.mockRejectedValue(
-            new CliError('FORBIDDEN', 'Comms refused this action: 403 Forbidden.'),
-        )
+    describe('bare digit-free id', () => {
+        const id = 'CbjxNkWHJBwcaVkoTCRgM'
 
-        await expect(resolveChannelRef('EngineeringDiscussion', 1)).rejects.toMatchObject({
-            code: 'FORBIDDEN',
+        it('falls back to getChannel when no name matches', async () => {
+            mockChannelLists([createChannel('CeRAj1WU3YFhsTejuePLW', 'Engineering')])
+            mockGetChannel.mockResolvedValue(createChannel(id, 'CX: Education'))
+
+            const channel = await resolveChannelRef(id, 1)
+
+            expect(channel.id).toBe(id)
+            expect(mockGetChannel).toHaveBeenCalledWith(id)
+        })
+
+        it('prefers a channel with that exact name over the id', async () => {
+            mockChannelLists([createChannel('CeRAj1WU3YFhsTejuePLW', id)])
+
+            const channel = await resolveChannelRef(id, 1)
+
+            expect(channel.id).toBe('CeRAj1WU3YFhsTejuePLW')
+            expect(mockGetChannel).not.toHaveBeenCalled()
+        })
+
+        it('reports an ambiguous name rather than trying the id', async () => {
+            mockChannelLists([
+                createChannel('CeRAj1WU3YFhsTejuePLW', `${id} one`),
+                createChannel('Cf9TR6CPC2dKQL5fB2EoL', `${id} two`),
+            ])
+            mockGetChannel.mockResolvedValue(createChannel(id, 'CX: Education'))
+
+            await expect(resolveChannelRef(id, 1)).rejects.toMatchObject({
+                code: 'AMBIGUOUS_CHANNEL',
+            })
+            expect(mockGetChannel).not.toHaveBeenCalled()
+        })
+
+        it('refuses an id that belongs to another workspace', async () => {
+            mockChannelLists([])
+            mockGetChannel.mockResolvedValue(createChannel(id, 'Elsewhere', { workspaceId: 2 }))
+
+            await expect(resolveChannelRef(id, 1)).rejects.toMatchObject({
+                code: 'CHANNEL_NOT_FOUND',
+            })
+            expect(mockGetChannel).toHaveBeenCalledWith(id)
+        })
+
+        it.each([
+            ['NOT_FOUND', 'Comms could not find that resource: 404.'],
+            ['INVALID_REF', 'Comms rejected the id: id must be UUIDv7 (version nibble mismatch).'],
+        ])('keeps CHANNEL_NOT_FOUND when the id lookup fails with %s', async (code, message) => {
+            mockChannelLists([])
+            mockGetChannel.mockRejectedValue(new CliError(code, message))
+
+            await expect(resolveChannelRef(id, 1)).rejects.toMatchObject({
+                code: 'CHANNEL_NOT_FOUND',
+            })
+            // Without this the test passes on an empty list with no fallback at all.
+            expect(mockGetChannel).toHaveBeenCalledWith(id)
+        })
+
+        it('lets any other id lookup failure through', async () => {
+            mockChannelLists([])
+            mockGetChannel.mockRejectedValue(
+                new CliError('FORBIDDEN', 'Comms refused this action: 403 Forbidden.'),
+            )
+
+            await expect(resolveChannelRef(id, 1)).rejects.toMatchObject({ code: 'FORBIDDEN' })
         })
     })
 
@@ -713,6 +765,10 @@ describe('resolveMessageId', () => {
                 'https://comms.todoist.com/a/12345/msg/CeRAj1WU3YFhsatbAs43L/m/CeRAj1WU3YFhsbp9GT1ir',
             ),
         ).toBe('CeRAj1WU3YFhsbp9GT1ir')
+    })
+
+    it('resolves generated Comms IDs without digits', () => {
+        expect(resolveMessageId('CbjxNkWHJBwcaVkoTCRgM')).toBe('CbjxNkWHJBwcaVkoTCRgM')
     })
 })
 
@@ -1053,36 +1109,11 @@ describe('resolveChannelMemberRefs', () => {
     })
 })
 
-describe('looksLikeOpaqueCommsId', () => {
-    function base58(bytes: number[]): string {
-        let value = bytes.reduce((acc, byte) => acc * 256n + BigInt(byte), 0n)
-        let out = ''
-        while (value > 0n) {
-            out = BASE58_ALPHABET[Number(value % 58n)] + out
-            value /= 58n
-        }
-        const leadingZeros = bytes.findIndex((byte) => byte !== 0)
-        return '1'.repeat(leadingZeros === -1 ? bytes.length : leadingZeros) + out
-    }
-
-    it('accepts both length extremes a 16-byte id can encode to', () => {
-        const longest = base58(Array(16).fill(0xff))
-        const leadingZero = base58([0, ...Array(15).fill(0xff)])
-        const timestampLed = base58([0x01, 0x90, ...Array(14).fill(0xff)])
-        expect(longest).toHaveLength(22)
-        expect(leadingZero).toHaveLength(22)
-        expect(timestampLed).toHaveLength(21)
-        for (const id of [longest, leadingZero, timestampLed]) {
-            expect(looksLikeOpaqueCommsId(id)).toBe(true)
-        }
-    })
-
-    it('rejects 17-byte and 15-byte values of the same length', () => {
-        // 2^128 is the smallest 17-byte value and still encodes to 22 characters,
-        // so only the byte-length check can reject it.
-        const smallest17 = base58([0x01, ...Array(16).fill(0x00)])
-        expect(smallest17).toHaveLength(22)
-        expect(looksLikeOpaqueCommsId(smallest17)).toBe(false)
-        expect(looksLikeOpaqueCommsId(base58(Array(15).fill(0xff)))).toBe(false)
+describe('opaque-id recognition (delegated to the SDK validator)', () => {
+    it('tells a digit-free id from a name that decodes to 16 bytes', () => {
+        // Both are 21 digit-free base58 characters that decode to 16 bytes, so
+        // only the v7 version nibble the SDK checks tells them apart.
+        expect(resolveConversationId('CbjxNkWHJBwcaVkoTCRgM')).toBe('CbjxNkWHJBwcaVkoTCRgM')
+        expect(() => resolveConversationId('EngineeringDiscussion')).toThrow(CliError)
     })
 })
