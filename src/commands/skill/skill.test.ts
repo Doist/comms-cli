@@ -1,5 +1,5 @@
 import { mkdir, readFile, rm, stat } from 'node:fs/promises'
-import { tmpdir } from 'node:os'
+import { homedir, tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { captureConsole, createTestProgram } from '@doist/cli-core/testing'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
@@ -100,6 +100,15 @@ describe('installer paths', () => {
             })
         })
     }
+})
+
+describe('Pi installer paths', () => {
+    it('installs global skills under the Pi agent directory', () => {
+        const expectedPath = join(homedir(), '.pi', 'agent', 'skills', 'comms-cli', 'SKILL.md')
+
+        expect(skillInstallers.pi.getInstallPath({})).toBe(expectedPath)
+        expect(skillInstallers.pi.getInstallPath({ local: false })).toBe(expectedPath)
+    })
 })
 
 describe('installer operations', () => {
