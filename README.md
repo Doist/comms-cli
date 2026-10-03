@@ -120,6 +120,7 @@ tdc auth refresh-token view   # print the stored OAuth refresh token
 ```bash
 tdc inbox                           # inbox threads
 tdc inbox --unread                  # unread threads only
+tdc inbox --mentions                # unread threads where you were mentioned
 tdc mentions                        # content mentioning you
 tdc mentions --since 2026-04-01 --all --json
 tdc thread view <ref>               # view thread with comments

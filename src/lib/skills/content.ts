@@ -79,6 +79,7 @@ All target command flags pass through (e.g. \`--json\`, \`--raw\`, \`--full\`).
 \`\`\`bash
 tdc inbox                         # Show inbox threads
 tdc inbox --unread                # Only unread threads
+tdc inbox --mentions              # Only unread threads where you were mentioned (implies --unread)
 tdc inbox --archive-filter all      # Show active + done threads
 tdc inbox --archive-filter archived # Show only done threads
 tdc inbox --channel <filter>      # Filter by channel name (fuzzy)
@@ -477,6 +478,7 @@ tdc view https://comms.todoist.com/a/1585/msg/CbV8n2Kp4Qx6Rz9Lm3Va/m/CbS8n2Kp4Qx
 **Check inbox and respond:**
 \`\`\`bash
 tdc inbox --unread --json
+tdc inbox --mentions --json       # Unread threads with an unread @mention of you
 tdc thread view <thread-ref> --unread
 tdc thread reply <thread-ref> "Thanks, I'll look into this."
 tdc thread done <thread-ref> --yes
