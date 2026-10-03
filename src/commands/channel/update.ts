@@ -5,19 +5,28 @@ import type { MutationOptions } from '../../lib/options.js'
 import { formatJson, printDryRun } from '../../lib/output.js'
 import { getDirectChannelId, resolveChannelRef } from '../../lib/refs.js'
 import {
+    type DefaultAudienceOptions,
+    type DefaultAudienceArgs,
+    buildDefaultAudienceArgs,
+    clearDefaultAudienceArgs,
+    defaultAudienceDryRun,
+    validateDefaultAudienceOptions,
+} from './default-audience.js'
+import {
     resolveChannelWorkspaceId,
     resolveVisibilityOption,
     validateChannelName,
 } from './helpers.js'
 
-type UpdateChannelOptions = MutationOptions & {
-    workspace?: string
-    name?: string
-    description?: string
-    clearDescription?: boolean
-    public?: boolean
-    private?: boolean
-}
+type UpdateChannelOptions = MutationOptions &
+    DefaultAudienceOptions & {
+        workspace?: string
+        name?: string
+        description?: string
+        clearDescription?: boolean
+        public?: boolean
+        private?: boolean
+    }
 
 function buildDescriptionUpdate(options: UpdateChannelOptions): string | null | undefined {
     if (options.description !== undefined && options.clearDescription) {
@@ -36,9 +45,11 @@ function printUpdateDryRun(
     newName: string | undefined,
     description: string | null | undefined,
     visibility: boolean | undefined,
+    defaultAudience: DefaultAudienceArgs,
 ): void {
     printDryRun('update channel', {
         Channel: targetLabel,
+        ...defaultAudienceDryRun(defaultAudience),
         'New name': newName,
         Description:
             description === null ? '(clear)' : description !== undefined ? description : undefined,
@@ -51,6 +62,11 @@ export async function updateChannel(
     positionalName: string | undefined,
     options: UpdateChannelOptions,
 ): Promise<void> {
+    validateDefaultAudienceOptions(options)
+    const hasAudienceRefs =
+        options.defaultGroups !== undefined || options.defaultUsers !== undefined
+    let defaultAudience = clearDefaultAudienceArgs(options)
+
     if (positionalName && options.name) {
         throw new CliError(
             'CONFLICTING_OPTIONS',
@@ -66,9 +82,15 @@ export async function updateChannel(
     const description = buildDescriptionUpdate(options)
     const visibility = resolveVisibilityOption(options)
 
-    if (newName === undefined && description === undefined && visibility === undefined) {
+    if (
+        newName === undefined &&
+        description === undefined &&
+        visibility === undefined &&
+        !hasAudienceRefs &&
+        !options.clearDefaultAudience
+    ) {
         throw new CliError('INVALID_VALUE', 'Provide at least one channel field to update.', [
-            'Use a new name, --name, --description, --clear-description, --public, or --private.',
+            'Use a new name, --name, --description, --clear-description, --public, --private, --default-groups, --default-users, or --clear-default-audience.',
         ])
     }
 
@@ -80,15 +102,24 @@ export async function updateChannel(
     const directChannelId = options.workspace ? null : getDirectChannelId(channelRef)
     if (directChannelId) {
         channelId = directChannelId
-        if (newName === undefined && options.dryRun) {
-            printUpdateDryRun(`id:${directChannelId}`, newName, description, visibility)
+        if (newName === undefined && options.dryRun && !hasAudienceRefs) {
+            printUpdateDryRun(
+                `id:${directChannelId}`,
+                newName,
+                description,
+                visibility,
+                defaultAudience,
+            )
             return
         }
 
-        if (newName === undefined) {
+        if (newName === undefined || hasAudienceRefs) {
             client = await getCommsClient()
             const channel = await client.channels.getChannel(directChannelId)
-            updateName = channel.name
+            updateName = newName ?? channel.name
+            if (hasAudienceRefs) {
+                defaultAudience = await buildDefaultAudienceArgs(options, channel.workspaceId)
+            }
             targetLabel = `${channel.name} (id:${channel.id})`
         } else {
             updateName = newName
@@ -97,17 +128,21 @@ export async function updateChannel(
     } else {
         const workspaceId = await resolveChannelWorkspaceId(options.workspace)
         const channel = await resolveChannelRef(channelRef, workspaceId)
+        if (hasAudienceRefs) {
+            defaultAudience = await buildDefaultAudienceArgs(options, channel.workspaceId)
+        }
         channelId = channel.id
         updateName = newName ?? channel.name
         targetLabel = `${channel.name} (id:${channel.id})`
     }
 
     if (options.dryRun) {
-        printUpdateDryRun(targetLabel, newName, description, visibility)
+        printUpdateDryRun(targetLabel, newName, description, visibility, defaultAudience)
         return
     }
 
     const args: UpdateChannelArgs = {
+        ...defaultAudience,
         id: channelId,
         name: updateName,
         ...(description !== undefined ? { description } : {}),
