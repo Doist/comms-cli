@@ -4,27 +4,42 @@ import type { MutationOptions } from '../../lib/options.js'
 import { formatJson, printDryRun } from '../../lib/output.js'
 import { resolveUserRefs } from '../../lib/refs.js'
 import {
+    type DefaultAudienceOptions,
+    buildDefaultAudienceArgs,
+    clearDefaultAudienceArgs,
+    defaultAudienceDryRun,
+    validateDefaultAudienceOptions,
+} from './default-audience.js'
+import {
     resolveChannelWorkspaceId,
     resolveVisibilityOption,
     validateChannelName,
 } from './helpers.js'
 
-type CreateChannelOptions = MutationOptions & {
-    workspace?: string
-    description?: string
-    users?: string
-    public?: boolean
-    private?: boolean
-}
+type CreateChannelOptions = MutationOptions &
+    DefaultAudienceOptions & {
+        workspace?: string
+        description?: string
+        users?: string
+        public?: boolean
+        private?: boolean
+    }
 
 export async function createChannel(name: string, options: CreateChannelOptions): Promise<void> {
+    validateDefaultAudienceOptions(options)
     validateChannelName(name)
     const visibility = resolveVisibilityOption(options)
 
     const workspaceId = await resolveChannelWorkspaceId(options.workspace)
     const userIds = options.users ? await resolveUserRefs(options.users, workspaceId) : undefined
 
+    const defaultAudience = {
+        ...clearDefaultAudienceArgs(options),
+        ...(await buildDefaultAudienceArgs(options, workspaceId)),
+    }
+
     const args: CreateChannelArgs = {
+        ...defaultAudience,
         workspaceId,
         name,
         ...(options.description !== undefined ? { description: options.description } : {}),
@@ -34,6 +49,7 @@ export async function createChannel(name: string, options: CreateChannelOptions)
 
     if (options.dryRun) {
         printDryRun('create channel', {
+            ...defaultAudienceDryRun(defaultAudience),
             Workspace: String(workspaceId),
             Name: name,
             Description: options.description,

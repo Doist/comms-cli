@@ -260,6 +260,10 @@ tdc channels --ids-only           # Output only channel IDs
 tdc channel create "Engineering"  # Create a channel in the current workspace
 tdc channel create "Leadership Team" --private --users id:10,id:20 # Create private channel with initial members
 tdc channel create "Product" --workspace "Doist" --description "Product discussions" --json # Create and return channel as JSON
+tdc channel create "Squad" --default-groups "Design" --default-users alice@doist.com # Set default thread audience
+tdc channel update <ref> --default-groups "Design,Backend" --dry-run # Preview resolved group IDs
+tdc channel update <ref> --default-users id:10,alice@doist.com # Replace default user recipients
+tdc channel update <ref> --clear-default-audience # Disable defaults and empty both lists
 tdc channel update <channel-ref> "New name" # Rename a channel
 tdc channel update <ref> --name "New name" # Rename with an explicit flag
 tdc channel update <ref> --description "Team discussions" # Update channel description
@@ -279,7 +283,7 @@ tdc channel threads <ref> --limit 20 --cursor <cursor-from-prev> # Paginate
 tdc channel threads <ref> --json  # { results, nextCursor } with isUnread + url
 tdc channel threads <ref> --ids-only # Output only thread IDs; pagination notice goes to stderr
 tdc channel members <channel-ref> # List a channel's members + groups fully in the channel
-tdc channel members <ref> --json  # JSON with id, name, workspaceId, members
+tdc channel members <ref> --json  # JSON with members, groupsFullyInChannel, and defaultAudience
 tdc channel members <ref> --ids-only # Output only member user IDs
 tdc channel members add <ref> alice group:Design # Add users and/or expand group:<ref> members
 tdc channel members add <ref> a@d.com id:789 --json # Add refs, output result as JSON
@@ -313,6 +317,10 @@ All group *writes* (`groups create`, `rename`, `delete`, `add-user`, `remove-use
 If a channel is not found in `tdc channels`, widen with broader listings such as `tdc channels --scope public`, then `tdc channels --scope public --state all`. Check `tdc channels --help` for other available filters.
 
 `tdc channel threads` returns every thread in the channel; pagination filters (`--limit`, `--cursor`, `--since`, `--until`, `--unread`) are applied client-side after fetch. `--archive-filter` is applied server-side. Results are sorted newest-first by last activity. In `--json` / `--ndjson`, the response includes a `nextCursor` string (opaque) you can pass via `--cursor` to fetch the next page; NDJSON emits the cursor as a final `{ "_meta": true, "nextCursor": "..." }` line.
+
+Both `channel create` and `channel update` accept `--default-groups <refs>` (comma-separated group IDs or names) and `--default-users <refs>` (comma-separated user IDs, emails, or names). These set the default audience for new threads and enable `useDefaultRecipients`; each supplied list replaces that server-side list, while omitted lists are unchanged on update. Empty strings or empty list entries are errors. `--clear-default-audience` disables defaults and empties both lists, and cannot be combined with either list option. `--dry-run` prints resolved IDs before any mutation. This does not change channel membership.
+
+`channel list --json --full` preserves `useDefaultRecipients`, `defaultGroups`, and `defaultRecipients`. For a single channel, `channel members list <ref> --json` includes these fields and `defaultAudience: { useDefaultRecipients, groups: [{id, name}], users: [{id, name, email}] }` (also with `--full` or `--ndjson`). Unavailable names/emails are null.
 
 For `tdc channel members add/remove/set`, refs accept user identifiers (`id:N`, email, name) or `group:<ref>`, which expands to the group's current members. Group expansion is one-shot — it is not a persistent link, so users added to the group later will not auto-join the channel. `set` replaces membership with the resolved set and is dry-run by default (pass `--apply` to mutate); it refuses to remove the acting user unless `--include-self` is passed.
 

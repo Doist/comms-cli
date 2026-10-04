@@ -3,6 +3,7 @@ import {
     createTestProgram,
     describeEmptyMachineOutput,
 } from '@doist/cli-core/testing'
+import { CommsApi, type CustomFetch } from '@doist/comms-sdk'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 const apiMocks = vi.hoisted(() => ({
@@ -16,6 +17,7 @@ const refsMocks = vi.hoisted(() => ({
     parseRef: vi.fn(),
     getDirectChannelId: vi.fn(),
     resolveUserRefs: vi.fn(),
+    resolveGroupRef: vi.fn(),
 }))
 
 const globalArgsMocks = vi.hoisted(() => ({
@@ -34,6 +36,7 @@ vi.mock('../../lib/refs.js', () => ({
     parseRef: refsMocks.parseRef,
     getDirectChannelId: refsMocks.getDirectChannelId,
     resolveUserRefs: refsMocks.resolveUserRefs,
+    resolveGroupRef: refsMocks.resolveGroupRef,
 }))
 
 vi.mock('../../lib/global-args.js', () => ({
@@ -128,6 +131,22 @@ describe('channels list', () => {
         expect(consoleSpy).toHaveBeenCalledTimes(1)
         expect(consoleSpy.mock.calls[0][0]).toContain('General')
         expect(consoleSpy.mock.calls[0][0]).not.toContain('Leadership')
+    })
+
+    it('preserves all default audience fields in full JSON', async () => {
+        const audience = {
+            useDefaultRecipients: true,
+            defaultGroups: ['GR1'],
+            defaultRecipients: [10],
+        }
+        apiMocks.getCommsClient.mockResolvedValue(
+            createClient({
+                joinedChannels: [createChannel(10, 'General', audience)],
+            }),
+        )
+        const log = captureConsole('log')
+        await runChannelCommand(['list', '--json', '--full'])
+        expect(JSON.parse(log.mock.calls[0][0])[0]).toMatchObject(audience)
     })
 
     it('also works via the singular channel command name', async () => {
@@ -899,6 +918,231 @@ describe('channels lifecycle direct refs', () => {
             expect(refsMocks.resolveWorkspaceRef).not.toHaveBeenCalled()
             expect(apiMocks.getCurrentWorkspaceId).not.toHaveBeenCalled()
             expect(client.channels[cmd.method]).toHaveBeenCalledWith('CH500')
+        })
+    }
+})
+
+describe.each(['create', 'update'])('channel %s default audience', (command) => {
+    const channel = createChannel(10, 'Engineering', {
+        id: 'CH10',
+        workspaceId: 69,
+        useDefaultRecipients: true,
+        defaultGroups: ['OLD'],
+        defaultRecipients: [99],
+    })
+    beforeEach(() => {
+        vi.clearAllMocks()
+        apiMocks.getCurrentWorkspaceId.mockResolvedValue(1)
+        refsMocks.parseRef.mockImplementation((ref: string) => ({ type: 'name', name: ref }))
+        refsMocks.getDirectChannelId.mockReturnValue(command === 'update' ? 'CH10' : null)
+        refsMocks.resolveWorkspaceRef.mockResolvedValue({ id: 69, name: 'Doist' })
+        refsMocks.resolveChannelRef.mockResolvedValue(channel)
+        refsMocks.resolveGroupRef.mockImplementation(async (ref: string) => ({
+            id: ref === '26Q4|KLM' ? 'GR1' : 'GR2',
+        }))
+        refsMocks.resolveUserRefs.mockResolvedValue([10, 20, 30])
+    })
+
+    function setup() {
+        const client = createClient({ createdChannel: channel, updatedChannel: channel })
+        client.channels.getChannel.mockResolvedValue(channel)
+        apiMocks.getCommsClient.mockResolvedValue(client)
+        const log = captureConsole('log')
+        const args =
+            command === 'create'
+                ? ['create', 'Engineering', '--workspace', 'Doist']
+                : ['update', 'id:CH10']
+        const mutation =
+            command === 'create' ? client.channels.createChannel : client.channels.updateChannel
+        return { client, log, args, mutation }
+    }
+
+    it.each([
+        {
+            flags: ['--default-groups', '26Q4|KLM, id:GR2'],
+            fields: { useDefaultRecipients: true, defaultGroups: ['GR1', 'GR2'] },
+        },
+        {
+            flags: ['--default-users', 'id:10,alice@doist.com,Bob'],
+            fields: { useDefaultRecipients: true, defaultRecipients: [10, 20, 30] },
+        },
+        {
+            flags: ['--default-groups', '26Q4|KLM', '--default-users', 'id:10,alice@doist.com,Bob'],
+            fields: {
+                useDefaultRecipients: true,
+                defaultGroups: ['GR1'],
+                defaultRecipients: [10, 20, 30],
+            },
+        },
+        {
+            flags: ['--clear-default-audience'],
+            fields: { useDefaultRecipients: false, defaultGroups: [], defaultRecipients: [] },
+        },
+    ])('sends exactly the requested fields for $flags', async ({ flags, fields }) => {
+        const { args, mutation } = setup()
+        await runChannelCommand([...args, ...flags, '--json'])
+        expect(mutation).toHaveBeenCalledWith({
+            ...(command === 'create' ? { workspaceId: 69 } : { id: 'CH10' }),
+            name: 'Engineering',
+            ...fields,
+        })
+        if (flags.includes('--default-groups')) {
+            expect(refsMocks.resolveGroupRef).toHaveBeenCalledWith('26Q4|KLM', 69)
+            if (flags[1].includes(','))
+                expect(refsMocks.resolveGroupRef).toHaveBeenCalledWith('id:GR2', 69)
+        }
+        if (flags.includes('--default-users')) {
+            expect(refsMocks.resolveUserRefs).toHaveBeenCalledWith('id:10,alice@doist.com,Bob', 69)
+        }
+    })
+
+    it.each([false, true])(
+        'sends audience fields through the SDK transport (clear=%s)',
+        async (clear) => {
+            const { args } = setup()
+            const response = {
+                id: 'CeRAj1WU3YFhsTejuePLW',
+                name: 'Engineering',
+                workspace_id: 69,
+                public: true,
+                archived: false,
+                creator: 1,
+                created_ts: 1767225600,
+                version: 1,
+            }
+            const transport = vi.fn<CustomFetch>().mockResolvedValue({
+                ok: true,
+                status: 200,
+                statusText: 'OK',
+                headers: {},
+                text: async () => JSON.stringify(response),
+                json: async () => response,
+            })
+            const sdk = new CommsApi('test-token', { customFetch: transport })
+            apiMocks.getCommsClient.mockResolvedValue(sdk)
+            await runChannelCommand([
+                ...args,
+                ...(clear
+                    ? ['--clear-default-audience']
+                    : ['--default-groups', '26Q4|KLM', '--default-users', 'Alice']),
+                '--json',
+            ])
+            const posts = transport.mock.calls.filter(([, init]) => init?.method === 'POST')
+            expect(posts).toHaveLength(1)
+            const body = JSON.parse(String(posts[0][1]?.body))
+            expect(body).toMatchObject({
+                use_default_recipients: !clear,
+                default_groups: clear ? [] : ['GR1'],
+                default_recipients: clear ? [] : [10, 20, 30],
+            })
+        },
+    )
+
+    it('prints resolved IDs in dry-run without mutating', async () => {
+        const { args, client, log } = setup()
+        await runChannelCommand([
+            ...args,
+            '--default-groups',
+            '26Q4|KLM',
+            '--default-users',
+            'Alice',
+            '--dry-run',
+        ])
+        expect(client.channels.createChannel).not.toHaveBeenCalled()
+        expect(client.channels.updateChannel).not.toHaveBeenCalled()
+        const output = log.mock.calls.map((call) => call[0]).join('\n')
+        expect(output).toContain('useDefaultRecipients: true')
+        expect(output).toContain('defaultGroups: ["GR1"]')
+        expect(output).toContain('defaultRecipients: [10,20,30]')
+    })
+
+    it('previews clearing both lists without resolving references', async () => {
+        const { args, mutation, log } = setup()
+        await runChannelCommand([...args, '--clear-default-audience', '--dry-run'])
+        expect(mutation).not.toHaveBeenCalled()
+        expect(refsMocks.resolveGroupRef).not.toHaveBeenCalled()
+        expect(refsMocks.resolveUserRefs).not.toHaveBeenCalled()
+        const output = log.mock.calls.map((call) => call[0]).join('\n')
+        expect(output).toContain('useDefaultRecipients: false')
+        expect(output).toContain('defaultGroups: []')
+        expect(output).toContain('defaultRecipients: []')
+    })
+
+    it.each(['--default-groups', '--default-users'])(
+        'rejects %s combined with clearing',
+        async (flag) => {
+            const { args, mutation } = setup()
+            await expect(
+                runChannelCommand([...args, flag, 'Alice', '--clear-default-audience']),
+            ).rejects.toHaveProperty('code', 'CONFLICTING_OPTIONS')
+            expect(mutation).not.toHaveBeenCalled()
+            expect(apiMocks.getCommsClient).not.toHaveBeenCalled()
+            expect(refsMocks.resolveGroupRef).not.toHaveBeenCalled()
+            expect(refsMocks.resolveUserRefs).not.toHaveBeenCalled()
+        },
+    )
+
+    for (const flag of ['--default-groups', '--default-users']) {
+        it.each(['', '   ', ',', 'Alice,', ',Alice', 'Alice, ,Bob'])(
+            'rejects empty list entries in ' + flag + ' %j',
+            async (refs) => {
+                const { args, mutation } = setup()
+                await expect(runChannelCommand([...args, flag, refs])).rejects.toHaveProperty(
+                    'code',
+                    'INVALID_VALUE',
+                )
+                expect(mutation).not.toHaveBeenCalled()
+                expect(refsMocks.resolveGroupRef).not.toHaveBeenCalled()
+                expect(refsMocks.resolveUserRefs).not.toHaveBeenCalled()
+            },
+        )
+    }
+
+    it.each(['--default-groups', '--default-users'])(
+        'does not mutate when %s fails to resolve',
+        async (flag) => {
+            const { args, mutation } = setup()
+            const error = new Error('No match')
+            if (flag === '--default-groups') refsMocks.resolveGroupRef.mockRejectedValueOnce(error)
+            else refsMocks.resolveUserRefs.mockRejectedValueOnce(error)
+            await expect(runChannelCommand([...args, flag, 'Typo'])).rejects.toThrow(error)
+            expect(mutation).not.toHaveBeenCalled()
+        },
+    )
+
+    if (command === 'update') {
+        it('resolves audience in the selected workspace for a channel name', async () => {
+            const { mutation } = setup()
+            await runChannelCommand([
+                'update',
+                'Engineering',
+                '--workspace',
+                'Doist',
+                '--default-groups',
+                '26Q4|KLM',
+            ])
+            expect(refsMocks.resolveChannelRef).toHaveBeenCalledWith('Engineering', 69)
+            expect(refsMocks.resolveGroupRef).toHaveBeenCalledWith('26Q4|KLM', 69)
+            expect(mutation).toHaveBeenCalledWith({
+                id: 'CH10',
+                name: 'Engineering',
+                useDefaultRecipients: true,
+                defaultGroups: ['GR1'],
+            })
+        })
+
+        it('fetches the channel workspace even when also renaming a direct ref', async () => {
+            const { args, client, mutation } = setup()
+            await runChannelCommand([...args, '--name', 'Renamed', '--default-users', 'Alice'])
+            expect(client.channels.getChannel).toHaveBeenCalledWith('CH10')
+            expect(refsMocks.resolveUserRefs).toHaveBeenCalledWith('Alice', 69)
+            expect(apiMocks.getCurrentWorkspaceId).not.toHaveBeenCalled()
+            expect(mutation).toHaveBeenCalledWith({
+                id: 'CH10',
+                name: 'Renamed',
+                useDefaultRecipients: true,
+                defaultRecipients: [10, 20, 30],
+            })
         })
     }
 })
