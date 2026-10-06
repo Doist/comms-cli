@@ -26,6 +26,7 @@ export const skillInstallers: Record<string, SkillInstaller> = {
         name: 'pi',
         description: 'Pi skill for Comms CLI',
         dirName: '.pi',
+        globalDirName: '.pi/agent',
     }),
     universal: createInstaller({
         name: 'universal',
