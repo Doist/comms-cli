@@ -1,3 +1,9 @@
+## [3.5.1](https://github.com/Doist/comms-cli/compare/v3.5.0...v3.5.1) (2026-10-06)
+
+### Bug Fixes
+
+- use correct Pi installation path ([#69](https://github.com/Doist/comms-cli/issues/69)) ([718ef8e](https://github.com/Doist/comms-cli/commit/718ef8e34088fd7354005baff05784a611503ef8))
+
 ## [3.5.0](https://github.com/Doist/comms-cli/compare/v3.4.1...v3.5.0) (2026-10-06)
 
 ### Features
