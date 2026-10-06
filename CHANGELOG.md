@@ -1,3 +1,9 @@
+## [3.5.0](https://github.com/Doist/comms-cli/compare/v3.4.1...v3.5.0) (2026-10-06)
+
+### Features
+
+- **inbox:** show unread mentions and add --mentions filter ([#60](https://github.com/Doist/comms-cli/issues/60)) ([9c6b145](https://github.com/Doist/comms-cli/commit/9c6b1453530af0806ec2f13c2d3c1d4758ef5b09))
+
 ## [3.4.1](https://github.com/Doist/comms-cli/compare/v3.4.0...v3.4.1) (2026-09-21)
 
 ### Bug Fixes
