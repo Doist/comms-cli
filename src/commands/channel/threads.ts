@@ -14,7 +14,7 @@ import {
 } from '../../lib/output.js'
 import { assertChannelIsPublic } from '../../lib/public-channels.js'
 import { resolveChannelRef, resolveWorkspaceRef } from '../../lib/refs.js'
-import { fetchUnreadThreadIds } from '../../lib/threads.js'
+import { fetchUnreadThreads, unreadFlags, type UnreadThreadMap } from '../../lib/threads.js'
 import { decodeCursor, encodeCursor } from './helpers.js'
 
 type ChannelThreadsOptions = PaginatedViewOptions & {
@@ -24,7 +24,7 @@ type ChannelThreadsOptions = PaginatedViewOptions & {
     cursor?: string
 }
 
-type DecoratedThread = Thread & { isUnread: boolean }
+type DecoratedThread = Thread & ReturnType<typeof unreadFlags>
 
 function archiveFilterToFlag(filter: ArchiveFilter | undefined): boolean | undefined {
     switch (filter ?? 'active') {
@@ -80,21 +80,21 @@ export async function showChannelThreads(
     const client = await getCommsClient()
 
     const needsUnreadData = outputMode !== 'ids-only' || options.unread
-    const [threadsData, unreadThreadIds] = await Promise.all([
+    const [threadsData, unreadThreads] = await Promise.all([
         client.threads.getThreads(
             archived === undefined
                 ? { workspaceId, channelId: channel.id }
                 : { workspaceId, channelId: channel.id, archived },
         ),
         needsUnreadData
-            ? fetchUnreadThreadIds(client, workspaceId)
-            : Promise.resolve(new Set<string>()),
+            ? fetchUnreadThreads(client, workspaceId)
+            : Promise.resolve<UnreadThreadMap>(new Map()),
     ])
 
     let threads = threadsData
 
     if (options.unread) {
-        threads = threads.filter((thread) => unreadThreadIds.has(thread.id))
+        threads = threads.filter((thread) => unreadThreads.has(thread.id))
     }
 
     if (sinceTs !== undefined) {
@@ -124,7 +124,7 @@ export async function showChannelThreads(
 
     const decoratedPage: DecoratedThread[] = page.map((thread) => ({
         ...thread,
-        isUnread: unreadThreadIds.has(thread.id),
+        ...unreadFlags(thread.id, unreadThreads),
     }))
     const paginated: PaginatedOutput<DecoratedThread> = {
         results: decoratedPage,

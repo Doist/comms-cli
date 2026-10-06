@@ -135,6 +135,7 @@ Arguments:
 Options:
 
 - `--unread` - Only show unread threads
+- `--mentions` - Only show unread threads where you were mentioned (implies `--unread`)
 - `--since <date>` - Filter by date (ISO format)
 - `--until <date>` - Filter by date
 - `--limit <n>` - Max items (default: 50)
@@ -142,7 +143,7 @@ Options:
 
 Output format (human-readable):
 
-- Title, channel name, timestamp (relative), unread indicator
+- Title, channel name, timestamp (relative), unread indicator, mention indicator (`@` / `(mention)`)
 - URL on second line for each entry
 - Content truncated in list view
 
@@ -490,6 +491,7 @@ tdc workspace use "My Team"
 # View inbox
 tdc inbox
 tdc inbox --unread
+tdc inbox --mentions
 
 # View a thread
 tdc thread view id:CbT8n2Kp4Qx6Rz9Lm3Va
