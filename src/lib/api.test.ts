@@ -10,7 +10,10 @@ const sdkMocks = vi.hoisted(() => ({
     addGroupUsers: vi.fn(),
 }))
 
-vi.mock('@doist/comms-sdk', () => {
+vi.mock('@doist/comms-sdk', async (importActual) => {
+    // Only the client is faked. The error class and the helpers that inspect it
+    // stay real, because the status mapping under test depends on them agreeing.
+    const actual = await importActual<typeof import('@doist/comms-sdk')>()
     class CommsApi {
         channels = { deleteChannel: sdkMocks.deleteChannel }
         attachments = { upload: sdkMocks.uploadAttachment }
@@ -20,18 +23,7 @@ vi.mock('@doist/comms-sdk', () => {
             sdkMocks.createClient(token, options)
         }
     }
-    return {
-        CommsApi,
-        CommsRequestError: class CommsRequestError extends Error {
-            constructor(
-                message: string,
-                public httpStatusCode: number,
-                public responseData?: unknown,
-            ) {
-                super(message)
-            }
-        },
-    }
+    return { ...actual, CommsApi }
 })
 
 vi.mock('./auth.js', () => ({

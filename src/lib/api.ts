@@ -1,22 +1,17 @@
 import {
     CommsApi,
+    getCommsErrorString,
     type Group,
+    isConflict,
+    isMalformedId,
+    isNotFound,
     type User,
     type Workspace,
     type WorkspaceUser,
 } from '@doist/comms-sdk'
 import { getApiTokenSnapshot } from './auth.js'
 import { getConfig, updateConfig } from './config.js'
-import {
-    CliError,
-    getCommsErrorString,
-    isConflict,
-    isForbidden,
-    isInsufficientScope,
-    isInvalidToken,
-    isMalformedId,
-    isNotFound,
-} from './errors.js'
+import { CliError, isForbidden, isInsufficientScope, isInvalidToken } from './errors.js'
 import { ensureMutationAllowed, isMutatingMethod } from './permissions.js'
 import { getProgressTracker } from './progress.js'
 import { withSpinner } from './spinner.js'
