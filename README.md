@@ -142,6 +142,9 @@ tdc msg view <ref>                  # view a conversation message
 tdc search "keyword"                # search across workspace
 tdc search "keyword" --all          # fetch all result pages
 tdc react thread <ref> 👍          # add reaction
+tdc status                          # show your status
+tdc status set "Deep work" --emoji 🎯 --for 2h --pause-notifications  # set it (--until <iso> for a date)
+tdc status clear                    # clear your status
 tdc away                            # show away status
 tdc away set vacation 2026-03-20    # set away until date
 tdc away clear                      # clear away status

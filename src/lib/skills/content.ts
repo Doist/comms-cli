@@ -257,6 +257,9 @@ tdc users                         # List active workspace users
 tdc users --search <text>         # Filter by name/email
 tdc users --include-removed       # Include users removed from the workspace
 tdc users --ids-only              # Output only user IDs
+tdc status                        # Show your status
+tdc status set "Deep work" --emoji 🎯 --for 2h --pause-notifications  # Set it (--until <iso> for a date; --dry-run)
+tdc status clear                  # Clear your status
 tdc channels                      # List active joined workspace channels (alias of: tdc channel list)
 tdc channels --state all          # Include archived joined channels too
 tdc channels --scope discoverable # Active public channels you can see but have not joined

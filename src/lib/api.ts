@@ -23,6 +23,8 @@ const API_SPINNER_MESSAGES: Record<string, { text: string; color?: 'blue' | 'gre
         'users.getSessionUser': { text: 'Checking authentication...', color: 'blue' },
 
         'users.update': { text: 'Updating user...', color: 'yellow' },
+        'users.setStatus': { text: 'Setting status...', color: 'yellow' },
+        'users.clearStatus': { text: 'Clearing status...', color: 'yellow' },
 
         // Workspace operations
         'workspaces.getWorkspaces': { text: 'Loading workspaces...', color: 'blue' },
