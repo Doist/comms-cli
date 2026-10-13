@@ -14,13 +14,23 @@ type SetStatusOptions = MutationOptions & {
     pauseNotifications?: boolean
 }
 
+// `new Date('2026-10-20')` is UTC midnight, but every other form without an offset is local time.
+function parseLocalDate(value: string): Date | null {
+    const dateOnly = /^(\d{4})-(\d{2})-(\d{2})$/.exec(value.trim())
+    if (dateOnly) {
+        const [, year, month, day] = dateOnly
+        return new Date(Number(year), Number(month) - 1, Number(day))
+    }
+    return parseDate(value)
+}
+
 function resolveExpiry(options: SetStatusOptions): Date | undefined {
-    if (options.until && options.for) {
+    if (options.until !== undefined && options.for !== undefined) {
         throw new CliError('CONFLICTING_OPTIONS', 'Cannot use --until and --for together')
     }
 
-    if (options.until) {
-        const date = parseDate(options.until)
+    if (options.until !== undefined) {
+        const date = parseLocalDate(options.until)
         if (!date) {
             throw new CliError('INVALID_DATE', `Invalid --until date: ${options.until}`, [
                 'Use ISO 8601, e.g. 2026-10-14T15:00 (local time) or 2026-10-14T15:00Z',
@@ -29,7 +39,7 @@ function resolveExpiry(options: SetStatusOptions): Date | undefined {
         return date
     }
 
-    if (options.for) {
+    if (options.for !== undefined) {
         const duration = parseDuration(options.for)
         if (duration === null) {
             throw new CliError('INVALID_VALUE', `Invalid --for duration: ${options.for}`, [
@@ -66,7 +76,11 @@ export async function setStatus(message: string, options: SetStatusOptions): Pro
     const user = await client.users.setStatus(args)
 
     if (options.json) {
-        console.log(formatJson({ status: user.status ?? null }))
+        console.log(
+            options.full
+                ? formatJson(user, 'user', true)
+                : formatJson({ status: user.status ?? null }),
+        )
         return
     }
 

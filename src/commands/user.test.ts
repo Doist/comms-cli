@@ -226,3 +226,42 @@ describe('users --full', () => {
         expect(user).not.toHaveProperty('cometChannel')
     })
 })
+
+describe('user status line', () => {
+    const baseUser = {
+        id: 42,
+        fullName: 'Jane Smith',
+        email: 'jane@example.com',
+        timezone: 'America/New_York',
+    }
+
+    beforeEach(() => {
+        vi.clearAllMocks()
+        apiMocks.getCommsClient.mockResolvedValue({
+            workspaces: { getDefaultWorkspace: vi.fn().mockResolvedValue(null) },
+        })
+    })
+
+    it('prints the status when one is set', async () => {
+        apiMocks.getSessionUser.mockResolvedValue({
+            ...baseUser,
+            status: { message: 'Deep work', emoji: '🎯' },
+        })
+        const consoleSpy = captureConsole('log')
+
+        await createProgram().parseAsync(['node', 'tdc', 'user'])
+
+        const lines = consoleSpy.mock.calls.map((call) => call[0])
+        expect(lines).toContain('Status:    🎯 Deep work')
+    })
+
+    it('omits the status line when there is none', async () => {
+        apiMocks.getSessionUser.mockResolvedValue({ ...baseUser, status: null })
+        const consoleSpy = captureConsole('log')
+
+        await createProgram().parseAsync(['node', 'tdc', 'user'])
+
+        const lines = consoleSpy.mock.calls.map((call) => String(call[0]))
+        expect(lines.some((line) => line.startsWith('Status:'))).toBe(false)
+    })
+})

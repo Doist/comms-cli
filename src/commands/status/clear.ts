@@ -12,7 +12,11 @@ export async function clearStatus(options: MutationOptions): Promise<void> {
     const user = await client.users.clearStatus()
 
     if (options.json) {
-        console.log(formatJson({ status: user.status ?? null }))
+        console.log(
+            options.full
+                ? formatJson(user, 'user', true)
+                : formatJson({ status: user.status ?? null }),
+        )
         return
     }
 

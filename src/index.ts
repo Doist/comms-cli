@@ -196,6 +196,7 @@ if (process.argv[2] === 'completion-server') {
             'config',
             'skill',
             'migrate',
+            'status',
         ])
         const wantsRaw = process.argv.slice(2).includes('--raw')
         const needsMarkdown =

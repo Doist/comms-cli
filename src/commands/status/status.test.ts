@@ -1,5 +1,5 @@
 import { captureConsole, createTestProgram } from '@doist/cli-core/testing'
-import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 const apiMocks = vi.hoisted(() => ({
     getCommsClient: vi.fn(),
@@ -44,6 +44,10 @@ describe('tdc status', () => {
         vi.setSystemTime(NOW)
         users = createUsersClient()
         apiMocks.getCommsClient.mockResolvedValue({ users })
+    })
+
+    afterEach(() => {
+        vi.useRealTimers()
     })
 
     describe('show', () => {
@@ -120,6 +124,49 @@ describe('tdc status', () => {
         ])('rejects an invalid %s %s', async (flag, value) => {
             await expect(run('set', 'Focus', flag, value)).rejects.toThrow(/Invalid --/)
             expect(users.setStatus).not.toHaveBeenCalled()
+        })
+
+        it.each([['--until'], ['--for']])(
+            'rejects an explicitly empty %s instead of setting no expiry',
+            async (flag) => {
+                captureConsole('log')
+                await expect(
+                    run('set', 'Focus', flag, '', '--pause-notifications'),
+                ).rejects.toThrow(/Invalid --/)
+                expect(users.setStatus).not.toHaveBeenCalled()
+            },
+        )
+
+        it('reads a date-only --until as local midnight, not UTC', async () => {
+            captureConsole('log')
+            await run('set', 'Holiday', '--until', '2026-10-20')
+            expect(users.setStatus).toHaveBeenCalledWith({
+                message: 'Holiday',
+                activeUntil: new Date(2026, 9, 20),
+            })
+        })
+
+        it('prints the expiry and the pause in the text output', async () => {
+            users.setStatus.mockResolvedValue({
+                id: 1,
+                status: {
+                    message: 'Focus',
+                    emoji: null,
+                    activeUntil: '2026-10-14T13:30:00.000Z',
+                    effects: { pauseNotifications: { scope: { mode: 'all' } } },
+                },
+            })
+            const spy = captureConsole('log')
+            await run('set', 'Focus', '--for', '90m', '--pause-notifications')
+            expect(logged(spy)).toContain('until')
+            expect(logged(spy)).toContain('notifications paused')
+        })
+
+        it('prints the full user with --json --full', async () => {
+            users.setStatus.mockResolvedValue({ id: 1, lang: 'en', status: null })
+            const spy = captureConsole('log')
+            await run('set', 'Away', '--json', '--full')
+            expect(JSON.parse(logged(spy))).toMatchObject({ id: 1, lang: 'en' })
         })
 
         it('does not call the API on --dry-run', async () => {

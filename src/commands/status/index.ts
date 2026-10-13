@@ -31,6 +31,7 @@ Examples:
         .option('--pause-notifications', 'Hold back Comms notifications while the status is active')
         .option('--dry-run', 'Show what would be set without setting it')
         .option('--json', 'Output as JSON')
+        .option('--full', 'Include all user fields in JSON output')
         .addHelpText(
             'after',
             `
@@ -48,5 +49,6 @@ Examples:
         .description('Clear your status')
         .option('--dry-run', 'Show what would be cleared without clearing it')
         .option('--json', 'Output as JSON')
+        .option('--full', 'Include all user fields in JSON output')
         .action(clearStatus)
 }

@@ -1,4 +1,6 @@
-const UNIT_MS = { d: 86_400_000, h: 3_600_000, m: 60_000 } as const
+import { DAY, HOUR, MINUTE } from './dates.js'
+
+const UNIT_MS = { d: DAY, h: HOUR, m: MINUTE } as const
 
 /**
  * Parses a compact duration such as `30m`, `2h`, `1d` or `1h30m` into milliseconds.
