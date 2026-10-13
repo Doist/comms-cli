@@ -145,9 +145,6 @@ tdc react thread <ref> 👍          # add reaction
 tdc status                          # show your status
 tdc status set "Deep work" --emoji 🎯 --for 2h --pause-notifications  # set it (--until <iso> for a date)
 tdc status clear                    # clear your status
-tdc away                            # show away status
-tdc away set vacation 2026-03-20    # set away until date
-tdc away clear                      # clear away status
 tdc groups                          # list groups in a workspace
 tdc groups view <ref>               # show a group with members
 tdc groups create "Frontend"        # create a group
