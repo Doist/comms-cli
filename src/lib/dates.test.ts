@@ -1,4 +1,4 @@
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
 import { formatRelativeDate, parseDate, parseLocalDate } from './dates.js'
 
 describe('formatRelativeDate', () => {
@@ -78,6 +78,11 @@ describe('parseLocalDate', () => {
         ['2026-10-20T09:30Z', new Date(Date.UTC(2026, 9, 20, 9, 30))],
         ['2026-10-20T09:30+02:00', new Date(Date.UTC(2026, 9, 20, 7, 30))],
         ['2026-10-20T09:30-0530', new Date(Date.UTC(2026, 9, 20, 15, 0))],
+        ['2026-10-20T09:00:00.000Z', new Date(Date.UTC(2026, 9, 20, 9, 0, 0, 0))],
+        ['2026-10-20T09:00:00.5Z', new Date(Date.UTC(2026, 9, 20, 9, 0, 0, 500))],
+        ['2026-10-20T09:00:00.123456Z', new Date(Date.UTC(2026, 9, 20, 9, 0, 0, 123))],
+        ['2026-10-20T09:00:00.250+02:00', new Date(Date.UTC(2026, 9, 20, 7, 0, 0, 250))],
+        ['2026-10-20T09:00:00.250', new Date(2026, 9, 20, 9, 0, 0, 250)],
         [' 2026-10-20 ', new Date(2026, 9, 20)],
     ])('parses %s', (input, expected) => {
         expect(parseLocalDate(input)?.getTime()).toBe(expected.getTime())
@@ -103,6 +108,8 @@ describe('parseLocalDate', () => {
         '2026-10-20T09:30+25:00',
         '2026-10-20Z',
         '2026-10-20T09:30.5',
+        '2026-10-20T09:00:00.',
+        '2026-10-20T09:00:00.1234567890Z',
     ])('rejects %j', (input) => {
         expect(parseLocalDate(input)).toBeNull()
     })
@@ -110,5 +117,48 @@ describe('parseLocalDate', () => {
     it('accepts 29 February only in a leap year', () => {
         expect(parseLocalDate('2028-02-29')).not.toBeNull()
         expect(parseLocalDate('2026-02-29')).toBeNull()
+    })
+})
+
+describe('parseLocalDate round trip', () => {
+    it('accepts what Date.toISOString() produces, millisecond for millisecond', () => {
+        for (const ms of [0, 1, 999, 1_700_000_000_123, Date.now() + 86_400_000]) {
+            const iso = new Date(ms).toISOString()
+            expect(parseLocalDate(iso)?.getTime()).toBe(ms)
+        }
+    })
+})
+
+describe('parseLocalDate around daylight saving', () => {
+    const originalTz = process.env.TZ
+
+    beforeAll(() => {
+        process.env.TZ = 'America/New_York'
+    })
+
+    afterAll(() => {
+        if (originalTz === undefined) {
+            delete process.env.TZ
+        } else {
+            process.env.TZ = originalTz
+        }
+    })
+
+    it('rejects a local time that does not exist in the spring-forward gap', () => {
+        expect(parseLocalDate('2026-03-08T02:30')).toBeNull()
+        expect(parseLocalDate('2026-03-08T02:00:00')).toBeNull()
+    })
+
+    it('accepts the times on either side of the gap', () => {
+        expect(parseLocalDate('2026-03-08T01:59')).not.toBeNull()
+        expect(parseLocalDate('2026-03-08T03:00')).not.toBeNull()
+    })
+
+    it('accepts a time that happens twice when the clocks go back', () => {
+        expect(parseLocalDate('2026-11-01T01:30')).not.toBeNull()
+    })
+
+    it('does not apply the gap rule to an explicit offset', () => {
+        expect(parseLocalDate('2026-03-08T02:30Z')).not.toBeNull()
     })
 })

@@ -4,8 +4,8 @@ import { formatDateTime, parseLocalDate } from '../../lib/dates.js'
 import { parseDuration } from '../../lib/duration.js'
 import { CliError } from '../../lib/errors.js'
 import type { MutationOptions } from '../../lib/options.js'
-import { formatJson, printDryRun } from '../../lib/output.js'
-import { formatStatus } from './helpers.js'
+import { printDryRun } from '../../lib/output.js'
+import { formatStatus, formatStatusJson } from './helpers.js'
 
 const MAX_MESSAGE_LENGTH = 80
 
@@ -100,12 +100,13 @@ export async function setStatus(message: string, options: SetStatusOptions): Pro
     const client = await getCommsClient()
     const user = await client.users.setStatus(args)
 
+    // The server accepted the call but reports nothing active, e.g. an expiry that has already passed.
+    if (!user.status) {
+        process.exitCode = 1
+    }
+
     if (options.json) {
-        console.log(
-            options.full
-                ? formatJson(user, 'user', true)
-                : formatJson({ status: user.status ?? null }),
-        )
+        console.log(formatStatusJson(user, options.full))
         return
     }
 

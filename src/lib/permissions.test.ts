@@ -57,6 +57,8 @@ describe('permissions', () => {
         expect(isMutatingMethod('inbox.archiveThread')).toBe(true)
         expect(isMutatingMethod('reactions.add')).toBe(true)
         expect(isMutatingMethod('reactions.remove')).toBe(true)
+        expect(isMutatingMethod('users.setStatus')).toBe(true)
+        expect(isMutatingMethod('users.clearStatus')).toBe(true)
     })
 
     it('identifies safe (read-only) methods', () => {

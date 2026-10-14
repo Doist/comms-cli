@@ -55,10 +55,11 @@ export function parseDate(dateStr: string): Date | null {
 }
 
 const ISO_LOCAL =
-    /^(\d{4})-(\d{2})-(\d{2})(?:[T ](\d{2}):(\d{2})(?::(\d{2}))?)?(Z|[+-]\d{2}:?\d{2})?$/i
+    /^(\d{4})-(\d{2})-(\d{2})(?:[T ](\d{2}):(\d{2})(?::(\d{2})(?:\.(\d{1,9}))?)?)?(Z|[+-]\d{2}:?\d{2})?$/i
 
 /**
- * Parses `YYYY-MM-DD` or `YYYY-MM-DD[T ]HH:MM[:SS]` with an optional `Z` or `+HH:MM` offset.
+ * Parses `YYYY-MM-DD` or `YYYY-MM-DD[T ]HH:MM[:SS[.fraction]]` with an optional `Z` or `+HH:MM`
+ * offset, which includes everything `Date.toISOString()` produces.
  * Without an offset the value is local time, date-only included (unlike `new Date('2026-10-20')`,
  * which is UTC). Returns `null` for anything else, including calendar dates that `Date` would
  * silently roll over such as `2026-02-30`.
@@ -68,7 +69,7 @@ export function parseLocalDate(value: string): Date | null {
     if (!match) {
         return null
     }
-    const [, year, month, day, hour, minute, second, zone] = match
+    const [, year, month, day, hour, minute, second, fraction, zone] = match
     if (hour === undefined && zone !== undefined) {
         return null
     }
@@ -76,16 +77,24 @@ export function parseLocalDate(value: string): Date | null {
     const [y, mo, d, h, mi, s] = [year, month, day, hour ?? '0', minute ?? '0', second ?? '0'].map(
         Number,
     )
+    const ms = Number((fraction ?? '').padEnd(3, '0').slice(0, 3))
     if (mo < 1 || mo > 12 || d < 1 || h > 23 || mi > 59 || s > 59) {
         return null
     }
 
     if (zone === undefined) {
-        const local = new Date(y, mo - 1, d, h, mi, s)
-        return local.getMonth() === mo - 1 && local.getDate() === d ? local : null
+        const local = new Date(y, mo - 1, d, h, mi, s, ms)
+        // A time inside a daylight-saving gap does not exist; `Date` shifts it to the next hour.
+        const exists =
+            local.getMonth() === mo - 1 &&
+            local.getDate() === d &&
+            local.getHours() === h &&
+            local.getMinutes() === mi &&
+            local.getSeconds() === s
+        return exists ? local : null
     }
 
-    const utc = new Date(Date.UTC(y, mo - 1, d, h, mi, s))
+    const utc = new Date(Date.UTC(y, mo - 1, d, h, mi, s, ms))
     if (utc.getUTCMonth() !== mo - 1 || utc.getUTCDate() !== d) {
         return null
     }

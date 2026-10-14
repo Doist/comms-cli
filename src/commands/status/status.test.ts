@@ -319,3 +319,45 @@ describe('tdc status output matches what the server returned', () => {
         expect(JSON.parse(logged(spy))).toMatchObject({ id: 1, lang: 'en' })
     })
 })
+
+describe('tdc status exit codes follow the server state', () => {
+    let users: ReturnType<typeof createUsersClient>
+
+    beforeEach(() => {
+        vi.clearAllMocks()
+        users = createUsersClient()
+        apiMocks.getCommsClient.mockResolvedValue({ users })
+        process.exitCode = undefined
+    })
+
+    afterEach(() => {
+        process.exitCode = undefined
+    })
+
+    it.each([[[]], [['--json']], [['--json', '--full']]])(
+        'clear %j exits 1 while the server still returns a status',
+        async (extra) => {
+            users.clearStatus.mockResolvedValue({ id: 1, status: { message: 'Still here' } })
+            captureConsole('log')
+            await run('clear', ...extra)
+            expect(process.exitCode).toBe(1)
+        },
+    )
+
+    it.each([[[]], [['--json']], [['--json', '--full']]])(
+        'set %j exits 1 when the server returns no status',
+        async (extra) => {
+            users.setStatus.mockResolvedValue({ id: 1, status: null })
+            captureConsole('log')
+            await run('set', 'Away', ...extra)
+            expect(process.exitCode).toBe(1)
+        },
+    )
+
+    it('exits 0 when set and clear do what was asked', async () => {
+        captureConsole('log')
+        await run('set', 'Away')
+        await run('clear')
+        expect(process.exitCode).toBeUndefined()
+    })
+})

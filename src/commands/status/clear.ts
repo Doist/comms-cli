@@ -1,7 +1,7 @@
 import { getCommsClient } from '../../lib/api.js'
 import type { MutationOptions } from '../../lib/options.js'
-import { formatJson, printDryRun } from '../../lib/output.js'
-import { formatStatus } from './helpers.js'
+import { printDryRun } from '../../lib/output.js'
+import { formatStatus, formatStatusJson } from './helpers.js'
 
 export async function clearStatus(options: MutationOptions): Promise<void> {
     if (options.dryRun) {
@@ -12,20 +12,19 @@ export async function clearStatus(options: MutationOptions): Promise<void> {
     const client = await getCommsClient()
     const user = await client.users.clearStatus()
 
-    if (options.json) {
-        console.log(
-            options.full
-                ? formatJson(user, 'user', true)
-                : formatJson({ status: user.status ?? null }),
-        )
-        return
-    }
-
+    // Exit 1 whenever the server still reports a status, JSON output included.
     if (user.status) {
-        console.log(`Comms still reports a status: ${formatStatus(user.status)}`)
         process.exitCode = 1
+    }
+
+    if (options.json) {
+        console.log(formatStatusJson(user, options.full))
         return
     }
 
-    console.log('Status cleared.')
+    console.log(
+        user.status
+            ? `Comms still reports a status: ${formatStatus(user.status)}`
+            : 'Status cleared.',
+    )
 }

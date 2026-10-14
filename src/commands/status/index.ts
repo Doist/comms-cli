@@ -26,7 +26,7 @@ Examples:
         .option('--emoji <emoji>', 'Emoji to show next to the message')
         .option(
             '--until <datetime>',
-            'When the status ends (ISO 8601; local time without an offset)',
+            'When the status ends: YYYY-MM-DD, YYYY-MM-DDTHH:MM or a full ISO 8601 timestamp. Local time unless it has Z or an offset',
         )
         .option('--for <duration>', 'How long the status lasts, e.g. 30m, 2h, 1d, 1h30m')
         .option('--pause-notifications', 'Hold back Comms notifications while the status is active')
