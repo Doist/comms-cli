@@ -365,6 +365,28 @@ describe('tdc status reports what the server returned', () => {
         expect(JSON.parse(logged(spy))).toMatchObject({ id: 1, lang: 'en' })
     })
 
+    it('redacts session credentials from --json --full in show, set and clear', async () => {
+        const secrets = { token: 'SESSION-TOKEN-VALUE', cometChannel: 'COMET-CHANNEL-VALUE' }
+        const user = { id: 1, lang: 'en', status: { message: 'Away' }, ...secrets }
+        apiMocks.getSessionUser.mockResolvedValue(user)
+        users.setStatus.mockResolvedValue(user)
+        users.clearStatus.mockResolvedValue({ ...user, status: null })
+
+        for (const args of [
+            ['show', '--json', '--full'],
+            ['set', 'Away', '--json', '--full'],
+            ['clear', '--json', '--full'],
+        ]) {
+            const spy = captureConsole('log')
+            await run(...args)
+            const out = logged(spy)
+            expect(JSON.parse(out)).toMatchObject({ id: 1, lang: 'en' })
+            expect(out).not.toContain('SESSION-TOKEN-VALUE')
+            expect(out).not.toContain('COMET-CHANNEL-VALUE')
+            spy.mockRestore()
+        }
+    })
+
     it('reaches show through the default subcommand with --json', async () => {
         apiMocks.getSessionUser.mockResolvedValue({ id: 1, status: { message: 'Away' } })
         const spy = captureConsole('log')
