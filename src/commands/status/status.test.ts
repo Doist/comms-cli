@@ -319,6 +319,28 @@ describe('tdc status reports what the server returned', () => {
         },
     )
 
+    it('says nothing changed, and what to do next, when set leaves no active status', async () => {
+        users.setStatus.mockResolvedValue({ id: 1, status: null })
+        captureConsole('log')
+        const error = await run('set', 'Away').catch((e) => e)
+        expect(error.code).toBe('INVALID_STATE')
+        expect(error.message).toContain('Nothing changed')
+        expect(error.message).toContain('no active status')
+        expect(error.hints.join(' ')).toContain('tdc status')
+        expect(error.hints.join(' ')).toMatch(/--until|--for/)
+    })
+
+    it('describes --pause-notifications as Comms-only, honoured by each app that reads the status', () => {
+        const program = createTestProgram(registerStatusCommand)
+        const set = program.commands
+            .find((c) => c.name() === 'status')
+            ?.commands.find((c) => c.name() === 'set')
+        const help = set?.helpInformation() ?? ''
+        expect(help).toContain('--pause-notifications')
+        expect(help).toContain('Comms only for now')
+        expect(help).toContain('each app')
+    })
+
     it('succeeds, with one line, when set and clear do what was asked', async () => {
         const spy = captureConsole('log')
         await run('set', 'Away')

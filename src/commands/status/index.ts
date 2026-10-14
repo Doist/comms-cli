@@ -29,7 +29,10 @@ Examples:
             'When the status ends: YYYY-MM-DD, YYYY-MM-DDTHH:MM or a full ISO 8601 timestamp. Local time unless it has Z or an offset',
         )
         .option('--for <duration>', 'How long the status lasts, e.g. 30m, 2h, 1d, 1h30m')
-        .option('--pause-notifications', 'Hold back Comms notifications while the status is active')
+        .option(
+            '--pause-notifications',
+            'Hold back Comms notifications while the status is active. Comms only for now: each app has to read the status to honour it',
+        )
         .option('--dry-run', 'Show what would be set without setting it')
         .option('--json', 'Output as JSON')
         .option('--full', 'Include all user fields in JSON output')
@@ -38,7 +41,8 @@ Examples:
             `
 The message is 1 to 80 characters. The status is shared with your Todoist account.
 Setting or clearing it needs the user:write scope, so log in with tdc auth login --full-access.
-Notifications held back by --pause-notifications are not sent later.
+--pause-notifications only affects Comms for now. Each app has to read the status and hold
+its own notifications back, and Todoist does not yet. Held notifications are not sent later.
 
 Examples:
   tdc status set "On holiday" --emoji 🏝️ --until 2026-10-20T09:00

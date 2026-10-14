@@ -70,6 +70,8 @@ All group management — `groups create`, `rename`, `delete`, `add-user`, `remov
 
 Setting or clearing your status (`status set`, `status clear`) needs the `user:write` scope, so it also requires `tdc auth login --full-access`. `tdc status` works on a default login.
 
+`--pause-notifications` holds back Comms notifications only for now: each app has to read the status and hold its own notifications back, and Todoist does not yet. Held notifications are not sent later.
+
 By default, the CLI stores the token in your OS credential manager:
 
 - macOS: Keychain

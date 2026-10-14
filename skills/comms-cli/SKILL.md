@@ -320,6 +320,8 @@ All group *writes* (`groups create`, `rename`, `delete`, `add-user`, `remove-use
 
 `tdc status set` and `tdc status clear` need the `user:write` scope, which only `tdc auth login --full-access` grants. `tdc status` (show) works on a default login.
 
+Only pass `--pause-notifications` when the user asks for it. It holds back Comms notifications only for now: each app has to read the status and hold its own notifications back, and Todoist does not yet. Held notifications are not sent later.
+
 If a channel is not found in `tdc channels`, widen with broader listings such as `tdc channels --scope public`, then `tdc channels --scope public --state all`. Check `tdc channels --help` for other available filters.
 
 `tdc channel threads` returns every thread in the channel; pagination filters (`--limit`, `--cursor`, `--since`, `--until`, `--unread`) are applied client-side after fetch. `--archive-filter` is applied server-side. Results are sorted newest-first by last activity. In `--json` / `--ndjson`, the response includes a `nextCursor` string (opaque) you can pass via `--cursor` to fetch the next page; NDJSON emits the cursor as a final `{ "_meta": true, "nextCursor": "..." }` line.

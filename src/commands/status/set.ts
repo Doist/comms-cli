@@ -109,7 +109,11 @@ export async function setStatus(message: string, options: SetStatusOptions): Pro
     if (!user.status) {
         throw new CliError(
             'INVALID_STATE',
-            'Comms accepted the status but reports no active status',
+            'Nothing changed: Comms accepted the request but there is no active status, usually because the expiry has already passed',
+            [
+                'Run `tdc status` to see the current status',
+                'To keep a status active, set a later --until or --for',
+            ],
         )
     }
 
