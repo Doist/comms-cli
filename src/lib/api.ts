@@ -1,5 +1,6 @@
 import {
     CommsApi,
+    CommsRequestError,
     getCommsErrorString,
     type Group,
     isConflict,
@@ -237,6 +238,33 @@ function wrapResult(
                     'CONFLICT',
                     `Comms refused this request: ${getCommsErrorString(error) ?? '409 Conflict'}`,
                 )
+            }
+            if (error instanceof CommsRequestError) {
+                const status = error.httpStatusCode
+                const reason = getCommsErrorString(error)
+                if (status === undefined) {
+                    throw new CliError('NETWORK_ERROR', `Could not reach Comms: ${error.message}`, [
+                        'Check your network connection, then retry',
+                    ])
+                }
+                if (status === 400) {
+                    throw new CliError(
+                        'INVALID_REQUEST',
+                        `Comms rejected the request: ${reason ?? '400 Bad Request'}`,
+                    )
+                }
+                if (status === 429) {
+                    throw new CliError(
+                        'RATE_LIMITED',
+                        'Comms is rate limiting requests: 429 Too Many Requests.',
+                        ['Wait a moment, then retry'],
+                    )
+                }
+                if (status >= 500 && status < 600) {
+                    throw new CliError('API_ERROR', `Comms had a server error: ${status}.`, [
+                        'This is usually temporary, retry in a moment',
+                    ])
+                }
             }
             throw error
         })

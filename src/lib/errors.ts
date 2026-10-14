@@ -30,6 +30,7 @@ export type ErrorCode =
     | 'INVALID_LIMIT'
     | 'INVALID_MINUTES'
     | 'INVALID_REF'
+    | 'INVALID_REQUEST'
     | 'INVALID_SCOPE'
     | 'INVALID_STATE'
     | 'INVALID_TYPE'
@@ -63,6 +64,8 @@ export type ErrorCode =
     | 'UNKNOWN_AGENT'
     // API & internal
     | 'API_ERROR'
+    | 'NETWORK_ERROR'
+    | 'RATE_LIMITED'
     | 'CONFLICT'
     | 'INTERNAL_ERROR'
     // Config file inspection
