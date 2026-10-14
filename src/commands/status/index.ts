@@ -10,6 +10,7 @@ export function registerStatusCommand(program: Command): void {
         .command('show', { isDefault: true })
         .description('Show your current status')
         .option('--json', 'Output as JSON')
+        .option('--full', 'Include all user fields in JSON output')
         .addHelpText(
             'after',
             `
@@ -36,6 +37,7 @@ Examples:
             'after',
             `
 The message is 1 to 80 characters. The status is shared with your Todoist account.
+Setting or clearing it needs the user:write scope, so log in with tdc auth login --full-access.
 Notifications held back by --pause-notifications are not sent later.
 
 Examples:

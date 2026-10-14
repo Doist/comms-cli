@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { formatRelativeDate, parseDate } from './dates.js'
+import { formatRelativeDate, parseDate, parseLocalDate } from './dates.js'
 
 describe('formatRelativeDate', () => {
     beforeEach(() => {
@@ -66,5 +66,49 @@ describe('parseDate', () => {
     it('returns null for invalid dates', () => {
         expect(parseDate('invalid')).toBeNull()
         expect(parseDate('')).toBeNull()
+    })
+})
+
+describe('parseLocalDate', () => {
+    it.each([
+        ['2026-10-20', new Date(2026, 9, 20)],
+        ['2026-10-20T09:30', new Date(2026, 9, 20, 9, 30)],
+        ['2026-10-20 09:30', new Date(2026, 9, 20, 9, 30)],
+        ['2026-10-20T09:30:15', new Date(2026, 9, 20, 9, 30, 15)],
+        ['2026-10-20T09:30Z', new Date(Date.UTC(2026, 9, 20, 9, 30))],
+        ['2026-10-20T09:30+02:00', new Date(Date.UTC(2026, 9, 20, 7, 30))],
+        ['2026-10-20T09:30-0530', new Date(Date.UTC(2026, 9, 20, 15, 0))],
+        [' 2026-10-20 ', new Date(2026, 9, 20)],
+    ])('parses %s', (input, expected) => {
+        expect(parseLocalDate(input)?.getTime()).toBe(expected.getTime())
+    })
+
+    it.each([
+        '',
+        'next week',
+        '2026',
+        '2026-10',
+        '20261020',
+        '2026-02-30',
+        '2026-02-31T10:00',
+        '2026-02-30T10:00Z',
+        '2026-04-31',
+        '2026-13-01',
+        '2026-00-10',
+        '2026-10-00',
+        '2026-10-32',
+        '2026-10-20T24:00',
+        '2026-10-20T09:60',
+        '2026-10-20T09:30:60',
+        '2026-10-20T09:30+25:00',
+        '2026-10-20Z',
+        '2026-10-20T09:30.5',
+    ])('rejects %j', (input) => {
+        expect(parseLocalDate(input)).toBeNull()
+    })
+
+    it('accepts 29 February only in a leap year', () => {
+        expect(parseLocalDate('2028-02-29')).not.toBeNull()
+        expect(parseLocalDate('2026-02-29')).toBeNull()
     })
 })

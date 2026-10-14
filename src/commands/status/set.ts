@@ -1,11 +1,13 @@
 import type { SetStatusArgs } from '@doist/comms-sdk'
 import { getCommsClient } from '../../lib/api.js'
-import { parseDate } from '../../lib/dates.js'
+import { formatDateTime, parseLocalDate } from '../../lib/dates.js'
 import { parseDuration } from '../../lib/duration.js'
 import { CliError } from '../../lib/errors.js'
 import type { MutationOptions } from '../../lib/options.js'
 import { formatJson, printDryRun } from '../../lib/output.js'
 import { formatStatus } from './helpers.js'
+
+const MAX_MESSAGE_LENGTH = 80
 
 type SetStatusOptions = MutationOptions & {
     emoji?: string
@@ -14,14 +16,27 @@ type SetStatusOptions = MutationOptions & {
     pauseNotifications?: boolean
 }
 
-// `new Date('2026-10-20')` is UTC midnight, but every other form without an offset is local time.
-function parseLocalDate(value: string): Date | null {
-    const dateOnly = /^(\d{4})-(\d{2})-(\d{2})$/.exec(value.trim())
-    if (dateOnly) {
-        const [, year, month, day] = dateOnly
-        return new Date(Number(year), Number(month) - 1, Number(day))
+function resolveMessage(message: string): string {
+    const trimmed = message.trim()
+    const length = [...trimmed].length
+    if (length < 1 || length > MAX_MESSAGE_LENGTH) {
+        throw new CliError(
+            'INVALID_VALUE',
+            `The message must be 1 to ${MAX_MESSAGE_LENGTH} characters`,
+        )
     }
-    return parseDate(value)
+    return trimmed
+}
+
+function resolveEmoji(emoji: string | undefined): string | undefined {
+    if (emoji === undefined) {
+        return undefined
+    }
+    const trimmed = emoji.trim()
+    if (trimmed === '') {
+        throw new CliError('INVALID_VALUE', '--emoji cannot be empty')
+    }
+    return trimmed
 }
 
 function resolveExpiry(options: SetStatusOptions): Date | undefined {
@@ -29,44 +44,49 @@ function resolveExpiry(options: SetStatusOptions): Date | undefined {
         throw new CliError('CONFLICTING_OPTIONS', 'Cannot use --until and --for together')
     }
 
+    let expiry: Date | undefined
     if (options.until !== undefined) {
-        const date = parseLocalDate(options.until)
-        if (!date) {
+        expiry = parseLocalDate(options.until) ?? undefined
+        if (!expiry) {
             throw new CliError('INVALID_DATE', `Invalid --until date: ${options.until}`, [
-                'Use ISO 8601, e.g. 2026-10-14T15:00 (local time) or 2026-10-14T15:00Z',
+                'Use a real date as YYYY-MM-DD or YYYY-MM-DDTHH:MM (local time), or add Z or an offset such as +02:00',
             ])
         }
-        return date
-    }
-
-    if (options.for !== undefined) {
+    } else if (options.for !== undefined) {
         const duration = parseDuration(options.for)
-        if (duration === null) {
+        expiry = duration === null ? undefined : new Date(Date.now() + duration)
+        if (!expiry || Number.isNaN(expiry.getTime())) {
             throw new CliError('INVALID_VALUE', `Invalid --for duration: ${options.for}`, [
                 'Use minutes, hours or days, e.g. 30m, 2h, 1d or 1h30m',
             ])
         }
-        return new Date(Date.now() + duration)
     }
 
-    return undefined
+    if (expiry && expiry.getTime() <= Date.now()) {
+        throw new CliError('INVALID_DATE', `The status must end in the future: ${options.until}`, [
+            'A date with no time means midnight at its start, so add a time or use a later date',
+        ])
+    }
+    return expiry
 }
 
 export async function setStatus(message: string, options: SetStatusOptions): Promise<void> {
+    const text = resolveMessage(message)
+    const emoji = resolveEmoji(options.emoji)
     const activeUntil = resolveExpiry(options)
 
     const args: SetStatusArgs = {
-        message,
-        ...(options.emoji ? { emoji: options.emoji } : {}),
+        message: text,
+        ...(emoji ? { emoji } : {}),
         ...(activeUntil ? { activeUntil } : {}),
         ...(options.pauseNotifications ? { effects: { pauseNotifications: {} } } : {}),
     }
 
     if (options.dryRun) {
         printDryRun('set status', {
-            Message: message,
-            Emoji: options.emoji,
-            Until: activeUntil?.toLocaleString(),
+            Message: text,
+            Emoji: emoji,
+            Until: activeUntil ? formatDateTime(activeUntil) : undefined,
             'Pause notifications': options.pauseNotifications ? 'yes' : undefined,
         })
         return
@@ -84,5 +104,9 @@ export async function setStatus(message: string, options: SetStatusOptions): Pro
         return
     }
 
-    console.log(`Status set: ${user.status ? formatStatus(user.status) : message}`)
+    console.log(
+        user.status
+            ? `Status set: ${formatStatus(user.status)}`
+            : 'Status set, but Comms reports no active status.',
+    )
 }

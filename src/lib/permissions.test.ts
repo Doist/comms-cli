@@ -83,6 +83,30 @@ describe('permissions', () => {
 })
 
 describe('ensureScopeAllowed', () => {
+    it.each(['users.setStatus', 'users.clearStatus'])(
+        'blocks %s when the grant lacks user:write',
+        async (method) => {
+            vi.mocked(getAuthMetadata).mockResolvedValue({
+                authMode: 'read-write',
+                authScope: 'user:read comms:content:write comms:messages:write',
+            } as never)
+
+            await expect(ensureScopeAllowed(method)).rejects.toThrow('user:write')
+        },
+    )
+
+    it.each(['users.setStatus', 'users.clearStatus'])(
+        'allows %s when user:write is granted',
+        async (method) => {
+            vi.mocked(getAuthMetadata).mockResolvedValue({
+                authMode: 'read-write',
+                authScope: 'user:read user:write comms:content:write',
+            } as never)
+
+            await expect(ensureScopeAllowed(method)).resolves.toBeUndefined()
+        },
+    )
+
     it('blocks group writes when the grant lacks workspaces:write', async () => {
         mockGetAuthMetadata.mockResolvedValue({
             authMode: 'read-write',

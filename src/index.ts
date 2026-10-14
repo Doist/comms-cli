@@ -54,7 +54,7 @@ const commands: Record<string, [string, () => Promise<(p: Command) => void>]> = 
     workspace: ['Manage workspace', loadWorkspaceCommand],
     user: ['Show current user info', loadUserCommand],
     users: ['List users in a workspace', loadUserCommand],
-    status: ['Show, set or clear your status', loadStatusCommand],
+    status: ['Show, set or clear your status; set and clear need --full-access', loadStatusCommand],
     channel: ['Channel operations (list, create, update, threads)', loadChannelCommand],
     inbox: ['Show inbox threads', loadInboxCommand],
     thread: ['Thread operations', loadThreadCommand],

@@ -68,6 +68,8 @@ This opens Todoist OAuth in your browser. The default grant can read Comms data 
 
 All group management — `groups create`, `rename`, `delete`, `add-user`, `remove-user` — needs the `workspaces:write` scope, so it requires `tdc auth login --full-access`. Group reads (`groups`, `groups view`) work on a default login.
 
+Setting or clearing your status (`status set`, `status clear`) needs the `user:write` scope, so it also requires `tdc auth login --full-access`. `tdc status` works on a default login.
+
 By default, the CLI stores the token in your OS credential manager:
 
 - macOS: Keychain

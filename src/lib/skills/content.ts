@@ -54,7 +54,7 @@ tdc changelog                     # Show recent changelog entries
 tdc migrate urls <urls>           # Translate old twist.com URLs to Comms URLs (needs a Twist token)
 \`\`\`
 
-OAuth login uses Todoist OAuth for Comms access. The default grant can read Comms data and create/update content or messages. It does not include delete, channel management, or user/workspace write scopes; use \`tdc auth login --full-access\` only when needed (all \`tdc groups\` writes require it). Credential storage defaults to \`fallback\`: use the system credential manager when available, otherwise warn and save to \`~/.config/comms-cli/config.json\`. Pass \`--credential-store system\` to fail instead of writing plaintext, or \`--credential-store plaintext\` to choose config-file storage explicitly. \`COMMS_API_TOKEN\` always takes priority over the stored token.
+OAuth login uses Todoist OAuth for Comms access. The default grant can read Comms data and create/update content or messages. It does not include delete, channel management, or user/workspace write scopes; use \`tdc auth login --full-access\` only when needed (all \`tdc groups\` writes and \`tdc status set|clear\` require it). Credential storage defaults to \`fallback\`: use the system credential manager when available, otherwise warn and save to \`~/.config/comms-cli/config.json\`. Pass \`--credential-store system\` to fail instead of writing plaintext, or \`--credential-store plaintext\` to choose config-file storage explicitly. \`COMMS_API_TOKEN\` always takes priority over the stored token.
 
 In read-only mode (\`tdc auth login --read-only\`), commands that modify Comms data (reply, archive, react, delete, etc.) are blocked by the CLI. Externally provided tokens (\`COMMS_API_TOKEN\` or \`tdc auth token\`) are treated as unknown scope and assumed write-capable.
 
@@ -257,9 +257,9 @@ tdc users                         # List active workspace users
 tdc users --search <text>         # Filter by name/email
 tdc users --include-removed       # Include users removed from the workspace
 tdc users --ids-only              # Output only user IDs
-tdc status                        # Show your status
-tdc status --json                 # Show it as { status } JSON (null when unset)
-tdc status set "Deep work" --emoji 🎯 --for 2h --pause-notifications  # Set it (replaces any current status)
+tdc status                        # Show your status (default login is enough)
+tdc status --json                 # Show it as { status } JSON (null when unset; --full for the whole user)
+tdc status set "Deep work" --emoji 🎯 --for 2h --pause-notifications  # Set it (replaces any current status; needs --full-access)
 tdc status set "On holiday" --until 2026-10-20T09:00  # End at a date (ISO 8601, local time without an offset)
 tdc status set "Away" --dry-run   # Preview without setting
 tdc status set "Away" --json      # Set and return { status } as JSON
@@ -321,6 +321,8 @@ tdc groups remove-user <ref> id:123,id:456      # Comma-separated ID refs
 \`\`\`
 
 All group *writes* (\`groups create\`, \`rename\`, \`delete\`, \`add-user\`, \`remove-user\`) need the \`workspaces:write\` scope, which only \`tdc auth login --full-access\` grants. Group *reads* (\`groups\`, \`groups view\`) work on a default login.
+
+\`tdc status set\` and \`tdc status clear\` need the \`user:write\` scope, which only \`tdc auth login --full-access\` grants. \`tdc status\` (show) works on a default login.
 
 If a channel is not found in \`tdc channels\`, widen with broader listings such as \`tdc channels --scope public\`, then \`tdc channels --scope public --state all\`. Check \`tdc channels --help\` for other available filters.
 

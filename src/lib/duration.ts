@@ -16,5 +16,5 @@ export function parseDuration(value: string): number | null {
         Number(days ?? 0) * UNIT_MS.d +
         Number(hours ?? 0) * UNIT_MS.h +
         Number(minutes ?? 0) * UNIT_MS.m
-    return total > 0 ? total : null
+    return Number.isFinite(total) && total > 0 ? total : null
 }

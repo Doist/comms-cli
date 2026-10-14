@@ -53,7 +53,11 @@ describe('tdc status', () => {
     describe('show', () => {
         it('is the default subcommand and prints the status', async () => {
             apiMocks.getSessionUser.mockResolvedValue({
-                status: { message: 'Deep work', emoji: '🎯', effects: { pauseNotifications: {} } },
+                status: {
+                    message: 'Deep work',
+                    emoji: '🎯',
+                    effects: { pauseNotifications: { scope: { mode: 'all' } } },
+                },
             })
             const spy = captureConsole('log')
             await run()
@@ -198,5 +202,119 @@ describe('tdc status', () => {
             await run('clear', '--dry-run')
             expect(users.clearStatus).not.toHaveBeenCalled()
         })
+    })
+})
+
+describe('tdc status set input guards', () => {
+    let users: ReturnType<typeof createUsersClient>
+
+    beforeEach(() => {
+        vi.clearAllMocks()
+        vi.useFakeTimers()
+        vi.setSystemTime(NOW)
+        users = createUsersClient()
+        apiMocks.getCommsClient.mockResolvedValue({ users })
+    })
+
+    afterEach(() => {
+        vi.useRealTimers()
+    })
+
+    const badInputs: Array<[string, string[]]> = [
+        ['an empty message', ['']],
+        ['a blank message', ['   ']],
+        ['an 81 character message', ['x'.repeat(81)]],
+        ['81 emoji', ['🎯'.repeat(81)]],
+        ['an empty emoji', ['ok', '--emoji', '']],
+        ['a blank emoji', ['ok', '--emoji', '  ']],
+        ['an impossible date', ['ok', '--until', '2026-02-30']],
+        ['an impossible datetime', ['ok', '--until', '2026-02-31T10:00']],
+        ['a month 13', ['ok', '--until', '2026-13-45']],
+        ['a year only', ['ok', '--until', '2026']],
+        ['a year and month only', ['ok', '--until', '2026-10']],
+        ['today, which is already midnight past', ['ok', '--until', '2026-10-14']],
+        ['a past datetime', ['ok', '--until', '2020-01-01T00:00:00Z']],
+        ['an expiry equal to now', ['ok', '--until', '2026-10-14T12:00:00Z']],
+        ['a duration that overflows to Infinity', ['ok', '--for', `${'9'.repeat(400)}m`]],
+        ['a duration beyond the Date range', ['ok', '--for', '99999999999999d']],
+    ]
+
+    it.each(badInputs)('refuses %s, with and without --dry-run', async (_name, args) => {
+        for (const extra of [[], ['--dry-run']]) {
+            captureConsole('log')
+            await expect(run('set', ...args, ...extra)).rejects.toThrow()
+        }
+        expect(users.setStatus).not.toHaveBeenCalled()
+    })
+
+    it('sends the trimmed message', async () => {
+        captureConsole('log')
+        await run('set', '  Away  ')
+        expect(users.setStatus).toHaveBeenCalledWith({ message: 'Away' })
+    })
+
+    it.each([80, 41])(
+        'counts code points, not UTF-16 units: %i emoji is accepted',
+        async (count) => {
+            captureConsole('log')
+            await run('set', '🎯'.repeat(count))
+            expect(users.setStatus).toHaveBeenCalledTimes(1)
+        },
+    )
+
+    it('accepts a datetime with an offset', async () => {
+        captureConsole('log')
+        await run('set', 'ok', '--until', '2026-10-20T09:00+02:00')
+        expect(users.setStatus).toHaveBeenCalledWith({
+            message: 'ok',
+            activeUntil: new Date('2026-10-20T07:00:00Z'),
+        })
+    })
+})
+
+describe('tdc status output matches what the server returned', () => {
+    let users: ReturnType<typeof createUsersClient>
+
+    beforeEach(() => {
+        vi.clearAllMocks()
+        users = createUsersClient()
+        apiMocks.getCommsClient.mockResolvedValue({ users })
+    })
+
+    afterEach(() => {
+        process.exitCode = undefined
+    })
+
+    it('does not claim a status was set when the server returns none', async () => {
+        users.setStatus.mockResolvedValue({ id: 1, status: null })
+        const spy = captureConsole('log')
+        await run('set', 'Away')
+        expect(logged(spy)).toBe('Status set, but Comms reports no active status.')
+    })
+
+    it('does not claim a status was cleared while the server still returns one', async () => {
+        users.clearStatus.mockResolvedValue({ id: 1, status: { message: 'Still here' } })
+        const spy = captureConsole('log')
+        await run('clear')
+        expect(logged(spy)).toContain('Still here')
+        expect(logged(spy)).not.toContain('Status cleared.')
+        expect(process.exitCode).toBe(1)
+    })
+
+    it('prints the cleared status as JSON, and the full user with --full', async () => {
+        users.clearStatus.mockResolvedValue({ id: 1, lang: 'en', status: null })
+        const spy = captureConsole('log')
+        await run('clear', '--json')
+        expect(JSON.parse(logged(spy))).toEqual({ status: null })
+        spy.mockClear()
+        await run('clear', '--json', '--full')
+        expect(JSON.parse(logged(spy))).toMatchObject({ id: 1, lang: 'en' })
+    })
+
+    it('shows the full user with --json --full', async () => {
+        apiMocks.getSessionUser.mockResolvedValue({ id: 1, lang: 'en', status: null })
+        const spy = captureConsole('log')
+        await run('show', '--json', '--full')
+        expect(JSON.parse(logged(spy))).toMatchObject({ id: 1, lang: 'en' })
     })
 })
