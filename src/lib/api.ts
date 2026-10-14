@@ -255,7 +255,7 @@ function wrapResult(
             if (isBadRequest(error)) {
                 throw new CliError(
                     'INVALID_REQUEST',
-                    `Comms rejected the request: ${getCommsErrorString(error) ?? '400 Bad Request'}`,
+                    `Comms rejected the request: ${getCommsErrorString(error) || '400 Bad Request'}`,
                 )
             }
             if (isRateLimited(error)) {

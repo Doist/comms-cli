@@ -64,10 +64,10 @@ export type ErrorCode =
     | 'UNKNOWN_AGENT'
     // API & internal
     | 'API_ERROR'
-    | 'NETWORK_ERROR'
-    | 'RATE_LIMITED'
     | 'CONFLICT'
     | 'INTERNAL_ERROR'
+    | 'NETWORK_ERROR'
+    | 'RATE_LIMITED'
     // Config file inspection
     | 'CONFIG_READ_FAILED'
     | 'CONFIG_INVALID_JSON'
@@ -75,14 +75,23 @@ export type ErrorCode =
     // Escape hatch for dynamic codes
     | (string & {})
 
-function hasCommsStatusCode(error: unknown, status: number): error is { httpStatusCode: number } {
+function hasCommsStatusInRange(
+    error: unknown,
+    min: number,
+    max: number,
+): error is { httpStatusCode: number } {
     return (
         typeof error === 'object' &&
         error !== null &&
         'httpStatusCode' in error &&
         typeof error.httpStatusCode === 'number' &&
-        error.httpStatusCode === status
+        error.httpStatusCode >= min &&
+        error.httpStatusCode <= max
     )
+}
+
+function hasCommsStatusCode(error: unknown, status: number): error is { httpStatusCode: number } {
+    return hasCommsStatusInRange(error, status, status)
 }
 
 /**
@@ -130,17 +139,14 @@ export function isRateLimited(error: unknown): boolean {
 
 /** True for a Comms API 5xx. */
 export function isServerError(error: unknown): error is { httpStatusCode: number } {
-    return (
-        typeof error === 'object' &&
-        error !== null &&
-        'httpStatusCode' in error &&
-        typeof error.httpStatusCode === 'number' &&
-        error.httpStatusCode >= 500 &&
-        error.httpStatusCode < 600
-    )
+    return hasCommsStatusInRange(error, 500, 599)
 }
 
-/** True when the request never produced a response (DNS, refused, reset, timeout). */
+/**
+ * True when the SDK had no HTTP status to report: a connection that failed
+ * (DNS, refused, reset), a timeout, or a body that could not be read after the
+ * headers arrived.
+ */
 export function isNoResponse(error: unknown): boolean {
     return error instanceof CommsRequestError && error.httpStatusCode === undefined
 }
