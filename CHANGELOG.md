@@ -1,3 +1,9 @@
+## [3.6.0](https://github.com/Doist/comms-cli/compare/v3.5.2...v3.6.0) (2026-10-14)
+
+### Features
+
+- **status:** add tdc status show, set and clear ([#77](https://github.com/Doist/comms-cli/issues/77)) ([bdfcb16](https://github.com/Doist/comms-cli/commit/bdfcb169560f5892ebd320fc423ef1c6bf928f42)), closes [Doist/comms-sdk-typescript#100](https://github.com/Doist/comms-sdk-typescript/issues/100) [#78](https://github.com/Doist/comms-cli/issues/78)
+
 ## [3.5.2](https://github.com/Doist/comms-cli/compare/v3.5.1...v3.5.2) (2026-10-14)
 
 ### Bug Fixes
