@@ -106,7 +106,7 @@ export function registerUserCommand(program: Command): void {
         .command('user')
         .description('Show current user info')
         .option('--json', 'Output as JSON')
-        .option('--full', 'Include all fields in JSON output')
+        .option('--full', 'Include all fields in JSON output (except session credentials)')
         .addHelpText(
             'after',
             `
@@ -125,7 +125,7 @@ Examples:
         .option('--json', 'Output as JSON')
         .option('--ndjson', 'Output as newline-delimited JSON')
         .option('--ids-only', 'Output only user IDs, one per line')
-        .option('--full', 'Include all fields in JSON output')
+        .option('--full', 'Include all fields in JSON output (except session credentials)')
         .addHelpText(
             'after',
             `

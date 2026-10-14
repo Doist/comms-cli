@@ -112,7 +112,8 @@ function getEssentialFields(type: EntityType): readonly string[] {
 }
 
 // Credentials the API attaches to the session user (session-type bearers only).
-// Dropped on every path, including --full, so they never reach stdout or logs.
+// Dropped for the top-level `user` entity on both the curated and --full paths.
+// Shallow: a user nested inside another object is not redacted.
 const SECRET_FIELDS: Partial<Record<EntityType, readonly string[]>> = {
     user: ['token', 'cometChannel'],
 }
