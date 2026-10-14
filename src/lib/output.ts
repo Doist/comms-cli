@@ -118,11 +118,11 @@ const SECRET_FIELDS: Partial<Record<EntityType, readonly string[]>> = {
     user: ['token', 'cometChannel'],
 }
 
-function omitSecrets<T extends object>(item: T, secrets: readonly string[]): T {
+function omitSecrets<T extends object>(item: T, secrets: readonly string[]): T | Partial<T> {
     if (!secrets.some((field) => field in item)) return item
     const copy = { ...item } as Record<string, unknown>
     for (const field of secrets) delete copy[field]
-    return copy as T
+    return copy as Partial<T>
 }
 
 function pickFields<T extends object>(item: T, fields: readonly string[]): Partial<T> {
