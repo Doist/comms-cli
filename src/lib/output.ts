@@ -118,9 +118,8 @@ const SECRET_FIELDS: Partial<Record<EntityType, readonly string[]>> = {
     user: ['token', 'cometChannel'],
 }
 
-function omitSecrets<T extends object>(item: T, type: EntityType): T {
-    const secrets = SECRET_FIELDS[type]
-    if (!secrets || !secrets.some((field) => field in item)) return item
+function omitSecrets<T extends object>(item: T, secrets: readonly string[]): T {
+    if (!secrets.some((field) => field in item)) return item
     const copy = { ...item } as Record<string, unknown>
     for (const field of secrets) delete copy[field]
     return copy as T
@@ -152,9 +151,11 @@ export function filterEntityFields<T extends object>(
     full = false,
 ): T | Partial<T> | Array<T | Partial<T>> {
     if (full) {
+        const secrets = SECRET_FIELDS[type]
+        if (!secrets) return data
         return Array.isArray(data)
-            ? data.map((item) => omitSecrets(item, type))
-            : omitSecrets(data, type)
+            ? data.map((item) => omitSecrets(item, secrets))
+            : omitSecrets(data, secrets)
     }
 
     const fields = getEssentialFields(type)

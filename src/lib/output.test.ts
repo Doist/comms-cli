@@ -136,23 +136,33 @@ describe('user credential redaction', () => {
         cometChannel: 'SECRET-COMET-CHANNEL',
     }
 
+    // Each case returns the first serialised user so the omission itself is pinned,
+    // not just the absence of the secret strings (a placeholder would pass the latter).
     it.each([
-        ['formatJson', () => formatJson(user, 'user', true)],
-        ['formatJson array', () => formatJson([user], 'user', true)],
-        ['formatNdjson', () => formatNdjson([user], 'user', true)],
+        ['formatJson', () => JSON.parse(formatJson(user, 'user', true))],
+        ['formatJson array', () => JSON.parse(formatJson([user], 'user', true))[0]],
+        ['formatNdjson', () => JSON.parse(formatNdjson([user], 'user', true))],
         [
             'formatPaginatedJson',
-            () => formatPaginatedJson({ results: [user], nextCursor: null }, 'user', true),
+            () =>
+                JSON.parse(formatPaginatedJson({ results: [user], nextCursor: null }, 'user', true))
+                    .results[0],
         ],
-        ['filterEntityFields', () => JSON.stringify(filterEntityFields(user, 'user', true))],
-    ])('%s drops credentials but keeps other full fields', (_name, run) => {
+        ['filterEntityFields', () => filterEntityFields(user, 'user', true)],
+    ])('%s omits credentials but keeps other full fields', (_name, run) => {
         const out = run()
-        expect(out).not.toContain('SECRET-')
-        expect(out).toContain('"lang"')
+        expect(out).not.toHaveProperty('token')
+        expect(out).not.toHaveProperty('cometChannel')
+        expect(out).toHaveProperty('lang', 'en')
     })
 
     it('leaves other entity types untouched', () => {
         const out = formatJson({ id: 'c1', token: 'keep' }, 'channel', true)
         expect(out).toContain('keep')
+    })
+
+    it('returns the input untouched for entity types without secrets', () => {
+        const channels = [{ id: 'c1' }]
+        expect(filterEntityFields(channels, 'channel', true)).toBe(channels)
     })
 })
