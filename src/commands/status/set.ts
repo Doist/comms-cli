@@ -36,6 +36,11 @@ function resolveEmoji(emoji: string | undefined): string | undefined {
     if (trimmed === '') {
         throw new CliError('INVALID_VALUE', '--emoji cannot be empty')
     }
+    if (trimmed.startsWith('-')) {
+        throw new CliError('INVALID_VALUE', `--emoji needs an emoji, got ${trimmed}`, [
+            'A flag after --emoji was read as its value; put the emoji right after --emoji',
+        ])
+    }
     return trimmed
 }
 

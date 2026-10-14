@@ -227,6 +227,7 @@ describe('tdc status set input guards', () => {
         ['81 emoji', ['🎯'.repeat(81)]],
         ['an empty emoji', ['ok', '--emoji', '']],
         ['a blank emoji', ['ok', '--emoji', '  ']],
+        ['an emoji that is really the next flag', ['ok', '--emoji', '--pause-notifications']],
         ['an impossible date', ['ok', '--until', '2026-02-30']],
         ['an impossible datetime', ['ok', '--until', '2026-02-31T10:00']],
         ['a month 13', ['ok', '--until', '2026-13-45']],
