@@ -328,19 +328,7 @@ describe('wrapResult — central 403 translation', () => {
         })
     })
 
-    it('gives a 400 without an error_string a readable message', async () => {
-        sdkMocks.deleteChannel.mockRejectedValueOnce(
-            new CommsRequestError('Request failed with status 400', 400, {}),
-        )
-        const client = createWrappedCommsClient('test-token')
-
-        await expect(client.channels.deleteChannel('CH400')).rejects.toMatchObject({
-            code: 'INVALID_REQUEST',
-            message: 'Comms rejected the request: 400 Bad Request',
-        })
-    })
-
-    it.each([{ error_string: '' }, { error_string: 42 }, 'not json'])(
+    it.each([{}, { error_string: '' }, { error_string: 42 }, 'not json'])(
         'falls back to the readable 400 message when the body has no usable error_string (%j)',
         async (body) => {
             sdkMocks.deleteChannel.mockRejectedValueOnce(
