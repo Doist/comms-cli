@@ -1,3 +1,9 @@
+## [3.5.2](https://github.com/Doist/comms-cli/compare/v3.5.1...v3.5.2) (2026-10-14)
+
+### Bug Fixes
+
+- redact session credentials from user --json --full output ([#78](https://github.com/Doist/comms-cli/issues/78)) ([e768abf](https://github.com/Doist/comms-cli/commit/e768abf583961c918fe4562c4da21994b7bb2377))
+
 ## [3.5.1](https://github.com/Doist/comms-cli/compare/v3.5.0...v3.5.1) (2026-10-06)
 
 ### Bug Fixes
