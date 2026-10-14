@@ -201,6 +201,7 @@ describe('users --full', () => {
         email: 'a@x',
         userType: 'USER',
         removed: false,
+        lang: 'en',
         token: 'SECRET-SESSION-TOKEN',
         cometChannel: 'SECRET-COMET-CHANNEL',
     }
@@ -211,16 +212,17 @@ describe('users --full', () => {
         apiMocks.getWorkspaceUsers.mockResolvedValue([leaky])
     })
 
-    it.each(['--json', '--ndjson'])(
-        'never prints session credentials with %s --full',
-        async (flag) => {
-            const consoleSpy = captureConsole('log')
+    // Full-only field (`lang`) proves --full was honoured, so this cannot pass on curated output.
+    it.each(['--json', '--ndjson'])('omits session credentials with %s --full', async (flag) => {
+        const consoleSpy = captureConsole('log')
 
-            await createProgram().parseAsync(['node', 'tdc', 'users', flag, '--full'])
+        await createProgram().parseAsync(['node', 'tdc', 'users', flag, '--full'])
 
-            const stdout = consoleSpy.mock.calls.flat().join('\n')
-            expect(stdout).toContain('Active')
-            expect(stdout).not.toContain('SECRET-')
-        },
-    )
+        const out: string = consoleSpy.mock.calls[0][0]
+        const parsed = JSON.parse(flag === '--ndjson' ? out.split('\n')[0] : out)
+        const user = Array.isArray(parsed) ? parsed[0] : parsed
+        expect(user).toHaveProperty('lang', 'en')
+        expect(user).not.toHaveProperty('token')
+        expect(user).not.toHaveProperty('cometChannel')
+    })
 })
