@@ -167,7 +167,7 @@ describe('tdc status', () => {
         })
 
         it('prints the full user with --json --full', async () => {
-            users.setStatus.mockResolvedValue({ id: 1, lang: 'en', status: null })
+            users.setStatus.mockResolvedValue({ id: 1, lang: 'en', status: { message: 'Away' } })
             const spy = captureConsole('log')
             await run('set', 'Away', '--json', '--full')
             expect(JSON.parse(logged(spy))).toMatchObject({ id: 1, lang: 'en' })
@@ -273,7 +273,7 @@ describe('tdc status set input guards', () => {
     })
 })
 
-describe('tdc status output matches what the server returned', () => {
+describe('tdc status reports what the server returned', () => {
     let users: ReturnType<typeof createUsersClient>
 
     beforeEach(() => {
@@ -282,24 +282,37 @@ describe('tdc status output matches what the server returned', () => {
         apiMocks.getCommsClient.mockResolvedValue({ users })
     })
 
-    afterEach(() => {
-        process.exitCode = undefined
-    })
+    it.each([[[]], [['--json']], [['--json', '--full']]])(
+        'set %j fails with INVALID_STATE and prints no success line when the server returns no status',
+        async (extra) => {
+            users.setStatus.mockResolvedValue({ id: 1, status: null })
+            const spy = captureConsole('log')
+            await expect(run('set', 'Away', ...extra)).rejects.toMatchObject({
+                code: 'INVALID_STATE',
+                message: expect.stringContaining('no active status'),
+            })
+            expect(spy).not.toHaveBeenCalled()
+        },
+    )
 
-    it('does not claim a status was set when the server returns none', async () => {
-        users.setStatus.mockResolvedValue({ id: 1, status: null })
+    it.each([[[]], [['--json']], [['--json', '--full']]])(
+        'clear %j fails with INVALID_STATE, naming the status, while the server still returns one',
+        async (extra) => {
+            users.clearStatus.mockResolvedValue({ id: 1, status: { message: 'Still here' } })
+            const spy = captureConsole('log')
+            await expect(run('clear', ...extra)).rejects.toMatchObject({
+                code: 'INVALID_STATE',
+                message: expect.stringContaining('Still here'),
+            })
+            expect(spy).not.toHaveBeenCalled()
+        },
+    )
+
+    it('succeeds, with one line, when set and clear do what was asked', async () => {
         const spy = captureConsole('log')
         await run('set', 'Away')
-        expect(logged(spy)).toBe('Status set, but Comms reports no active status.')
-    })
-
-    it('does not claim a status was cleared while the server still returns one', async () => {
-        users.clearStatus.mockResolvedValue({ id: 1, status: { message: 'Still here' } })
-        const spy = captureConsole('log')
         await run('clear')
-        expect(logged(spy)).toContain('Still here')
-        expect(logged(spy)).not.toContain('Status cleared.')
-        expect(process.exitCode).toBe(1)
+        expect(logged(spy)).toBe('Status set: Away\nStatus cleared.')
     })
 
     it('prints the cleared status as JSON, and the full user with --full', async () => {
@@ -318,46 +331,11 @@ describe('tdc status output matches what the server returned', () => {
         await run('show', '--json', '--full')
         expect(JSON.parse(logged(spy))).toMatchObject({ id: 1, lang: 'en' })
     })
-})
 
-describe('tdc status exit codes follow the server state', () => {
-    let users: ReturnType<typeof createUsersClient>
-
-    beforeEach(() => {
-        vi.clearAllMocks()
-        users = createUsersClient()
-        apiMocks.getCommsClient.mockResolvedValue({ users })
-        process.exitCode = undefined
-    })
-
-    afterEach(() => {
-        process.exitCode = undefined
-    })
-
-    it.each([[[]], [['--json']], [['--json', '--full']]])(
-        'clear %j exits 1 while the server still returns a status',
-        async (extra) => {
-            users.clearStatus.mockResolvedValue({ id: 1, status: { message: 'Still here' } })
-            captureConsole('log')
-            await run('clear', ...extra)
-            expect(process.exitCode).toBe(1)
-        },
-    )
-
-    it.each([[[]], [['--json']], [['--json', '--full']]])(
-        'set %j exits 1 when the server returns no status',
-        async (extra) => {
-            users.setStatus.mockResolvedValue({ id: 1, status: null })
-            captureConsole('log')
-            await run('set', 'Away', ...extra)
-            expect(process.exitCode).toBe(1)
-        },
-    )
-
-    it('exits 0 when set and clear do what was asked', async () => {
-        captureConsole('log')
-        await run('set', 'Away')
-        await run('clear')
-        expect(process.exitCode).toBeUndefined()
+    it('reaches show through the default subcommand with --json', async () => {
+        apiMocks.getSessionUser.mockResolvedValue({ id: 1, status: { message: 'Away' } })
+        const spy = captureConsole('log')
+        await run('--json')
+        expect(JSON.parse(logged(spy))).toEqual({ status: { message: 'Away' } })
     })
 })

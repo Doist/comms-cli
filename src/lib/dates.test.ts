@@ -78,6 +78,9 @@ describe('parseLocalDate', () => {
         ['2026-10-20T09:30Z', new Date(Date.UTC(2026, 9, 20, 9, 30))],
         ['2026-10-20T09:30+02:00', new Date(Date.UTC(2026, 9, 20, 7, 30))],
         ['2026-10-20T09:30-0530', new Date(Date.UTC(2026, 9, 20, 15, 0))],
+        ['2026-10-20T09:30+14:00', new Date(Date.UTC(2026, 9, 19, 19, 30))],
+        ['2026-10-20T09:30-12:00', new Date(Date.UTC(2026, 9, 20, 21, 30))],
+        ['2026-10-20T09:30+00:00', new Date(Date.UTC(2026, 9, 20, 9, 30))],
         ['2026-10-20T09:00:00.000Z', new Date(Date.UTC(2026, 9, 20, 9, 0, 0, 0))],
         ['2026-10-20T09:00:00.5Z', new Date(Date.UTC(2026, 9, 20, 9, 0, 0, 500))],
         ['2026-10-20T09:00:00.123456Z', new Date(Date.UTC(2026, 9, 20, 9, 0, 0, 123))],
@@ -110,6 +113,14 @@ describe('parseLocalDate', () => {
         '2026-10-20T09:30.5',
         '2026-10-20T09:00:00.',
         '2026-10-20T09:00:00.1234567890Z',
+        '0099-01-01',
+        '0001-01-01',
+        '0000-01-01',
+        '0099-01-01T00:00Z',
+        '2026-10-20T09:30+14:01',
+        '2026-10-20T09:30+15:00',
+        '2026-10-20T09:30+23:59',
+        '2026-10-20T09:30-12:01',
     ])('rejects %j', (input) => {
         expect(parseLocalDate(input)).toBeNull()
     })
@@ -160,5 +171,57 @@ describe('parseLocalDate around daylight saving', () => {
 
     it('does not apply the gap rule to an explicit offset', () => {
         expect(parseLocalDate('2026-03-08T02:30Z')).not.toBeNull()
+    })
+})
+
+describe('parseLocalDate never refuses a real calendar day, in any time zone', () => {
+    const originalTz = process.env.TZ
+    // Zones whose clocks skip at midnight (so midnight does not exist that day), plus half-hour gaps.
+    const zones = [
+        'UTC',
+        'America/New_York',
+        'America/Santiago',
+        'America/Havana',
+        'Asia/Beirut',
+        'Africa/Cairo',
+        'Australia/Lord_Howe',
+        'Asia/Kolkata',
+    ]
+
+    afterAll(() => {
+        if (originalTz === undefined) {
+            delete process.env.TZ
+        } else {
+            process.env.TZ = originalTz
+        }
+    })
+
+    it.each(zones)('accepts every day of 2026 as a date-only value in %s', (zone) => {
+        process.env.TZ = zone
+        const refused: string[] = []
+        for (let day = 0; day < 365; day++) {
+            const date = new Date(Date.UTC(2026, 0, 1 + day)).toISOString().slice(0, 10)
+            if (parseLocalDate(date) === null) {
+                refused.push(date)
+            }
+        }
+        expect(refused).toEqual([])
+    })
+
+    it('resolves a date-only value whose midnight is skipped to the first instant of that day', () => {
+        process.env.TZ = 'America/Santiago'
+        const result = parseLocalDate('2026-09-06')
+        expect(result?.toISOString()).toBe('2026-09-06T04:00:00.000Z')
+    })
+
+    it('still rejects a typed time inside the gap on that day', () => {
+        process.env.TZ = 'America/Santiago'
+        expect(parseLocalDate('2026-09-06T00:30')).toBeNull()
+        expect(parseLocalDate('2026-09-06T01:00')).not.toBeNull()
+    })
+
+    it('resolves a repeated autumn hour to its first occurrence', () => {
+        process.env.TZ = 'America/New_York'
+        expect(parseLocalDate('2026-11-01T01:30')?.toISOString()).toBe('2026-11-01T05:30:00.000Z')
     })
 })

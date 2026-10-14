@@ -102,17 +102,15 @@ export async function setStatus(message: string, options: SetStatusOptions): Pro
 
     // The server accepted the call but reports nothing active, e.g. an expiry that has already passed.
     if (!user.status) {
-        process.exitCode = 1
-    }
-
-    if (options.json) {
-        console.log(formatStatusJson(user, options.full))
-        return
+        throw new CliError(
+            'INVALID_STATE',
+            'Comms accepted the status but reports no active status',
+        )
     }
 
     console.log(
-        user.status
-            ? `Status set: ${formatStatus(user.status)}`
-            : 'Status set, but Comms reports no active status.',
+        options.json
+            ? formatStatusJson(user, options.full)
+            : `Status set: ${formatStatus(user.status)}`,
     )
 }

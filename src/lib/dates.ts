@@ -54,6 +54,10 @@ export function parseDate(dateStr: string): Date | null {
     return Number.isNaN(d.getTime()) ? null : d
 }
 
+// The real range of UTC offsets, -12:00 to +14:00; anything wider is a typo such as +20:00 for +02:00.
+const MIN_OFFSET_MINUTES = -12 * 60
+const MAX_OFFSET_MINUTES = 14 * 60
+
 const ISO_LOCAL =
     /^(\d{4})-(\d{2})-(\d{2})(?:[T ](\d{2}):(\d{2})(?::(\d{2})(?:\.(\d{1,9}))?)?)?(Z|[+-]\d{2}:?\d{2})?$/i
 
@@ -84,31 +88,38 @@ export function parseLocalDate(value: string): Date | null {
 
     if (zone === undefined) {
         const local = new Date(y, mo - 1, d, h, mi, s, ms)
-        // A time inside a daylight-saving gap does not exist; `Date` shifts it to the next hour.
-        const exists =
-            local.getMonth() === mo - 1 &&
-            local.getDate() === d &&
-            local.getHours() === h &&
-            local.getMinutes() === mi &&
-            local.getSeconds() === s
-        return exists ? local : null
+        // `new Date(y, ...)` maps the years 0 to 99 to 1900 to 1999, and rolls an impossible day over.
+        if (local.getFullYear() !== y || local.getMonth() !== mo - 1 || local.getDate() !== d) {
+            return null
+        }
+        // A time typed inside a daylight-saving gap does not exist and `Date` shifts it to the next
+        // hour. A date with no time is exempt: where midnight is skipped it is the first instant
+        // of that day, which is what "until that day" means.
+        const typedTimeExists =
+            hour === undefined ||
+            (local.getHours() === h && local.getMinutes() === mi && local.getSeconds() === s)
+        return typedTimeExists ? local : null
     }
 
     const utc = new Date(Date.UTC(y, mo - 1, d, h, mi, s, ms))
-    if (utc.getUTCMonth() !== mo - 1 || utc.getUTCDate() !== d) {
+    if (utc.getUTCFullYear() !== y || utc.getUTCMonth() !== mo - 1 || utc.getUTCDate() !== d) {
         return null
     }
     if (zone.toUpperCase() === 'Z') {
         return utc
     }
     const digits = zone.slice(1).replace(':', '')
-    const offsetHours = Number(digits.slice(0, 2))
-    const offsetMinutes = Number(digits.slice(2))
-    if (offsetHours > 23 || offsetMinutes > 59) {
+    const offsetMinutes =
+        (zone.startsWith('-') ? -1 : 1) *
+        (Number(digits.slice(0, 2)) * 60 + Number(digits.slice(2)))
+    if (
+        Number(digits.slice(2)) > 59 ||
+        offsetMinutes < MIN_OFFSET_MINUTES ||
+        offsetMinutes > MAX_OFFSET_MINUTES
+    ) {
         return null
     }
-    const sign = zone.startsWith('-') ? -1 : 1
-    return new Date(utc.getTime() - sign * (offsetHours * 60 + offsetMinutes) * MINUTE)
+    return new Date(utc.getTime() - offsetMinutes * MINUTE)
 }
 
 export function formatDateTime(date: Date): string {

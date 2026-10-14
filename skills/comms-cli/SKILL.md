@@ -256,7 +256,7 @@ tdc users --ids-only              # Output only user IDs
 tdc status                        # Show your status (default login is enough)
 tdc status --json                 # Show it as { status } JSON (null when unset; --full for the whole user)
 tdc status set "Deep work" --emoji 🎯 --for 2h --pause-notifications  # Set it (replaces any current status; needs --full-access)
-tdc status set "On holiday" --until 2026-10-20T09:00  # End at a date (ISO 8601, local time without an offset)
+tdc status set "On holiday" --until 2026-10-20T09:00  # End at a date (YYYY-MM-DD, YYYY-MM-DDTHH:MM or a full ISO 8601 timestamp; local time unless it has Z or an offset)
 tdc status set "Away" --dry-run   # Preview without setting
 tdc status set "Away" --json      # Set and return { status } as JSON
 tdc status clear                  # Clear your status (--dry-run, --json supported)
