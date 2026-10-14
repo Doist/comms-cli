@@ -66,6 +66,7 @@ const USER_ESSENTIAL_FIELDS = [
     'timezone',
     'userType',
     'removed',
+    'status',
 ] as const
 
 const CHANNEL_ESSENTIAL_FIELDS = [

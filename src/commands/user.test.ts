@@ -226,3 +226,60 @@ describe('users --full', () => {
         expect(user).not.toHaveProperty('cometChannel')
     })
 })
+
+describe('user status line', () => {
+    const baseUser = {
+        id: 42,
+        fullName: 'Jane Smith',
+        email: 'jane@example.com',
+        timezone: 'America/New_York',
+    }
+
+    beforeEach(() => {
+        vi.clearAllMocks()
+        apiMocks.getCommsClient.mockResolvedValue({
+            workspaces: { getDefaultWorkspace: vi.fn().mockResolvedValue(null) },
+        })
+    })
+
+    it('prints the status when one is set', async () => {
+        apiMocks.getSessionUser.mockResolvedValue({
+            ...baseUser,
+            status: { message: 'Deep work', emoji: '🎯' },
+        })
+        const consoleSpy = captureConsole('log')
+
+        await createProgram().parseAsync(['node', 'tdc', 'user'])
+
+        const lines = consoleSpy.mock.calls.map((call) => call[0])
+        expect(lines).toContain('Status:    🎯 Deep work')
+    })
+
+    it('includes the status in the curated --json output, and omits it when there is none', async () => {
+        apiMocks.getSessionUser.mockResolvedValue({
+            ...baseUser,
+            lang: 'en',
+            status: { message: 'Deep work', emoji: '🎯' },
+        })
+        const consoleSpy = captureConsole('log')
+        await createProgram().parseAsync(['node', 'tdc', 'user', '--json'])
+        const withStatus = JSON.parse(consoleSpy.mock.calls[0][0])
+        expect(withStatus.status).toEqual({ message: 'Deep work', emoji: '🎯' })
+        expect(withStatus).not.toHaveProperty('lang')
+
+        apiMocks.getSessionUser.mockResolvedValue({ ...baseUser, status: null })
+        consoleSpy.mockClear()
+        await createProgram().parseAsync(['node', 'tdc', 'user', '--json'])
+        expect(JSON.parse(consoleSpy.mock.calls[0][0]).status).toBeNull()
+    })
+
+    it('omits the status line when there is none', async () => {
+        apiMocks.getSessionUser.mockResolvedValue({ ...baseUser, status: null })
+        const consoleSpy = captureConsole('log')
+
+        await createProgram().parseAsync(['node', 'tdc', 'user'])
+
+        const lines = consoleSpy.mock.calls.map((call) => String(call[0]))
+        expect(lines.some((line) => line.startsWith('Status:'))).toBe(false)
+    })
+})

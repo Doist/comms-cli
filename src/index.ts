@@ -13,6 +13,8 @@ import { startEarlySpinner, stopEarlySpinner } from './lib/spinner.js'
 const loadWorkspaceCommand = async () =>
     (await import('./commands/workspace.js')).registerWorkspaceCommand
 const loadUserCommand = async () => (await import('./commands/user.js')).registerUserCommand
+const loadStatusCommand = async () =>
+    (await import('./commands/status/index.js')).registerStatusCommand
 const loadChannelCommand = async () =>
     (await import('./commands/channel/index.js')).registerChannelCommand
 const loadInboxCommand = async () => (await import('./commands/inbox.js')).registerInboxCommand
@@ -52,6 +54,7 @@ const commands: Record<string, [string, () => Promise<(p: Command) => void>]> = 
     workspace: ['Manage workspace', loadWorkspaceCommand],
     user: ['Show current user info', loadUserCommand],
     users: ['List users in a workspace', loadUserCommand],
+    status: ['Show, set or clear your status; set and clear need --full-access', loadStatusCommand],
     channel: ['Channel operations (list, create, update, threads)', loadChannelCommand],
     inbox: ['Show inbox threads', loadInboxCommand],
     thread: ['Thread operations', loadThreadCommand],
@@ -193,6 +196,7 @@ if (process.argv[2] === 'completion-server') {
             'config',
             'skill',
             'migrate',
+            'status',
         ])
         const wantsRaw = process.argv.slice(2).includes('--raw')
         const needsMarkdown =
