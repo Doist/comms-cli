@@ -111,6 +111,20 @@ function getEssentialFields(type: EntityType): readonly string[] {
     }
 }
 
+// Credentials the API attaches to the session user (session-type bearers only).
+// Dropped for the top-level `user` entity on both the curated and --full paths.
+// Shallow: a user nested inside another object is not redacted.
+const SECRET_FIELDS: Partial<Record<EntityType, readonly string[]>> = {
+    user: ['token', 'cometChannel'],
+}
+
+function omitSecrets<T extends object>(item: T, secrets: readonly string[]): T | Partial<T> {
+    if (!secrets.some((field) => field in item)) return item
+    const copy = { ...item } as Record<string, unknown>
+    for (const field of secrets) delete copy[field]
+    return copy as Partial<T>
+}
+
 function pickFields<T extends object>(item: T, fields: readonly string[]): Partial<T> {
     const result: Partial<T> = {}
     for (const field of fields) {
@@ -137,7 +151,11 @@ export function filterEntityFields<T extends object>(
     full = false,
 ): T | Partial<T> | Array<T | Partial<T>> {
     if (full) {
-        return data
+        const secrets = SECRET_FIELDS[type]
+        if (!secrets) return data
+        return Array.isArray(data)
+            ? data.map((item) => omitSecrets(item, secrets))
+            : omitSecrets(data, secrets)
     }
 
     const fields = getEssentialFields(type)
@@ -153,8 +171,8 @@ export function formatJson<T extends object>(
     type?: EntityType,
     full = false,
 ): string {
-    if (full || !type) return formatJsonCore(data)
-    return formatJsonCore(filterEntityFields(data, type))
+    if (!type) return formatJsonCore(data)
+    return formatJsonCore(filterEntityFields(data, type, full))
 }
 
 export function formatNdjson<T extends object>(
@@ -162,8 +180,8 @@ export function formatNdjson<T extends object>(
     type?: EntityType,
     full = false,
 ): string {
-    if (full || !type) return formatNdjsonCore(items)
-    return formatNdjsonCore(filterEntityFields(items, type))
+    if (!type) return formatNdjsonCore(items)
+    return formatNdjsonCore(filterEntityFields(items, type, full))
 }
 
 export interface PaginatedOutput<T> {

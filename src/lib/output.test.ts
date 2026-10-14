@@ -2,7 +2,15 @@ import { captureConsole } from '@doist/cli-core/testing'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { BaseCliError } from './errors.js'
 import { isAccessible, resetGlobalArgs } from './global-args.js'
-import { formatError, formatErrorJson, printDryRun } from './output.js'
+import {
+    filterEntityFields,
+    formatError,
+    formatErrorJson,
+    formatJson,
+    formatNdjson,
+    formatPaginatedJson,
+    printDryRun,
+} from './output.js'
 
 vi.mock('chalk')
 
@@ -116,5 +124,45 @@ describe('formatErrorJson with BaseCliError', () => {
                 hints: undefined,
             },
         })
+    })
+})
+
+describe('user credential redaction', () => {
+    const user = {
+        id: 1,
+        fullName: 'Jane',
+        lang: 'en',
+        token: 'SECRET-SESSION-TOKEN',
+        cometChannel: 'SECRET-COMET-CHANNEL',
+    }
+
+    // Each case returns the first serialised user so the omission itself is pinned,
+    // not just the absence of the secret strings (a placeholder would pass the latter).
+    it.each([
+        ['formatJson', () => JSON.parse(formatJson(user, 'user', true))],
+        ['formatJson array', () => JSON.parse(formatJson([user], 'user', true))[0]],
+        ['formatNdjson', () => JSON.parse(formatNdjson([user], 'user', true))],
+        [
+            'formatPaginatedJson',
+            () =>
+                JSON.parse(formatPaginatedJson({ results: [user], nextCursor: null }, 'user', true))
+                    .results[0],
+        ],
+        ['filterEntityFields', () => filterEntityFields(user, 'user', true)],
+    ])('%s omits credentials but keeps other full fields', (_name, run) => {
+        const out = run()
+        expect(out).not.toHaveProperty('token')
+        expect(out).not.toHaveProperty('cometChannel')
+        expect(out).toHaveProperty('lang', 'en')
+    })
+
+    it('leaves other entity types untouched', () => {
+        const out = formatJson({ id: 'c1', token: 'keep' }, 'channel', true)
+        expect(out).toContain('keep')
+    })
+
+    it('returns the input untouched for entity types without secrets', () => {
+        const channels = [{ id: 'c1' }]
+        expect(filterEntityFields(channels, 'channel', true)).toBe(channels)
     })
 })

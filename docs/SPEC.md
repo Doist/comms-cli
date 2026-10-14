@@ -426,7 +426,7 @@ Threads, comments, messages, and conversations: **ID or URL only** (no name look
 
 - `--json` - Pretty-printed JSON with metadata
 - `--ndjson` - Newline-delimited JSON (one object per line)
-- `--full` - Include all fields (default shows essential fields)
+- `--full` - Include all fields (default shows essential fields); session credentials (`token`, `cometChannel`) on users are never printed
 
 ### Essential Fields by Entity
 

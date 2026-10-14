@@ -248,7 +248,7 @@ tdc search "query" --all          # Fetch all result pages
 ```bash
 tdc user                          # Show current user info
 tdc user --json                   # JSON output
-tdc user --json --full            # Include all fields in JSON output
+tdc user --json --full            # All fields, except session credentials
 tdc users                         # List active workspace users
 tdc users --search <text>         # Filter by name/email
 tdc users --include-removed       # Include users removed from the workspace
