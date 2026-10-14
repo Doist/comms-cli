@@ -1,5 +1,5 @@
 import { CliError as BaseCliError, type CliErrorCode, type ErrorType } from '@doist/cli-core'
-import { getCommsErrorString } from '@doist/comms-sdk'
+import { CommsRequestError, getCommsErrorString } from '@doist/comms-sdk'
 
 export { BaseCliError }
 export type { ErrorType } from '@doist/cli-core'
@@ -116,6 +116,33 @@ export function isForbidden(error: unknown): boolean {
  */
 export function isInvalidToken(error: unknown): boolean {
     return hasCommsStatusCode(error, 401)
+}
+
+/** True for a Comms API 400, the server rejecting the request as malformed or invalid. */
+export function isBadRequest(error: unknown): boolean {
+    return hasCommsStatusCode(error, 400)
+}
+
+/** True for a Comms API 429. */
+export function isRateLimited(error: unknown): boolean {
+    return hasCommsStatusCode(error, 429)
+}
+
+/** True for a Comms API 5xx. */
+export function isServerError(error: unknown): error is { httpStatusCode: number } {
+    return (
+        typeof error === 'object' &&
+        error !== null &&
+        'httpStatusCode' in error &&
+        typeof error.httpStatusCode === 'number' &&
+        error.httpStatusCode >= 500 &&
+        error.httpStatusCode < 600
+    )
+}
+
+/** True when the request never produced a response (DNS, refused, reset, timeout). */
+export function isNoResponse(error: unknown): boolean {
+    return error instanceof CommsRequestError && error.httpStatusCode === undefined
 }
 
 /** True when `error` is a CliError carrying one of the given codes. */

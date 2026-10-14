@@ -364,6 +364,23 @@ describe('wrapResult — central 403 translation', () => {
         })
     })
 
+    it('keeps the server body out of a 5xx message', async () => {
+        sdkMocks.deleteChannel.mockRejectedValueOnce(
+            new CommsRequestError('Request failed with status 502', 502, {
+                error_string: '<html>upstream connect error</html>',
+            }),
+        )
+        const client = createWrappedCommsClient('test-token')
+
+        const error = await client.channels.deleteChannel('CH502').catch((e: Error) => e)
+
+        expect(error).toMatchObject({
+            code: 'API_ERROR',
+            message: 'Comms had a server error: 502.',
+        })
+        expect((error as Error).message).not.toContain('upstream')
+    })
+
     it('translates a request that never got a response into NETWORK_ERROR', async () => {
         sdkMocks.deleteChannel.mockRejectedValueOnce(
             new CommsRequestError('fetch failed (ENOTFOUND) after 4 attempts'),
