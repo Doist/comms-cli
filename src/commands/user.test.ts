@@ -176,4 +176,51 @@ describe('user --json', () => {
         expect(jsonOutput).toHaveProperty('shortName', 'Jane')
         expect(jsonOutput).toHaveProperty('defaultWorkspaceId', 1)
     })
+
+    it('never prints session credentials with --full', async () => {
+        apiMocks.getSessionUser.mockResolvedValue({
+            ...sampleUser,
+            token: 'SECRET-SESSION-TOKEN',
+            cometChannel: 'SECRET-COMET-CHANNEL',
+        })
+        const consoleSpy = captureConsole('log')
+
+        await createProgram().parseAsync(['node', 'tdc', 'user', '--json', '--full'])
+
+        const stdout = consoleSpy.mock.calls.flat().join('\n')
+        expect(stdout).not.toContain('SECRET-')
+        expect(JSON.parse(stdout)).not.toHaveProperty('token')
+        expect(JSON.parse(stdout)).toHaveProperty('shortName', 'Jane')
+    })
+})
+
+describe('users --full', () => {
+    const leaky = {
+        id: 1,
+        fullName: 'Active',
+        email: 'a@x',
+        userType: 'USER',
+        removed: false,
+        token: 'SECRET-SESSION-TOKEN',
+        cometChannel: 'SECRET-COMET-CHANNEL',
+    }
+
+    beforeEach(() => {
+        vi.clearAllMocks()
+        apiMocks.getCurrentWorkspaceId.mockResolvedValue(1)
+        apiMocks.getWorkspaceUsers.mockResolvedValue([leaky])
+    })
+
+    it.each(['--json', '--ndjson'])(
+        'never prints session credentials with %s --full',
+        async (flag) => {
+            const consoleSpy = captureConsole('log')
+
+            await createProgram().parseAsync(['node', 'tdc', 'users', flag, '--full'])
+
+            const stdout = consoleSpy.mock.calls.flat().join('\n')
+            expect(stdout).toContain('Active')
+            expect(stdout).not.toContain('SECRET-')
+        },
+    )
 })

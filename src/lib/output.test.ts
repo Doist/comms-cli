@@ -2,7 +2,15 @@ import { captureConsole } from '@doist/cli-core/testing'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { BaseCliError } from './errors.js'
 import { isAccessible, resetGlobalArgs } from './global-args.js'
-import { formatError, formatErrorJson, printDryRun } from './output.js'
+import {
+    filterEntityFields,
+    formatError,
+    formatErrorJson,
+    formatJson,
+    formatNdjson,
+    formatPaginatedJson,
+    printDryRun,
+} from './output.js'
 
 vi.mock('chalk')
 
@@ -116,5 +124,35 @@ describe('formatErrorJson with BaseCliError', () => {
                 hints: undefined,
             },
         })
+    })
+})
+
+describe('user credential redaction', () => {
+    const user = {
+        id: 1,
+        fullName: 'Jane',
+        lang: 'en',
+        token: 'SECRET-SESSION-TOKEN',
+        cometChannel: 'SECRET-COMET-CHANNEL',
+    }
+
+    it.each([
+        ['formatJson', () => formatJson(user, 'user', true)],
+        ['formatJson array', () => formatJson([user], 'user', true)],
+        ['formatNdjson', () => formatNdjson([user], 'user', true)],
+        [
+            'formatPaginatedJson',
+            () => formatPaginatedJson({ results: [user], nextCursor: null }, 'user', true),
+        ],
+        ['filterEntityFields', () => JSON.stringify(filterEntityFields(user, 'user', true))],
+    ])('%s drops credentials but keeps other full fields', (_name, run) => {
+        const out = run()
+        expect(out).not.toContain('SECRET-')
+        expect(out).toContain('"lang"')
+    })
+
+    it('leaves other entity types untouched', () => {
+        const out = formatJson({ id: 'c1', token: 'keep' }, 'channel', true)
+        expect(out).toContain('keep')
     })
 })
