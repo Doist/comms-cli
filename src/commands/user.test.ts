@@ -255,6 +255,24 @@ describe('user status line', () => {
         expect(lines).toContain('Status:    🎯 Deep work')
     })
 
+    it('includes the status in the curated --json output, and omits it when there is none', async () => {
+        apiMocks.getSessionUser.mockResolvedValue({
+            ...baseUser,
+            lang: 'en',
+            status: { message: 'Deep work', emoji: '🎯' },
+        })
+        const consoleSpy = captureConsole('log')
+        await createProgram().parseAsync(['node', 'tdc', 'user', '--json'])
+        const withStatus = JSON.parse(consoleSpy.mock.calls[0][0])
+        expect(withStatus.status).toEqual({ message: 'Deep work', emoji: '🎯' })
+        expect(withStatus).not.toHaveProperty('lang')
+
+        apiMocks.getSessionUser.mockResolvedValue({ ...baseUser, status: null })
+        consoleSpy.mockClear()
+        await createProgram().parseAsync(['node', 'tdc', 'user', '--json'])
+        expect(JSON.parse(consoleSpy.mock.calls[0][0]).status).toBeNull()
+    })
+
     it('omits the status line when there is none', async () => {
         apiMocks.getSessionUser.mockResolvedValue({ ...baseUser, status: null })
         const consoleSpy = captureConsole('log')

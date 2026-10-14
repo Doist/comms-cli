@@ -248,6 +248,17 @@ describe('tdc status set input guards', () => {
         expect(users.setStatus).not.toHaveBeenCalled()
     })
 
+    it('explains midnight only when the past expiry was a date with no time', async () => {
+        captureConsole('log')
+        const dateOnly = await run('set', 'ok', '--until', '2026-10-14').catch((e) => e)
+        expect(dateOnly.hints.join(' ')).toContain('midnight')
+
+        const withTime = await run('set', 'ok', '--until', '2020-01-01T00:00:00Z').catch((e) => e)
+        expect(withTime.code).toBe('INVALID_DATE')
+        expect(withTime.hints.join(' ')).not.toContain('midnight')
+        expect(withTime.hints.join(' ')).toContain('future')
+    })
+
     it('sends the trimmed message', async () => {
         captureConsole('log')
         await run('set', '  Away  ')

@@ -5,7 +5,8 @@ import { parseDuration } from '../../lib/duration.js'
 import { CliError } from '../../lib/errors.js'
 import type { MutationOptions } from '../../lib/options.js'
 import { printDryRun } from '../../lib/output.js'
-import { formatStatus, formatStatusJson } from './helpers.js'
+import { formatStatus } from '../../lib/status.js'
+import { formatStatusJson } from './helpers.js'
 
 const MAX_MESSAGE_LENGTH = 80
 
@@ -68,8 +69,12 @@ function resolveExpiry(options: SetStatusOptions): Date | undefined {
     }
 
     if (expiry && expiry.getTime() <= Date.now()) {
+        const dateOnly =
+            options.until !== undefined && /^\d{4}-\d{2}-\d{2}$/.test(options.until.trim())
         throw new CliError('INVALID_DATE', `The status must end in the future: ${options.until}`, [
-            'A date with no time means midnight at its start, so add a time or use a later date',
+            dateOnly
+                ? 'A date with no time means midnight at its start, so add a time or use a later date'
+                : 'Use a date or time in the future',
         ])
     }
     return expiry

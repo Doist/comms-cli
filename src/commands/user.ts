@@ -11,7 +11,7 @@ import { CliError } from '../lib/errors.js'
 import type { ViewOptions } from '../lib/options.js'
 import { colors, formatJson, formatNdjson } from '../lib/output.js'
 import { resolveWorkspaceRef } from '../lib/refs.js'
-import { formatStatus } from './status/helpers.js'
+import { formatStatus } from '../lib/status.js'
 
 type UsersOptions = ViewOptions & {
     workspace?: string

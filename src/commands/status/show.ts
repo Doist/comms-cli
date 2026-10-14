@@ -1,6 +1,7 @@
 import { getSessionUser } from '../../lib/api.js'
 import type { ViewOptions } from '../../lib/options.js'
-import { formatStatus, formatStatusJson } from './helpers.js'
+import { formatStatus } from '../../lib/status.js'
+import { formatStatusJson } from './helpers.js'
 
 export async function showStatus(options: ViewOptions): Promise<void> {
     const user = await getSessionUser()
