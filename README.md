@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="icons/comms-cli.png" alt="Comms CLI" width="150" height="150" />
+  <img src="icons/comms-cli_512px.png" alt="Comms CLI" width="150" height="150" />
 </p>
 
 # Comms CLI

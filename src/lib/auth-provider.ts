@@ -32,7 +32,7 @@ import { createCommsUserRecordStore, getDefaultUserRecord } from './user-records
 const DEFAULT_TODOIST_AUTH_BASE_URL = 'https://todoist.com'
 const DEFAULT_COMMS_OAUTH_RESOURCE = 'https://comms.todoist.com'
 
-const LOGO_URI = 'https://raw.githubusercontent.com/doist/comms-cli/main/icons/comms-cli.png'
+const LOGO_URI = 'https://raw.githubusercontent.com/doist/comms-cli/main/icons/comms-cli_512px.png'
 
 export const READ_ONLY_SCOPES = [
     'user:read',
