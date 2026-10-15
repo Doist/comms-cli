@@ -253,6 +253,7 @@ function wrapResult(
                 ])
             }
             if (isBadRequest(error)) {
+                // `||`, not `??`: an empty error_string must fall back too, or the reason is blank.
                 throw new CliError(
                     'INVALID_REQUEST',
                     `Comms rejected the request: ${getCommsErrorString(error) || '400 Bad Request'}`,
