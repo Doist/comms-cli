@@ -1,7 +1,7 @@
 import { LOGO_URI } from './auth-constants.js'
 
 // The same PNG the OAuth consent screen shows, so the icon lives in one file.
-const COMMS_CLI_ICON = `<img src="${LOGO_URI}" width="72" height="72" alt="">`
+const COMMS_CLI_ICON = `<img src="${LOGO_URI}" width="72" height="72" alt="" referrerpolicy="no-referrer">`
 
 export function renderSuccess(): string {
     return `
