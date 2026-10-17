@@ -1,3 +1,9 @@
+## [3.6.1](https://github.com/Doist/comms-cli/compare/v3.6.0...v3.6.1) (2026-10-17)
+
+### Bug Fixes
+
+- serve the refreshed icon at the old path ([#82](https://github.com/Doist/comms-cli/issues/82)) ([ab08038](https://github.com/Doist/comms-cli/commit/ab080384dd4ddc56f3abdf11bef138288bf2d7df))
+
 ## [3.6.0](https://github.com/Doist/comms-cli/compare/v3.5.2...v3.6.0) (2026-10-14)
 
 ### Features
