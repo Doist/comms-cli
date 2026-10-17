@@ -23,7 +23,7 @@ come from `@doist/cli-core`.
 ├─ scripts/               # sync-skill.js, check-skill-sync.js, postinstall.js
 ├─ dist/                  # Build output (tsc). Never edit.
 ├─ skills/comms-cli/      # Generated SKILL.md (from src/lib/skills/content.ts)
-├─ docs/                  # SPEC.md, comms-search.md (design notes)
+├─ docs/                  # SPEC.md, comms-search.md (design notes), icon.md (changing the icon)
 ├─ icons/                 # OAuth callback / skill logo assets
 ├─ .github/workflows/     # test, lint, release, check-skill-sync,
 │                         # check-semantic-pull-request, issue-automation,
