@@ -102,3 +102,7 @@ After updating `SKILL_CONTENT`:
 2. Run `tdc skill update claude-code` (and any other installed agents) to propagate changes to installed skill files
 
 A CI check (`npm run check:skill-sync`) runs on pull requests and will fail if `skills/comms-cli/SKILL.md` is out of sync with `content.ts`.
+
+## Changing the CLI icon
+
+Follow [docs/icon.md](docs/icon.md). Never rename or delete files in `icons/`: OAuth clients registered by released versions keep the `logo_uri` they sent, so every path a release has used must keep serving the icon.
