@@ -1,3 +1,15 @@
+## [3.6.3](https://github.com/Doist/comms-cli/compare/v3.6.2...v3.6.3) (2026-10-19)
+
+### Bug Fixes
+
+- use the white mark in the Comms CLI icon ([#86](https://github.com/Doist/comms-cli/issues/86)) ([b662a3d](https://github.com/Doist/comms-cli/commit/b662a3d7fd13397876ac2bb56584242f113b277b))
+
+## [3.6.2](https://github.com/Doist/comms-cli/compare/v3.6.1...v3.6.2) (2026-10-17)
+
+### Bug Fixes
+
+- translate 400, 429, 5xx and network failures into CliErrors ([#80](https://github.com/Doist/comms-cli/issues/80)) ([675ed61](https://github.com/Doist/comms-cli/commit/675ed612d54d5dc3a3faffd76c0490619f901839))
+
 ## [3.6.1](https://github.com/Doist/comms-cli/compare/v3.6.0...v3.6.1) (2026-10-17)
 
 ### Bug Fixes

@@ -1,6 +1,8 @@
 import { CommsRequestError } from '@doist/comms-sdk'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
+import { CliError } from './errors.js'
+
 // Hoisted mocks — shared across both describe blocks.
 const getWorkspaceUsersMock = vi.hoisted(() => vi.fn().mockResolvedValue([]))
 const sdkMocks = vi.hoisted(() => ({
@@ -311,8 +313,125 @@ describe('wrapResult — central 403 translation', () => {
         })
     })
 
+    it('translates a 400 into INVALID_REQUEST, keeping the server reason', async () => {
+        sdkMocks.deleteChannel.mockRejectedValueOnce(
+            new CommsRequestError('Request failed with status 400', 400, {
+                error_string: 'Status message must be between 1 and 80 characters',
+            }),
+        )
+        const client = createWrappedCommsClient('test-token')
+
+        await expect(client.channels.deleteChannel('CH400')).rejects.toMatchObject({
+            code: 'INVALID_REQUEST',
+            message:
+                'Comms rejected the request: Status message must be between 1 and 80 characters',
+        })
+    })
+
+    it.each([{}, { error_string: '' }, { error_string: 42 }, 'not json'])(
+        'falls back to the readable 400 message when the body has no usable error_string (%j)',
+        async (body) => {
+            sdkMocks.deleteChannel.mockRejectedValueOnce(
+                new CommsRequestError('Request failed with status 400', 400, body),
+            )
+            const client = createWrappedCommsClient('test-token')
+
+            await expect(client.channels.deleteChannel('CH400')).rejects.toMatchObject({
+                code: 'INVALID_REQUEST',
+                message: 'Comms rejected the request: 400 Bad Request',
+            })
+        },
+    )
+
+    it('maps the edges of the 5xx range and nothing outside it', async () => {
+        const client = createWrappedCommsClient('test-token')
+        for (const [status, mapped] of [
+            [499, false],
+            [500, true],
+            [599, true],
+            [600, false],
+        ] as const) {
+            const original = new CommsRequestError(
+                `Request failed with status ${status}`,
+                status,
+                {},
+            )
+            sdkMocks.deleteChannel.mockRejectedValueOnce(original)
+            const error = await client.channels.deleteChannel('CHedge').catch((e: unknown) => e)
+            if (mapped) {
+                expect(error).toMatchObject({ code: 'API_ERROR' })
+            } else {
+                expect(error).toBe(original)
+            }
+        }
+    })
+
+    it('translates a 429 into RATE_LIMITED with a retry hint', async () => {
+        sdkMocks.deleteChannel.mockRejectedValueOnce(
+            new CommsRequestError('Request failed with status 429', 429, {}),
+        )
+        const client = createWrappedCommsClient('test-token')
+
+        await expect(client.channels.deleteChannel('CH429')).rejects.toMatchObject({
+            code: 'RATE_LIMITED',
+            message: 'Comms is rate limiting requests: 429 Too Many Requests.',
+            hints: ['Wait a moment, then retry'],
+        })
+    })
+
+    it.each([500, 502, 503])('translates a %i into API_ERROR', async (status) => {
+        sdkMocks.deleteChannel.mockRejectedValueOnce(
+            new CommsRequestError(`Request failed with status ${status}`, status, {}),
+        )
+        const client = createWrappedCommsClient('test-token')
+
+        await expect(client.channels.deleteChannel('CH5xx')).rejects.toMatchObject({
+            code: 'API_ERROR',
+            message: `Comms had a server error: ${status}.`,
+            hints: ['This is usually temporary, retry in a moment'],
+        })
+    })
+
+    it('keeps the server body out of a 5xx message', async () => {
+        sdkMocks.deleteChannel.mockRejectedValueOnce(
+            new CommsRequestError('Request failed with status 502', 502, {
+                error_string: '<html>upstream connect error</html>',
+            }),
+        )
+        const client = createWrappedCommsClient('test-token')
+
+        const error = await client.channels.deleteChannel('CH502').catch((e: Error) => e)
+
+        expect(error).toBeInstanceOf(CliError)
+        expect(error).toMatchObject({
+            code: 'API_ERROR',
+            message: 'Comms had a server error: 502.',
+        })
+    })
+
+    it('translates a request that never got a response into NETWORK_ERROR', async () => {
+        sdkMocks.deleteChannel.mockRejectedValueOnce(
+            new CommsRequestError('fetch failed (ENOTFOUND) after 4 attempts'),
+        )
+        const client = createWrappedCommsClient('test-token')
+
+        await expect(client.channels.deleteChannel('CHnet')).rejects.toMatchObject({
+            code: 'NETWORK_ERROR',
+            message: 'Could not reach Comms: fetch failed (ENOTFOUND) after 4 attempts',
+            hints: ['Check your network connection, then retry'],
+        })
+    })
+
+    it('passes a non-Comms error through untranslated', async () => {
+        const originalError = new TypeError('boom')
+        sdkMocks.deleteChannel.mockRejectedValueOnce(originalError)
+        const client = createWrappedCommsClient('test-token')
+
+        await expect(client.channels.deleteChannel('CHx')).rejects.toBe(originalError)
+    })
+
     it('passes unmapped errors through untranslated', async () => {
-        const originalError = new CommsRequestError('Request failed with status 500', 500, {})
+        const originalError = new CommsRequestError('Request failed with status 418', 418, {})
         sdkMocks.deleteChannel.mockRejectedValueOnce(originalError)
         const client = createWrappedCommsClient('test-token')
 
