@@ -15,6 +15,24 @@ type ViewOptions = PaginatedViewOptions & {
     context?: string
 }
 
+// getComments stops at the limit, so say when that left comments out. A date filter makes the
+// thread's own count meaningless, so all that's left to report then is hitting the limit.
+function formatCommentsHeader(
+    shown: number,
+    total: number,
+    limit: number,
+    isDateFiltered: boolean,
+): string {
+    const label = `${shown} ${pluralize(shown, 'comment')}`
+    if (!isDateFiltered && total > shown) {
+        return `--- ${shown} of ${total} comments (use --limit for more) ---`
+    }
+    if (isDateFiltered && shown >= limit) {
+        return `--- ${label} (limit reached, use --limit for more) ---`
+    }
+    return `--- ${label} ---`
+}
+
 async function viewSingleComment(
     client: CommsApi,
     threadId: string,
@@ -200,8 +218,16 @@ export async function viewThread(ref: string, options: ViewOptions): Promise<voi
         console.log('')
 
         if (comments.length > 0) {
+            const isDateFiltered = options.since !== undefined || options.until !== undefined
             console.log(
-                chalk.dim(`--- ${comments.length} ${pluralize(comments.length, 'comment')} ---`),
+                chalk.dim(
+                    formatCommentsHeader(
+                        comments.length,
+                        thread.commentCount,
+                        limit,
+                        isDateFiltered,
+                    ),
+                ),
             )
             console.log('')
 
