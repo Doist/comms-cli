@@ -64,6 +64,7 @@ describe('permissions', () => {
         expect(isMutatingMethod('workspaces.getWorkspaces')).toBe(false)
         expect(isMutatingMethod('workspaces.getPublicChannels')).toBe(false)
         expect(isMutatingMethod('threads.getThread')).toBe(false)
+        expect(isMutatingMethod('threads.getThreads')).toBe(false)
         expect(isMutatingMethod('threads.getUnread')).toBe(false)
         expect(isMutatingMethod('comments.getComment')).toBe(false)
         expect(isMutatingMethod('comments.getComments')).toBe(false)
