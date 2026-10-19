@@ -1,3 +1,9 @@
+## [3.6.3](https://github.com/Doist/comms-cli/compare/v3.6.2...v3.6.3) (2026-10-19)
+
+### Bug Fixes
+
+- use the white mark in the Comms CLI icon ([#86](https://github.com/Doist/comms-cli/issues/86)) ([b662a3d](https://github.com/Doist/comms-cli/commit/b662a3d7fd13397876ac2bb56584242f113b277b))
+
 ## [3.6.2](https://github.com/Doist/comms-cli/compare/v3.6.1...v3.6.2) (2026-10-17)
 
 ### Bug Fixes
