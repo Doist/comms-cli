@@ -1,3 +1,9 @@
+## [3.6.4](https://github.com/Doist/comms-cli/compare/v3.6.3...v3.6.4) (2026-10-20)
+
+### Bug Fixes
+
+- allow channel thread listing with read-only tokens ([#85](https://github.com/Doist/comms-cli/issues/85)) ([0c5d928](https://github.com/Doist/comms-cli/commit/0c5d9285468a3c17bef0eb69a668ec40f9beebb4))
+
 ## [3.6.3](https://github.com/Doist/comms-cli/compare/v3.6.2...v3.6.3) (2026-10-19)
 
 ### Bug Fixes
