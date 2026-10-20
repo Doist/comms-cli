@@ -1,3 +1,9 @@
+## [3.6.5](https://github.com/Doist/comms-cli/compare/v3.6.4...v3.6.5) (2026-10-20)
+
+### Bug Fixes
+
+- show the current icon on the auth result pages ([#84](https://github.com/Doist/comms-cli/issues/84)) ([4800ad6](https://github.com/Doist/comms-cli/commit/4800ad63bbbc36f8a3ae68be700a79a5dd4da9fa))
+
 ## [3.6.4](https://github.com/Doist/comms-cli/compare/v3.6.3...v3.6.4) (2026-10-20)
 
 ### Bug Fixes
