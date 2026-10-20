@@ -345,8 +345,8 @@ Options:
 - `--channel <channel-refs>` - Filter by channels (comma-separated IDs)
 - `--author <user-refs>` - Filter by author (comma-separated IDs)
 - `--mention-me` - Only results mentioning current user
-- `--since <date>` - Content from date
-- `--until <date>` - Content until date
+- `--since <date>` - Content posted since date
+- `--until <date>` - Content posted until date
 - `--limit <n>` - Max results (default: 50)
 - `--cursor <cursor>` - Pagination cursor
 - `--json` / `--ndjson` - Machine-readable output
