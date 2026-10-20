@@ -47,4 +47,11 @@ describe('extendedSearch', () => {
             'https://comms.staging.todoist.com/api/v1/search?workspace_id=69&query=roadmap',
         )
     })
+
+    it('attributes the request to the CLI via Doist-Platform', async () => {
+        await extendedSearch({ workspaceId: 69, query: 'roadmap' })
+
+        const headers = fetchMock.mock.calls[0][1].headers as Record<string, string>
+        expect(headers['Doist-Platform']).toBe('cli')
+    })
 })
