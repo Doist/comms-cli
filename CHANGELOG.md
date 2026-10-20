@@ -1,3 +1,9 @@
+## [3.6.6](https://github.com/Doist/comms-cli/compare/v3.6.5...v3.6.6) (2026-10-20)
+
+### Bug Fixes
+
+- **thread:** show how many comments a view leaves out ([#87](https://github.com/Doist/comms-cli/issues/87)) ([38ec2ec](https://github.com/Doist/comms-cli/commit/38ec2ec2bb61bf180b64b03a978e2b2d0b2ddc75))
+
 ## [3.6.5](https://github.com/Doist/comms-cli/compare/v3.6.4...v3.6.5) (2026-10-20)
 
 ### Bug Fixes
