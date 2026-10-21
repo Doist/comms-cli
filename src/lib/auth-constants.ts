@@ -4,7 +4,8 @@ export const SECURE_STORE_SERVICE = 'comms-cli'
 /**
  * Icon sent as `logo_uri` when registering an OAuth client, and shown on the
  * local auth result pages. Todoist keeps the URL each client registered with,
- * so never rename or delete the file behind it. (3.6.1 to 3.6.3 registered
+ * so never rename or delete the file behind it. (1.0.0 to 1.4.0 used a
+ * commit-pinned URL that no longer resolves, and 3.6.1 to 3.6.4 registered
  * `icons/comms-cli_512px.png`, since removed, so those clients show Todoist's
  * fallback icon.)
  */
