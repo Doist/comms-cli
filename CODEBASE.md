@@ -27,7 +27,7 @@ come from `@doist/cli-core`.
 ├─ icons/                 # OAuth callback / skill logo assets
 ├─ .github/workflows/     # test, lint, release, check-skill-sync,
 │                         # check-semantic-pull-request, issue-automation,
-│                         # request-reviews, update-comms-sdk
+│                         # update-comms-sdk
 ├─ AGENTS.md              # Prescriptive rules (build cmds, JSON flag, skill-sync, errors)
 ├─ CODEBASE.md            # This file — descriptive map
 ├─ CLAUDE.md              # One-liner forward to AGENTS.md

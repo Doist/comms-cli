@@ -4,7 +4,7 @@ description: "Comms messaging CLI. View and respond to inbox threads, channel th
 license: MIT
 metadata:
   author: Doist
-  version: "3.6.1"
+  version: "3.6.6"
 ---
 
 # Comms CLI (tdc)
@@ -93,7 +93,7 @@ tdc thread view <ref> --comment <id> # View a specific comment
 tdc thread view <url-with-/c/id>  # Comment ID extracted from URL
 tdc thread view <ref> --unread    # Show only unread comments
 tdc thread view <ref> --context 3 # Include 3 read comments before unread
-tdc thread view <ref> --limit 20  # Limit number of comments
+tdc thread view <ref> --limit 20  # Max comments to show (default: 50; the header says when it left some out)
 tdc thread view <ref> --since <date> # Comments newer than date
 tdc thread view <ref> --raw       # Show raw markdown
 tdc thread create <channel-ref> "Title" "content"    # Create a new thread
@@ -235,13 +235,15 @@ tdc search "query" --to <ref>     # Messages sent to user
 tdc search "query" --title-only   # Search thread titles only
 tdc search "query" --mention-me   # Results mentioning current user
 tdc search "query" --conversation <refs> # Limit to conversations (comma-separated refs)
-tdc search "query" --since <date> # Content from date
-tdc search "query" --until <date> # Content until date
+tdc search "query" --since <date> # Content posted since date
+tdc search "query" --until <date> # Content posted until date
 tdc search "query" --channel <refs> # Filter by channel refs (comma-separated)
 tdc search "query" --limit <n>    # Max results (default: 50)
 tdc search "query" --cursor <cur> # Pagination cursor
 tdc search "query" --all          # Fetch all result pages
 ```
+
+`--since` and `--until` filter by when the matching content was posted, not when a thread was last active, so a thread found by its title (`--title-only`) counts from when it was created.
 
 ## Users, Channels & Groups
 

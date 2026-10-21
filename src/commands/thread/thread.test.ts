@@ -725,6 +725,74 @@ describe('thread view date filters', () => {
     })
 })
 
+describe('thread view comment count header', () => {
+    beforeEach(() => {
+        clearWorkspaceUserCache()
+        vi.clearAllMocks()
+        configMocks.getConfig.mockResolvedValue({})
+        groupsMock.getWorkspaceGroups.mockResolvedValue([])
+        groupsMock.getWorkspaceUsers.mockResolvedValue([])
+    })
+
+    const users = { 1: { id: 1, fullName: 'Alice' }, 2: { id: 2, fullName: 'Bob' } }
+
+    async function viewOutput(client: ReturnType<typeof createClient>, args: string[]) {
+        apiMocks.getCommsClient.mockResolvedValue(client)
+        const program = createProgram()
+        const consoleSpy = captureConsole('log')
+        await program.parseAsync(['node', 'tdc', 'thread', 'view', '500', ...args])
+        return consoleSpy.mock.calls.map((c) => c[0]).join('\n')
+    }
+
+    it('shows the plain count when every comment came back', async () => {
+        const client = createClient({
+            comments: [createComment(1, 1), createComment(2, 2), createComment(3, 3)],
+            users,
+        })
+
+        const output = await viewOutput(client, [])
+
+        expect(output).toContain('--- 3 comments ---')
+    })
+
+    it('says how many comments the limit left out', async () => {
+        const client = createClient({
+            thread: { ...createThreadFixture(500), commentCount: 68 },
+            comments: [createComment(1, 1), createComment(2, 2)],
+            users,
+        })
+
+        const output = await viewOutput(client, ['--limit', '2'])
+
+        expect(output).toContain('--- 2 of 68 comments (use --limit for more) ---')
+    })
+
+    it('says when a date-filtered view reached the limit', async () => {
+        const client = createClient({
+            thread: { ...createThreadFixture(500), commentCount: 68 },
+            comments: [createComment(1, 1), createComment(2, 2)],
+            users,
+        })
+
+        const output = await viewOutput(client, ['--since', '2026-01-01', '--limit', '2'])
+
+        expect(output).toContain('--- 2 comments (limit reached, use --limit for more) ---')
+        expect(output).not.toContain('of 68')
+    })
+
+    it('shows the plain count for a date-filtered view under the limit', async () => {
+        const client = createClient({
+            thread: { ...createThreadFixture(500), commentCount: 68 },
+            comments: [createComment(1, 1), createComment(2, 2)],
+            users,
+        })
+
+        const output = await viewOutput(client, ['--since', '2026-01-01'])
+
+        expect(output).toContain('--- 2 comments ---')
+    })
+})
+
 describe('thread view error propagation', () => {
     beforeEach(() => {
         clearWorkspaceUserCache()

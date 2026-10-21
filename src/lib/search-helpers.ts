@@ -88,8 +88,8 @@ export function addSharedSearchOptions<T extends Command>(
 
     return command
         .option('--conversation <refs>', 'Limit to conversations (comma-separated refs)')
-        .option('--since <date>', 'Content from date')
-        .option('--until <date>', 'Content until date')
+        .option('--since <date>', 'Content posted since date')
+        .option('--until <date>', 'Content posted until date')
         .option('--limit <n>', limitDescription)
         .option('--cursor <cursor>', 'Pagination cursor')
         .option('--all', 'Fetch all pages of results')

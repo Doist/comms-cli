@@ -1,3 +1,33 @@
+## [3.6.6](https://github.com/Doist/comms-cli/compare/v3.6.5...v3.6.6) (2026-10-20)
+
+### Bug Fixes
+
+- **thread:** show how many comments a view leaves out ([#87](https://github.com/Doist/comms-cli/issues/87)) ([38ec2ec](https://github.com/Doist/comms-cli/commit/38ec2ec2bb61bf180b64b03a978e2b2d0b2ddc75))
+
+## [3.6.5](https://github.com/Doist/comms-cli/compare/v3.6.4...v3.6.5) (2026-10-20)
+
+### Bug Fixes
+
+- show the current icon on the auth result pages ([#84](https://github.com/Doist/comms-cli/issues/84)) ([4800ad6](https://github.com/Doist/comms-cli/commit/4800ad63bbbc36f8a3ae68be700a79a5dd4da9fa))
+
+## [3.6.4](https://github.com/Doist/comms-cli/compare/v3.6.3...v3.6.4) (2026-10-20)
+
+### Bug Fixes
+
+- allow channel thread listing with read-only tokens ([#85](https://github.com/Doist/comms-cli/issues/85)) ([0c5d928](https://github.com/Doist/comms-cli/commit/0c5d9285468a3c17bef0eb69a668ec40f9beebb4))
+
+## [3.6.3](https://github.com/Doist/comms-cli/compare/v3.6.2...v3.6.3) (2026-10-19)
+
+### Bug Fixes
+
+- use the white mark in the Comms CLI icon ([#86](https://github.com/Doist/comms-cli/issues/86)) ([b662a3d](https://github.com/Doist/comms-cli/commit/b662a3d7fd13397876ac2bb56584242f113b277b))
+
+## [3.6.2](https://github.com/Doist/comms-cli/compare/v3.6.1...v3.6.2) (2026-10-17)
+
+### Bug Fixes
+
+- translate 400, 429, 5xx and network failures into CliErrors ([#80](https://github.com/Doist/comms-cli/issues/80)) ([675ed61](https://github.com/Doist/comms-cli/commit/675ed612d54d5dc3a3faffd76c0490619f901839))
+
 ## [3.6.1](https://github.com/Doist/comms-cli/compare/v3.6.0...v3.6.1) (2026-10-17)
 
 ### Bug Fixes

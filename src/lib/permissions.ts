@@ -16,6 +16,7 @@ const KNOWN_SAFE_API_METHODS = new Set([
     'workspaceUsers.getWorkspaceUsers',
     'workspaceUsers.getUserById',
     'threads.getThread',
+    'threads.getThreads',
     'threads.getUnread',
     'comments.getComment',
     'comments.getComments',
