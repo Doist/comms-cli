@@ -20,7 +20,7 @@ The source is the `Size=72, Style=Color` variant of [Service / Comms CLI](https:
 
 Overwrite `icons/comms-cli.png` with the new PNG, keeping the name. It's the `LOGO_URI` (consent screen and sign-in result pages) and the README header.
 
-**Never rename or delete it.** `tdc` registers an OAuth client the first time it signs in (one per callback port) and reuses it. Todoist stores the client's `logo_uri` at registration and never refreshes it, so every URL a released version has sent must keep serving the icon. If you ever change `LOGO_URI`, keep the old file in place too. (3.6.1 to 3.6.3 registered `icons/comms-cli_512px.png`, which has since been removed, so clients first registered by those versions show Todoist's fallback icon.)
+**Never rename or delete it.** `tdc` registers an OAuth client the first time it signs in (one per callback port) and reuses it. Todoist stores the client's `logo_uri` at registration and never refreshes it, so every URL a released version has sent must keep serving the icon. If you ever change `LOGO_URI`, keep the old file in place too. (3.6.1 to 3.6.4 registered `icons/comms-cli_512px.png`, which has since been removed, so clients first registered by those versions show Todoist's fallback icon.)
 
 The consent screen picks up a replaced file as soon as it's on `main` (allow about ten minutes: GitHub's raw files and Todoist's image proxy each cache for five). No release is needed unless `LOGO_URI` itself changes.
 
