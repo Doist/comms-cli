@@ -1,4 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import packageJson from '../../package.json' with { type: 'json' }
 
 const authMocks = vi.hoisted(() => ({
     getApiTokenSnapshot: vi.fn(),
@@ -53,6 +54,6 @@ describe('extendedSearch', () => {
 
         const headers = fetchMock.mock.calls[0][1].headers as Record<string, string>
         expect(headers['Doist-Platform']).toBe('cli')
-        expect(headers['Doist-Version']).toMatch(/^\d+\.\d+\.\d+/)
+        expect(headers['Doist-Version']).toBe(packageJson.version)
     })
 })

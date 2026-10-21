@@ -9,7 +9,7 @@ import {
     type Workspace,
     type WorkspaceUser,
 } from '@doist/comms-sdk'
-import packageJson from '../../package.json' with { type: 'json' }
+import { DOIST_ATTRIBUTION_HEADERS } from './attribution.js'
 import { getApiTokenSnapshot } from './auth.js'
 import { getConfig, updateConfig } from './config.js'
 import {
@@ -327,10 +327,7 @@ export function createWrappedCommsClient(
     const baseUrl = process.env.COMMS_BASE_URL ?? options.baseUrl
     const rawApi = new CommsApi(token, {
         ...(baseUrl ? { baseUrl } : {}),
-        headers: {
-            'Doist-Platform': 'cli',
-            'Doist-Version': packageJson.version,
-        },
+        headers: DOIST_ATTRIBUTION_HEADERS,
     })
     return createSpinnerWrappedApi(rawApi)
 }

@@ -1,5 +1,6 @@
 import { CommsRequestError } from '@doist/comms-sdk'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
+import packageJson from '../../package.json' with { type: 'json' }
 
 import { CliError } from './errors.js'
 
@@ -135,7 +136,7 @@ describe('wrapResult — central 403 translation', () => {
             baseUrl: 'https://comms.staging.todoist.com',
             headers: {
                 'Doist-Platform': 'cli',
-                'Doist-Version': expect.stringMatching(/^\d+\.\d+\.\d+/),
+                'Doist-Version': packageJson.version,
             },
         })
     })
@@ -147,7 +148,7 @@ describe('wrapResult — central 403 translation', () => {
             baseUrl: 'https://comms.staging.todoist.com',
             headers: {
                 'Doist-Platform': 'cli',
-                'Doist-Version': expect.stringMatching(/^\d+\.\d+\.\d+/),
+                'Doist-Version': packageJson.version,
             },
         })
     })
