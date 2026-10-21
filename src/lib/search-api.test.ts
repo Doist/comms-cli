@@ -1,3 +1,4 @@
+import { DEFAULT_API_VERSION } from '@doist/comms-sdk'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import packageJson from '../../package.json' with { type: 'json' }
 
@@ -45,7 +46,7 @@ describe('extendedSearch', () => {
         await extendedSearch({ workspaceId: 69, query: 'roadmap' })
 
         expect(fetchMock.mock.calls[0][0]).toBe(
-            'https://comms.staging.todoist.com/api/v1.0/search?workspace_id=69&query=roadmap',
+            `https://comms.staging.todoist.com/api/${DEFAULT_API_VERSION}/search?workspace_id=69&query=roadmap`,
         )
     })
 
