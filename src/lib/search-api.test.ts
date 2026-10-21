@@ -45,7 +45,7 @@ describe('extendedSearch', () => {
         await extendedSearch({ workspaceId: 69, query: 'roadmap' })
 
         expect(fetchMock.mock.calls[0][0]).toBe(
-            'https://comms.staging.todoist.com/api/v1/search?workspace_id=69&query=roadmap',
+            'https://comms.staging.todoist.com/api/v1.0/search?workspace_id=69&query=roadmap',
         )
     })
 

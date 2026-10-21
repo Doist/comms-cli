@@ -7,13 +7,13 @@ function getBaseUrl(authResource?: string): string {
     const override = process.env.COMMS_BASE_URL
     if (override) {
         const trimmed = override.endsWith('/') ? override.slice(0, -1) : override
-        return `${trimmed}/api/v1`
+        return `${trimmed}/api/v1.0`
     }
     if (authResource && authResource !== 'https://comms.todoist.com') {
         const trimmed = authResource.endsWith('/') ? authResource.slice(0, -1) : authResource
-        return `${trimmed}/api/v1`
+        return `${trimmed}/api/v1.0`
     }
-    return 'https://api.comms.todoist.com/api/v1'
+    return 'https://api.comms.todoist.com/api/v1.0'
 }
 
 export type SearchType = 'threads' | 'messages' | 'all'
