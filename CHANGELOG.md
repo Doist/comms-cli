@@ -1,3 +1,9 @@
+## [3.7.0](https://github.com/Doist/comms-cli/compare/v3.6.6...v3.7.0) (2026-10-21)
+
+### Features
+
+- attribute CLI requests and call the v1.0 API ([#88](https://github.com/Doist/comms-cli/issues/88)) ([78685f4](https://github.com/Doist/comms-cli/commit/78685f453e2fb3d431c3bb6d350dda95c36504bc))
+
 ## [3.6.6](https://github.com/Doist/comms-cli/compare/v3.6.5...v3.6.6) (2026-10-20)
 
 ### Bug Fixes
