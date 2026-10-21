@@ -53,5 +53,6 @@ describe('extendedSearch', () => {
 
         const headers = fetchMock.mock.calls[0][1].headers as Record<string, string>
         expect(headers['Doist-Platform']).toBe('cli')
+        expect(headers['Doist-Version']).toMatch(/^\d+\.\d+\.\d+/)
     })
 })

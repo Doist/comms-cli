@@ -1,4 +1,5 @@
 import type { SearchResult } from '@doist/comms-sdk'
+import packageJson from '../../package.json' with { type: 'json' }
 import { getApiTokenSnapshot } from './auth.js'
 import { CliError } from './errors.js'
 
@@ -106,6 +107,7 @@ export async function extendedSearch(
             Authorization: `Bearer ${token}`,
             'Content-Type': 'application/json',
             'Doist-Platform': 'cli',
+            'Doist-Version': packageJson.version,
         },
     })
 

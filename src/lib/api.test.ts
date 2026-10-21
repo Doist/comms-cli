@@ -133,6 +133,10 @@ describe('wrapResult — central 403 translation', () => {
 
         expect(sdkMocks.createClient).toHaveBeenCalledWith('test-token', {
             baseUrl: 'https://comms.staging.todoist.com',
+            headers: {
+                'Doist-Platform': 'cli',
+                'Doist-Version': expect.stringMatching(/^\d+\.\d+\.\d+/),
+            },
         })
     })
 
@@ -141,6 +145,10 @@ describe('wrapResult — central 403 translation', () => {
 
         expect(sdkMocks.createClient).toHaveBeenCalledWith('test-token', {
             baseUrl: 'https://comms.staging.todoist.com',
+            headers: {
+                'Doist-Platform': 'cli',
+                'Doist-Version': expect.stringMatching(/^\d+\.\d+\.\d+/),
+            },
         })
     })
 
