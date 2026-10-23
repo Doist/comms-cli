@@ -875,7 +875,7 @@ describe('thread view when the channel lookup fails', () => {
         const output = await viewOutput(clientWithChannelError(rateLimited), [])
 
         expect(output).toContain('Test Thread')
-        expect(output).toContain('[channel:CH100]')
+        expect(output).toContain('[ch:CH100]')
         expect(output).toContain('Comment 1')
     })
 
@@ -884,6 +884,14 @@ describe('thread view when the channel lookup fails', () => {
 
         expect(output.thread).toMatchObject({ channelId: 'CH100', channelName: null })
         expect(output.comments).toHaveLength(1)
+    })
+
+    it('sets channelName to null in --ndjson output when rate limited', async () => {
+        const output = await viewOutput(clientWithChannelError(rateLimited), ['--ndjson'])
+        const [threadLine, commentLine] = output.split('\n').map((line) => JSON.parse(line))
+
+        expect(threadLine).toMatchObject({ type: 'thread', channelId: 'CH100', channelName: null })
+        expect(commentLine).toMatchObject({ type: 'comment', id: '1' })
     })
 
     it('sets channelName to null for a single comment when rate limited', async () => {

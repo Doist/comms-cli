@@ -51,7 +51,7 @@ function printThreadHeader(
     channelName: string | null,
 ) {
     console.log(chalk.bold(thread.title))
-    console.log(colors.channel(`[${channelName ?? `channel:${thread.channelId}`}]`))
+    console.log(colors.channel(`[${channelName ?? `ch:${thread.channelId}`}]`))
     console.log('')
 }
 
