@@ -1,9 +1,3 @@
-## Unreleased
-
-### Features
-
-- **channel:** add default audience groups, users, and clearing to create/update, with resolved dry-run previews and default audience details in members JSON.
-
 ## [3.7.0](https://github.com/Doist/comms-cli/compare/v3.6.6...v3.7.0) (2026-10-21)
 
 ### Features
