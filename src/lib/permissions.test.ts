@@ -57,6 +57,8 @@ describe('permissions', () => {
         expect(isMutatingMethod('inbox.archiveThread')).toBe(true)
         expect(isMutatingMethod('reactions.add')).toBe(true)
         expect(isMutatingMethod('reactions.remove')).toBe(true)
+        expect(isMutatingMethod('users.setStatus')).toBe(true)
+        expect(isMutatingMethod('users.clearStatus')).toBe(true)
     })
 
     it('identifies safe (read-only) methods', () => {
@@ -64,6 +66,7 @@ describe('permissions', () => {
         expect(isMutatingMethod('workspaces.getWorkspaces')).toBe(false)
         expect(isMutatingMethod('workspaces.getPublicChannels')).toBe(false)
         expect(isMutatingMethod('threads.getThread')).toBe(false)
+        expect(isMutatingMethod('threads.getThreads')).toBe(false)
         expect(isMutatingMethod('threads.getUnread')).toBe(false)
         expect(isMutatingMethod('comments.getComment')).toBe(false)
         expect(isMutatingMethod('comments.getComments')).toBe(false)
@@ -83,6 +86,30 @@ describe('permissions', () => {
 })
 
 describe('ensureScopeAllowed', () => {
+    it.each(['users.setStatus', 'users.clearStatus'])(
+        'blocks %s when the grant lacks user:write',
+        async (method) => {
+            vi.mocked(getAuthMetadata).mockResolvedValue({
+                authMode: 'read-write',
+                authScope: 'user:read comms:content:write comms:messages:write',
+            } as never)
+
+            await expect(ensureScopeAllowed(method)).rejects.toThrow('user:write')
+        },
+    )
+
+    it.each(['users.setStatus', 'users.clearStatus'])(
+        'allows %s when user:write is granted',
+        async (method) => {
+            vi.mocked(getAuthMetadata).mockResolvedValue({
+                authMode: 'read-write',
+                authScope: 'user:read user:write comms:content:write',
+            } as never)
+
+            await expect(ensureScopeAllowed(method)).resolves.toBeUndefined()
+        },
+    )
+
     it('blocks group writes when the grant lacks workspaces:write', async () => {
         mockGetAuthMetadata.mockResolvedValue({
             authMode: 'read-write',

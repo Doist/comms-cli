@@ -135,6 +135,7 @@ Arguments:
 Options:
 
 - `--unread` - Only show unread threads
+- `--mentions` - Only show unread threads where you were mentioned (implies `--unread`)
 - `--since <date>` - Filter by date (ISO format)
 - `--until <date>` - Filter by date
 - `--limit <n>` - Max items (default: 50)
@@ -142,7 +143,7 @@ Options:
 
 Output format (human-readable):
 
-- Title, channel name, timestamp (relative), unread indicator
+- Title, channel name, timestamp (relative), unread indicator, mention indicator (`@` / `(mention)`)
 - URL on second line for each entry
 - Content truncated in list view
 
@@ -344,8 +345,8 @@ Options:
 - `--channel <channel-refs>` - Filter by channels (comma-separated IDs)
 - `--author <user-refs>` - Filter by author (comma-separated IDs)
 - `--mention-me` - Only results mentioning current user
-- `--since <date>` - Content from date
-- `--until <date>` - Content until date
+- `--since <date>` - Content posted since date
+- `--until <date>` - Content posted until date
 - `--limit <n>` - Max results (default: 50)
 - `--cursor <cursor>` - Pagination cursor
 - `--json` / `--ndjson` - Machine-readable output
@@ -425,7 +426,7 @@ Threads, comments, messages, and conversations: **ID or URL only** (no name look
 
 - `--json` - Pretty-printed JSON with metadata
 - `--ndjson` - Newline-delimited JSON (one object per line)
-- `--full` - Include all fields (default shows essential fields)
+- `--full` - Include all fields (default shows essential fields); session credentials (`token`, `cometChannel`) on users are never printed
 
 ### Essential Fields by Entity
 
@@ -490,6 +491,7 @@ tdc workspace use "My Team"
 # View inbox
 tdc inbox
 tdc inbox --unread
+tdc inbox --mentions
 
 # View a thread
 tdc thread view id:CbT8n2Kp4Qx6Rz9Lm3Va

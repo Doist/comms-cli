@@ -1,4 +1,6 @@
+import { DEFAULT_API_VERSION } from '@doist/comms-sdk'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import packageJson from '../../package.json' with { type: 'json' }
 
 const authMocks = vi.hoisted(() => ({
     getApiTokenSnapshot: vi.fn(),
@@ -44,7 +46,15 @@ describe('extendedSearch', () => {
         await extendedSearch({ workspaceId: 69, query: 'roadmap' })
 
         expect(fetchMock.mock.calls[0][0]).toBe(
-            'https://comms.staging.todoist.com/api/v1/search?workspace_id=69&query=roadmap',
+            `https://comms.staging.todoist.com/api/${DEFAULT_API_VERSION}/search?workspace_id=69&query=roadmap`,
         )
+    })
+
+    it('attributes the request to the CLI via Doist-Platform', async () => {
+        await extendedSearch({ workspaceId: 69, query: 'roadmap' })
+
+        const headers = fetchMock.mock.calls[0][1].headers as Record<string, string>
+        expect(headers['Doist-Platform']).toBe('cli')
+        expect(headers['Doist-Version']).toBe(packageJson.version)
     })
 })

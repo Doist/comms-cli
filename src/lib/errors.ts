@@ -1,4 +1,5 @@
 import { CliError as BaseCliError, type CliErrorCode, type ErrorType } from '@doist/cli-core'
+import { CommsRequestError, getCommsErrorString } from '@doist/comms-sdk'
 
 export { BaseCliError }
 export type { ErrorType } from '@doist/cli-core'
@@ -29,6 +30,7 @@ export type ErrorCode =
     | 'INVALID_LIMIT'
     | 'INVALID_MINUTES'
     | 'INVALID_REF'
+    | 'INVALID_REQUEST'
     | 'INVALID_SCOPE'
     | 'INVALID_STATE'
     | 'INVALID_TYPE'
@@ -64,6 +66,8 @@ export type ErrorCode =
     | 'API_ERROR'
     | 'CONFLICT'
     | 'INTERNAL_ERROR'
+    | 'NETWORK_ERROR'
+    | 'RATE_LIMITED'
     // Config file inspection
     | 'CONFIG_READ_FAILED'
     | 'CONFIG_INVALID_JSON'
@@ -71,19 +75,29 @@ export type ErrorCode =
     // Escape hatch for dynamic codes
     | (string & {})
 
-function hasCommsStatusCode(error: unknown, status: number): error is { httpStatusCode: number } {
+function hasCommsStatusInRange(
+    error: unknown,
+    min: number,
+    max: number,
+): error is { httpStatusCode: number } {
     return (
         typeof error === 'object' &&
         error !== null &&
         'httpStatusCode' in error &&
         typeof error.httpStatusCode === 'number' &&
-        error.httpStatusCode === status
+        error.httpStatusCode >= min &&
+        error.httpStatusCode <= max
     )
+}
+
+function hasCommsStatusCode(error: unknown, status: number): error is { httpStatusCode: number } {
+    return hasCommsStatusInRange(error, status, status)
 }
 
 /**
  * Check whether an error is a Comms API 403 "Insufficient scope" response.
- * Works with any error shaped like CommsRequestError (httpStatusCode + responseData).
+ * The status is read from any error carrying an `httpStatusCode`; the message
+ * only from a `CommsRequestError`.
  */
 export function isInsufficientScope(error: unknown): boolean {
     return (
@@ -113,44 +127,33 @@ export function isInvalidToken(error: unknown): boolean {
     return hasCommsStatusCode(error, 401)
 }
 
-/** True when `error` is a CliError carrying one of the given codes. */
-export function isCliErrorCode(error: unknown, ...codes: ErrorCode[]): boolean {
-    return error instanceof CliError && codes.includes(error.code)
+/** True for a Comms API 400, the server rejecting the request as malformed or invalid. */
+export function isBadRequest(error: unknown): boolean {
+    return hasCommsStatusCode(error, 400)
 }
 
-export function isNotFound(error: unknown): boolean {
-    return hasCommsStatusCode(error, 404)
+/** True for a Comms API 429. */
+export function isRateLimited(error: unknown): boolean {
+    return hasCommsStatusCode(error, 429)
 }
 
-export function isConflict(error: unknown): boolean {
-    return hasCommsStatusCode(error, 409)
-}
-
-function getCommsResponseField(error: unknown, field: string): unknown {
-    if (typeof error !== 'object' || error === null || !('responseData' in error)) return undefined
-    const data = error.responseData
-    if (typeof data !== 'object' || data === null || !(field in data)) return undefined
-    return (data as Record<string, unknown>)[field]
-}
-
-/** The server's `error_string`, when the response body carried one. */
-export function getCommsErrorString(error: unknown): string | null {
-    const value = getCommsResponseField(error, 'error_string')
-    return typeof value === 'string' ? value : null
-}
-
-/** The server's numeric `error_code`, when the response body carried one. */
-export function getCommsErrorCode(error: unknown): number | null {
-    const value = getCommsResponseField(error, 'error_code')
-    return typeof value === 'number' ? value : null
+/** True for a Comms API 5xx. */
+export function isServerError(error: unknown): error is { httpStatusCode: number } {
+    return hasCommsStatusInRange(error, 500, 599)
 }
 
 /**
- * Comms answers 409 with error_code 217 when an id does not base58-decode to
- * 16 bytes. That is a bad reference, not a conflict.
+ * True when the SDK had no HTTP status to report: a connection that failed
+ * (DNS, refused, reset), a timeout, or a body that could not be read after the
+ * headers arrived.
  */
-export function isMalformedId(error: unknown): boolean {
-    return isConflict(error) && getCommsErrorCode(error) === 217
+export function isNoResponse(error: unknown): boolean {
+    return error instanceof CommsRequestError && error.httpStatusCode === undefined
+}
+
+/** True when `error` is a CliError carrying one of the given codes. */
+export function isCliErrorCode(error: unknown, ...codes: ErrorCode[]): boolean {
+    return error instanceof CliError && codes.includes(error.code)
 }
 
 /**

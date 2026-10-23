@@ -16,6 +16,7 @@ const KNOWN_SAFE_API_METHODS = new Set([
     'workspaceUsers.getWorkspaceUsers',
     'workspaceUsers.getUserById',
     'threads.getThread',
+    'threads.getThreads',
     'threads.getUnread',
     'comments.getComment',
     'comments.getComments',
@@ -43,6 +44,8 @@ const KNOWN_SAFE_API_METHODS = new Set([
  * `wrapResult` turns into the same guidance.
  */
 const API_METHOD_SCOPES: Record<string, string> = {
+    'users.setStatus': 'user:write',
+    'users.clearStatus': 'user:write',
     'groups.createGroup': 'workspaces:write',
     'groups.updateGroup': 'workspaces:write',
     'groups.deleteGroup': 'workspaces:write',

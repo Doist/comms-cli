@@ -58,7 +58,7 @@ This is a TypeScript CLI (`tdc`) for Comms messaging, built with Commander.js.
 
 - **Implicit view subcommand**: `tdc thread <ref>` defaults to `tdc thread view <ref>` via Commander's `{ isDefault: true }`. Same for `conversation` and `msg`. Edge case: if a ref matches a subcommand name (e.g., "reply"), the subcommand wins — user must use `tdc thread view reply`
 - **Named flag aliases**: Where commands accept positional `[workspace-ref]`, the `--workspace` flag is also accepted. Error if both positional and flag are provided
-- **JSON output on mutating commands**: Mutating commands (create, update, delete, archive) should support `--json` output where it provides scripting value. Commands that return an object from the API (create/update) should also support `--full`. Commands where the API returns void should output a minimal status object (e.g. `{ id, deleted: true }` or `{ id, isArchived: true }`). Extend `MutationOptions` in `src/lib/options.ts` (which already includes `json` and `full`) rather than adding these fields ad hoc. Use `formatJson()` from `src/lib/output.ts` for the output. See `src/commands/away.ts` as the reference implementation.
+- **JSON output on mutating commands**: Mutating commands (create, update, delete, archive) should support `--json` output where it provides scripting value. Commands that return an object from the API (create/update) should also support `--full`. Commands where the API returns void should output a minimal status object (e.g. `{ id, deleted: true }` or `{ id, isArchived: true }`). Extend `MutationOptions` in `src/lib/options.ts` (which already includes `json` and `full`) rather than adding these fields ad hoc. Use `formatJson()` from `src/lib/output.ts` for the output. See `src/commands/status/set.ts` as the reference implementation.
 - **Spinner messages**: When adding new SDK method calls, add a corresponding entry in the `API_SPINNER_MESSAGES` map in `src/lib/api.ts`. Every user-facing API call should have a spinner message so the CLI shows progress feedback.
 - **Batch API responses**: When calling `client.batch(...)`, never access `.data` directly on a batch result. Use these helpers from `src/lib/api.ts`:
     - `assertBatchData(response, label)` — single result; throws `CliError` on any failure (including `data: null`). Use for primary data the command can't render without (e.g. the thread itself).
@@ -102,3 +102,7 @@ After updating `SKILL_CONTENT`:
 2. Run `tdc skill update claude-code` (and any other installed agents) to propagate changes to installed skill files
 
 A CI check (`npm run check:skill-sync`) runs on pull requests and will fail if `skills/comms-cli/SKILL.md` is out of sync with `content.ts`.
+
+## Changing the CLI icon
+
+Follow [docs/icon.md](docs/icon.md). Never rename or delete files in `icons/`: OAuth clients registered by released versions keep the `logo_uri` they sent, so every path a release has used must keep serving the icon.

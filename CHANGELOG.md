@@ -4,6 +4,72 @@
 
 - **channel:** add default audience groups, users, and clearing to create/update, with resolved dry-run previews and default audience details in members JSON.
 
+## [3.7.0](https://github.com/Doist/comms-cli/compare/v3.6.6...v3.7.0) (2026-10-21)
+
+### Features
+
+- attribute CLI requests and call the v1.0 API ([#88](https://github.com/Doist/comms-cli/issues/88)) ([78685f4](https://github.com/Doist/comms-cli/commit/78685f453e2fb3d431c3bb6d350dda95c36504bc))
+
+## [3.6.6](https://github.com/Doist/comms-cli/compare/v3.6.5...v3.6.6) (2026-10-20)
+
+### Bug Fixes
+
+- **thread:** show how many comments a view leaves out ([#87](https://github.com/Doist/comms-cli/issues/87)) ([38ec2ec](https://github.com/Doist/comms-cli/commit/38ec2ec2bb61bf180b64b03a978e2b2d0b2ddc75))
+
+## [3.6.5](https://github.com/Doist/comms-cli/compare/v3.6.4...v3.6.5) (2026-10-20)
+
+### Bug Fixes
+
+- show the current icon on the auth result pages ([#84](https://github.com/Doist/comms-cli/issues/84)) ([4800ad6](https://github.com/Doist/comms-cli/commit/4800ad63bbbc36f8a3ae68be700a79a5dd4da9fa))
+
+## [3.6.4](https://github.com/Doist/comms-cli/compare/v3.6.3...v3.6.4) (2026-10-20)
+
+### Bug Fixes
+
+- allow channel thread listing with read-only tokens ([#85](https://github.com/Doist/comms-cli/issues/85)) ([0c5d928](https://github.com/Doist/comms-cli/commit/0c5d9285468a3c17bef0eb69a668ec40f9beebb4))
+
+## [3.6.3](https://github.com/Doist/comms-cli/compare/v3.6.2...v3.6.3) (2026-10-19)
+
+### Bug Fixes
+
+- use the white mark in the Comms CLI icon ([#86](https://github.com/Doist/comms-cli/issues/86)) ([b662a3d](https://github.com/Doist/comms-cli/commit/b662a3d7fd13397876ac2bb56584242f113b277b))
+
+## [3.6.2](https://github.com/Doist/comms-cli/compare/v3.6.1...v3.6.2) (2026-10-17)
+
+### Bug Fixes
+
+- translate 400, 429, 5xx and network failures into CliErrors ([#80](https://github.com/Doist/comms-cli/issues/80)) ([675ed61](https://github.com/Doist/comms-cli/commit/675ed612d54d5dc3a3faffd76c0490619f901839))
+
+## [3.6.1](https://github.com/Doist/comms-cli/compare/v3.6.0...v3.6.1) (2026-10-17)
+
+### Bug Fixes
+
+- serve the refreshed icon at the old path ([#82](https://github.com/Doist/comms-cli/issues/82)) ([ab08038](https://github.com/Doist/comms-cli/commit/ab080384dd4ddc56f3abdf11bef138288bf2d7df))
+
+## [3.6.0](https://github.com/Doist/comms-cli/compare/v3.5.2...v3.6.0) (2026-10-14)
+
+### Features
+
+- **status:** add tdc status show, set and clear ([#77](https://github.com/Doist/comms-cli/issues/77)) ([bdfcb16](https://github.com/Doist/comms-cli/commit/bdfcb169560f5892ebd320fc423ef1c6bf928f42)), closes [Doist/comms-sdk-typescript#100](https://github.com/Doist/comms-sdk-typescript/issues/100) [#78](https://github.com/Doist/comms-cli/issues/78)
+
+## [3.5.2](https://github.com/Doist/comms-cli/compare/v3.5.1...v3.5.2) (2026-10-14)
+
+### Bug Fixes
+
+- redact session credentials from user --json --full output ([#78](https://github.com/Doist/comms-cli/issues/78)) ([e768abf](https://github.com/Doist/comms-cli/commit/e768abf583961c918fe4562c4da21994b7bb2377))
+
+## [3.5.1](https://github.com/Doist/comms-cli/compare/v3.5.0...v3.5.1) (2026-10-06)
+
+### Bug Fixes
+
+- use correct Pi installation path ([#69](https://github.com/Doist/comms-cli/issues/69)) ([718ef8e](https://github.com/Doist/comms-cli/commit/718ef8e34088fd7354005baff05784a611503ef8))
+
+## [3.5.0](https://github.com/Doist/comms-cli/compare/v3.4.1...v3.5.0) (2026-10-06)
+
+### Features
+
+- **inbox:** show unread mentions and add --mentions filter ([#60](https://github.com/Doist/comms-cli/issues/60)) ([9c6b145](https://github.com/Doist/comms-cli/commit/9c6b1453530af0806ec2f13c2d3c1d4758ef5b09))
+
 ## [3.4.1](https://github.com/Doist/comms-cli/compare/v3.4.0...v3.4.1) (2026-09-21)
 
 ### Bug Fixes

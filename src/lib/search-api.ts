@@ -1,4 +1,5 @@
-import type { SearchResult } from '@doist/comms-sdk'
+import { DEFAULT_API_VERSION, type SearchResult } from '@doist/comms-sdk'
+import { DOIST_ATTRIBUTION_HEADERS } from './attribution.js'
 import { getApiTokenSnapshot } from './auth.js'
 import { CliError } from './errors.js'
 
@@ -6,13 +7,13 @@ function getBaseUrl(authResource?: string): string {
     const override = process.env.COMMS_BASE_URL
     if (override) {
         const trimmed = override.endsWith('/') ? override.slice(0, -1) : override
-        return `${trimmed}/api/v1`
+        return `${trimmed}/api/${DEFAULT_API_VERSION}`
     }
     if (authResource && authResource !== 'https://comms.todoist.com') {
         const trimmed = authResource.endsWith('/') ? authResource.slice(0, -1) : authResource
-        return `${trimmed}/api/v1`
+        return `${trimmed}/api/${DEFAULT_API_VERSION}`
     }
-    return 'https://api.comms.todoist.com/api/v1'
+    return `https://api.comms.todoist.com/api/${DEFAULT_API_VERSION}`
 }
 
 export type SearchType = 'threads' | 'messages' | 'all'
@@ -105,6 +106,7 @@ export async function extendedSearch(
         headers: {
             Authorization: `Bearer ${token}`,
             'Content-Type': 'application/json',
+            ...DOIST_ATTRIBUTION_HEADERS,
         },
     })
 

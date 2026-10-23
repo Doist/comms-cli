@@ -3,14 +3,14 @@ import { describe, expect, it } from 'vitest'
 
 import {
     CliError,
-    getCommsErrorString,
+    isBadRequest,
     isCliErrorCode,
-    isConflict,
     isForbidden,
     isInsufficientScope,
     isInvalidToken,
-    isMalformedId,
-    isNotFound,
+    isNoResponse,
+    isRateLimited,
+    isServerError,
 } from './errors.js'
 
 describe('isInsufficientScope', () => {
@@ -129,43 +129,52 @@ describe('isInvalidToken', () => {
     })
 })
 
-describe('isNotFound / isConflict', () => {
-    it('match on status alone', () => {
-        expect(isNotFound(new CommsRequestError('Request failed with status 404', 404, {}))).toBe(
-            true,
-        )
-        expect(isConflict(new CommsRequestError('Request failed with status 409', 409, {}))).toBe(
-            true,
-        )
-        expect(isNotFound(new CommsRequestError('Request failed with status 409', 409, {}))).toBe(
-            false,
-        )
-        expect(isConflict(new CommsRequestError('Request failed with status 404', 404, {}))).toBe(
-            false,
-        )
-        expect(isNotFound(new Error('something'))).toBe(false)
+describe.each([
+    ['isBadRequest', isBadRequest, [400], [399, 401, 429, 500]],
+    ['isRateLimited', isRateLimited, [429], [400, 428, 430, 500]],
+    ['isServerError', isServerError, [500, 502, 599], [400, 429, 499, 600]],
+] as const)('%s', (_name, predicate, hits, misses) => {
+    it.each(hits)('returns true for %i', (status) => {
+        expect(
+            predicate(new CommsRequestError(`Request failed with status ${status}`, status, {})),
+        ).toBe(true)
+    })
+
+    it.each(misses)('returns false for %i', (status) => {
+        expect(
+            predicate(new CommsRequestError(`Request failed with status ${status}`, status, {})),
+        ).toBe(false)
+    })
+
+    it('reads the status from any error carrying a numeric httpStatusCode', () => {
+        expect(predicate({ httpStatusCode: hits[0] })).toBe(true)
+    })
+
+    it('returns false without a numeric status, and for non-objects', () => {
+        expect(predicate(new CommsRequestError('fetch failed'))).toBe(false)
+        expect(predicate({ httpStatusCode: String(hits[0]) })).toBe(false)
+        expect(predicate(new Error('something'))).toBe(false)
+        expect(predicate(null)).toBe(false)
+        expect(predicate(undefined)).toBe(false)
+        expect(predicate('string')).toBe(false)
     })
 })
 
-describe('isMalformedId', () => {
-    it('is true only for the 409 the API sends for an id that does not decode', () => {
-        const malformed = new CommsRequestError('Request failed with status 409', 409, {
-            error_string: 'id must decode to 16 bytes. Regenerate the ID and retry.',
-            error_code: 217,
-        })
-        expect(isMalformedId(malformed)).toBe(true)
-        expect(getCommsErrorString(malformed)).toBe(
-            'id must decode to 16 bytes. Regenerate the ID and retry.',
-        )
+describe('isNoResponse', () => {
+    it('returns true for a CommsRequestError without a status', () => {
+        expect(isNoResponse(new CommsRequestError('fetch failed (ECONNREFUSED)'))).toBe(true)
+    })
 
-        const otherConflict = new CommsRequestError('Request failed with status 409', 409, {
-            error_string: 'Channel name already taken',
-        })
-        expect(isMalformedId(otherConflict)).toBe(false)
-        expect(
-            isMalformedId(new CommsRequestError('Request failed with status 409', 409, {})),
-        ).toBe(false)
-        expect(getCommsErrorString(new CommsRequestError('x', 409, undefined))).toBeNull()
+    it('returns false when the server answered, whatever the status', () => {
+        for (const status of [400, 429, 500]) {
+            expect(isNoResponse(new CommsRequestError('x', status, {}))).toBe(false)
+        }
+    })
+
+    it('returns false for errors that are not CommsRequestErrors', () => {
+        expect(isNoResponse(new TypeError('fetch failed'))).toBe(false)
+        expect(isNoResponse({ httpStatusCode: undefined })).toBe(false)
+        expect(isNoResponse(null)).toBe(false)
     })
 })
 

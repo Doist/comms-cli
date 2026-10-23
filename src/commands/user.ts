@@ -11,6 +11,7 @@ import { CliError } from '../lib/errors.js'
 import type { ViewOptions } from '../lib/options.js'
 import { colors, formatJson, formatNdjson } from '../lib/output.js'
 import { resolveWorkspaceRef } from '../lib/refs.js'
+import { formatStatus } from '../lib/status.js'
 
 type UsersOptions = ViewOptions & {
     workspace?: string
@@ -36,6 +37,9 @@ async function showCurrentUser(options: ViewOptions): Promise<void> {
     console.log(`ID:        ${user.id}`)
     console.log(`Email:     ${user.email}`)
     console.log(`Timezone:  ${user.timezone}`)
+    if (user.status) {
+        console.log(`Status:    ${formatStatus(user.status)}`)
+    }
     if (defaultWorkspace) {
         console.log(`Default:   ${defaultWorkspace.name} (id:${defaultWorkspace.id})`)
     }
@@ -106,7 +110,7 @@ export function registerUserCommand(program: Command): void {
         .command('user')
         .description('Show current user info')
         .option('--json', 'Output as JSON')
-        .option('--full', 'Include all fields in JSON output')
+        .option('--full', 'Include all fields in JSON output (except session credentials)')
         .addHelpText(
             'after',
             `
@@ -125,7 +129,7 @@ Examples:
         .option('--json', 'Output as JSON')
         .option('--ndjson', 'Output as newline-delimited JSON')
         .option('--ids-only', 'Output only user IDs, one per line')
-        .option('--full', 'Include all fields in JSON output')
+        .option('--full', 'Include all fields in JSON output (except session credentials)')
         .addHelpText(
             'after',
             `

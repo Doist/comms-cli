@@ -23,11 +23,11 @@ come from `@doist/cli-core`.
 ├─ scripts/               # sync-skill.js, check-skill-sync.js, postinstall.js
 ├─ dist/                  # Build output (tsc). Never edit.
 ├─ skills/comms-cli/      # Generated SKILL.md (from src/lib/skills/content.ts)
-├─ docs/                  # SPEC.md, comms-search.md (design notes)
+├─ docs/                  # SPEC.md, comms-search.md (design notes), icon.md (changing the icon)
 ├─ icons/                 # OAuth callback / skill logo assets
 ├─ .github/workflows/     # test, lint, release, check-skill-sync,
 │                         # check-semantic-pull-request, issue-automation,
-│                         # request-reviews, update-comms-sdk
+│                         # update-comms-sdk
 ├─ AGENTS.md              # Prescriptive rules (build cmds, JSON flag, skill-sync, errors)
 ├─ CODEBASE.md            # This file — descriptive map
 ├─ CLAUDE.md              # One-liner forward to AGENTS.md
@@ -159,7 +159,7 @@ don't duplicate it here.
 - **`search-api.ts` / `search-helpers.ts`** — extended search params/response
   (`extendedSearch`) + shared `--search`/options wiring (`addSharedSearchOptions`,
   `runSearch`, `printSearchResults`). See `docs/comms-search.md`.
-- **`threads.ts`** — `fetchUnreadThreadIds`; **`public-channels.ts`** —
+- **`threads.ts`** — `fetchUnreadThreads`, `unreadFlags`; **`public-channels.ts`** —
   public-channel id cache + `assertChannelIsPublic`.
 - **`spinner.ts`** — re-exports `LoadingSpinner`, `withSpinner`,
   `startEarlySpinner`, `stopEarlySpinner` from cli-core.
@@ -176,7 +176,7 @@ don't duplicate it here.
 ## Canonical examples
 
 - **Read:** `src/commands/inbox.ts` — `getCommsClient()`, parallel fetches
-  (`getInbox` + `fetchUnreadThreadIds`), public-channel handling, then
+  (`getInbox` + `fetchUnreadThreads`), public-channel handling, then
   `formatJson` / `formatNdjson` / `printEmpty`.
 - **Mutation with `--json`:** `src/commands/channel/create.ts` — the reference
   impl for `MutationOptions`, `ensureWriteAllowed`, `printDryRun`, and

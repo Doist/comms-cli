@@ -54,7 +54,7 @@ tdc changelog                     # Show recent changelog entries
 tdc migrate urls <urls>           # Translate old twist.com URLs to Comms URLs (needs a Twist token)
 \`\`\`
 
-OAuth login uses Todoist OAuth for Comms access. The default grant can read Comms data and create/update content or messages. It does not include delete, channel management, or user/workspace write scopes; use \`tdc auth login --full-access\` only when needed (all \`tdc groups\` writes require it). Credential storage defaults to \`fallback\`: use the system credential manager when available, otherwise warn and save to \`~/.config/comms-cli/config.json\`. Pass \`--credential-store system\` to fail instead of writing plaintext, or \`--credential-store plaintext\` to choose config-file storage explicitly. \`COMMS_API_TOKEN\` always takes priority over the stored token.
+OAuth login uses Todoist OAuth for Comms access. The default grant can read Comms data and create/update content or messages. It does not include delete, channel management, or user/workspace write scopes; use \`tdc auth login --full-access\` only when needed (all \`tdc groups\` writes and \`tdc status set|clear\` require it). Credential storage defaults to \`fallback\`: use the system credential manager when available, otherwise warn and save to \`~/.config/comms-cli/config.json\`. Pass \`--credential-store system\` to fail instead of writing plaintext, or \`--credential-store plaintext\` to choose config-file storage explicitly. \`COMMS_API_TOKEN\` always takes priority over the stored token.
 
 In read-only mode (\`tdc auth login --read-only\`), commands that modify Comms data (reply, archive, react, delete, etc.) are blocked by the CLI. Externally provided tokens (\`COMMS_API_TOKEN\` or \`tdc auth token\`) are treated as unknown scope and assumed write-capable.
 
@@ -79,6 +79,7 @@ All target command flags pass through (e.g. \`--json\`, \`--raw\`, \`--full\`).
 \`\`\`bash
 tdc inbox                         # Show inbox threads
 tdc inbox --unread                # Only unread threads
+tdc inbox --mentions              # Only unread threads where you were mentioned (implies --unread)
 tdc inbox --archive-filter all      # Show active + done threads
 tdc inbox --archive-filter archived # Show only done threads
 tdc inbox --channel <filter>      # Filter by channel name (fuzzy)
@@ -96,7 +97,7 @@ tdc thread view <ref> --comment <id> # View a specific comment
 tdc thread view <url-with-/c/id>  # Comment ID extracted from URL
 tdc thread view <ref> --unread    # Show only unread comments
 tdc thread view <ref> --context 3 # Include 3 read comments before unread
-tdc thread view <ref> --limit 20  # Limit number of comments
+tdc thread view <ref> --limit 20  # Max comments to show (default: 50; the header says when it left some out)
 tdc thread view <ref> --since <date> # Comments newer than date
 tdc thread view <ref> --raw       # Show raw markdown
 tdc thread create <channel-ref> "Title" "content"    # Create a new thread
@@ -238,24 +239,33 @@ tdc search "query" --to <ref>     # Messages sent to user
 tdc search "query" --title-only   # Search thread titles only
 tdc search "query" --mention-me   # Results mentioning current user
 tdc search "query" --conversation <refs> # Limit to conversations (comma-separated refs)
-tdc search "query" --since <date> # Content from date
-tdc search "query" --until <date> # Content until date
+tdc search "query" --since <date> # Content posted since date
+tdc search "query" --until <date> # Content posted until date
 tdc search "query" --channel <refs> # Filter by channel refs (comma-separated)
 tdc search "query" --limit <n>    # Max results (default: 50)
 tdc search "query" --cursor <cur> # Pagination cursor
 tdc search "query" --all          # Fetch all result pages
 \`\`\`
 
+\`--since\` and \`--until\` filter by when the matching content was posted, not when a thread was last active, so a thread found by its title (\`--title-only\`) counts from when it was created.
+
 ## Users, Channels & Groups
 
 \`\`\`bash
 tdc user                          # Show current user info
 tdc user --json                   # JSON output
-tdc user --json --full            # Include all fields in JSON output
+tdc user --json --full            # All fields, except session credentials
 tdc users                         # List active workspace users
 tdc users --search <text>         # Filter by name/email
 tdc users --include-removed       # Include users removed from the workspace
 tdc users --ids-only              # Output only user IDs
+tdc status                        # Show your status (default login is enough)
+tdc status --json                 # Show it as { status } JSON (null when unset; --full for the whole user)
+tdc status set "Deep work" --emoji 🎯 --for 2h --pause-notifications  # Set it (replaces any current status; needs --full-access)
+tdc status set "On holiday" --until 2026-10-20T09:00  # End at a date (YYYY-MM-DD, YYYY-MM-DDTHH:MM or a full ISO 8601 timestamp; local time unless it has Z or an offset)
+tdc status set "Away" --dry-run   # Preview without setting
+tdc status set "Away" --json      # Set and return { status } as JSON
+tdc status clear                  # Clear your status (--dry-run, --json supported)
 tdc channels                      # List active joined workspace channels (alias of: tdc channel list)
 tdc channels --state all          # Include archived joined channels too
 tdc channels --scope discoverable # Active public channels you can see but have not joined
@@ -317,6 +327,10 @@ tdc groups remove-user <ref> id:123,id:456      # Comma-separated ID refs
 \`\`\`
 
 All group *writes* (\`groups create\`, \`rename\`, \`delete\`, \`add-user\`, \`remove-user\`) need the \`workspaces:write\` scope, which only \`tdc auth login --full-access\` grants. Group *reads* (\`groups\`, \`groups view\`) work on a default login.
+
+\`tdc status set\` and \`tdc status clear\` need the \`user:write\` scope, which only \`tdc auth login --full-access\` grants. \`tdc status\` (show) works on a default login.
+
+Only pass \`--pause-notifications\` when the user asks for it. It holds back Comms notifications only for now: each app has to read the status and hold its own notifications back, and Todoist does not yet. Held notifications are not sent later.
 
 If a channel is not found in \`tdc channels\`, widen with broader listings such as \`tdc channels --scope public\`, then \`tdc channels --scope public --state all\`. Check \`tdc channels --help\` for other available filters.
 
@@ -485,6 +499,7 @@ tdc view https://comms.todoist.com/a/1585/msg/CbV8n2Kp4Qx6Rz9Lm3Va/m/CbS8n2Kp4Qx
 **Check inbox and respond:**
 \`\`\`bash
 tdc inbox --unread --json
+tdc inbox --mentions --json       # Unread threads with an unread @mention of you
 tdc thread view <thread-ref> --unread
 tdc thread reply <thread-ref> "Thanks, I'll look into this."
 tdc thread done <thread-ref> --yes

@@ -68,6 +68,10 @@ This opens Todoist OAuth in your browser. The default grant can read Comms data 
 
 All group management — `groups create`, `rename`, `delete`, `add-user`, `remove-user` — needs the `workspaces:write` scope, so it requires `tdc auth login --full-access`. Group reads (`groups`, `groups view`) work on a default login.
 
+Setting or clearing your status (`status set`, `status clear`) needs the `user:write` scope, so it also requires `tdc auth login --full-access`. `tdc status` works on a default login.
+
+`--pause-notifications` holds back Comms notifications only for now: each app has to read the status and hold its own notifications back, and Todoist does not yet. Held notifications are not sent later.
+
 By default, the CLI stores the token in your OS credential manager:
 
 - macOS: Keychain
@@ -120,6 +124,7 @@ tdc auth refresh-token view   # print the stored OAuth refresh token
 ```bash
 tdc inbox                           # inbox threads
 tdc inbox --unread                  # unread threads only
+tdc inbox --mentions                # unread threads where you were mentioned
 tdc mentions                        # content mentioning you
 tdc mentions --since 2026-04-01 --all --json
 tdc thread view <ref>               # view thread with comments
@@ -141,9 +146,9 @@ tdc msg view <ref>                  # view a conversation message
 tdc search "keyword"                # search across workspace
 tdc search "keyword" --all          # fetch all result pages
 tdc react thread <ref> 👍          # add reaction
-tdc away                            # show away status
-tdc away set vacation 2026-03-20    # set away until date
-tdc away clear                      # clear away status
+tdc status                          # show your status
+tdc status set "Deep work" --emoji 🎯 --for 2h --pause-notifications  # set it (--until <iso> for a date)
+tdc status clear                    # clear your status
 tdc groups                          # list groups in a workspace
 tdc groups view <ref>               # show a group with members
 tdc groups create "Frontend"        # create a group

@@ -1,21 +1,26 @@
 import {
     CommsApi,
+    getCommsErrorString,
     type Group,
+    isConflict,
+    isMalformedId,
+    isNotFound,
     type User,
     type Workspace,
     type WorkspaceUser,
 } from '@doist/comms-sdk'
+import { DOIST_ATTRIBUTION_HEADERS } from './attribution.js'
 import { getApiTokenSnapshot } from './auth.js'
 import { getConfig, updateConfig } from './config.js'
 import {
     CliError,
-    getCommsErrorString,
-    isConflict,
+    isBadRequest,
     isForbidden,
     isInsufficientScope,
     isInvalidToken,
-    isMalformedId,
-    isNotFound,
+    isNoResponse,
+    isRateLimited,
+    isServerError,
 } from './errors.js'
 import { ensureMutationAllowed, isMutatingMethod } from './permissions.js'
 import { getProgressTracker } from './progress.js'
@@ -28,6 +33,8 @@ const API_SPINNER_MESSAGES: Record<string, { text: string; color?: 'blue' | 'gre
         'users.getSessionUser': { text: 'Checking authentication...', color: 'blue' },
 
         'users.update': { text: 'Updating user...', color: 'yellow' },
+        'users.setStatus': { text: 'Setting status...', color: 'yellow' },
+        'users.clearStatus': { text: 'Clearing status...', color: 'yellow' },
 
         // Workspace operations
         'workspaces.getWorkspaces': { text: 'Loading workspaces...', color: 'blue' },
@@ -243,6 +250,32 @@ function wrapResult(
                     `Comms refused this request: ${getCommsErrorString(error) ?? '409 Conflict'}`,
                 )
             }
+            if (isNoResponse(error)) {
+                throw new CliError('NETWORK_ERROR', `Could not reach Comms: ${error.message}`, [
+                    'Check your network connection, then retry',
+                ])
+            }
+            if (isBadRequest(error)) {
+                // `||`, not `??`: an empty error_string must fall back too, or the reason is blank.
+                throw new CliError(
+                    'INVALID_REQUEST',
+                    `Comms rejected the request: ${getCommsErrorString(error) || '400 Bad Request'}`,
+                )
+            }
+            if (isRateLimited(error)) {
+                throw new CliError(
+                    'RATE_LIMITED',
+                    'Comms is rate limiting requests: 429 Too Many Requests.',
+                    ['Wait a moment, then retry'],
+                )
+            }
+            if (isServerError(error)) {
+                throw new CliError(
+                    'API_ERROR',
+                    `Comms had a server error: ${error.httpStatusCode}.`,
+                    ['This is usually temporary, retry in a moment'],
+                )
+            }
             throw error
         })
 
@@ -292,7 +325,10 @@ export function createWrappedCommsClient(
     options: { baseUrl?: string } = {},
 ): CommsApi {
     const baseUrl = process.env.COMMS_BASE_URL ?? options.baseUrl
-    const rawApi = new CommsApi(token, baseUrl ? { baseUrl } : undefined)
+    const rawApi = new CommsApi(token, {
+        ...(baseUrl ? { baseUrl } : {}),
+        headers: DOIST_ATTRIBUTION_HEADERS,
+    })
     return createSpinnerWrappedApi(rawApi)
 }
 
