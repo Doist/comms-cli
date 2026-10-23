@@ -500,7 +500,11 @@ export function parseNotifyIdRefs(refs: string): string[] {
     })
 }
 
-export async function resolveGroupRef(ref: string, workspaceId: number): Promise<Group> {
+export async function resolveGroupRef(
+    ref: string,
+    workspaceId: number,
+    workspaceGroups?: Promise<Group[]>,
+): Promise<Group> {
     const parsed = parseRef(ref)
 
     if (parsed.type === 'id') {
@@ -524,7 +528,7 @@ export async function resolveGroupRef(ref: string, workspaceId: number): Promise
     }
 
     if (parsed.type === 'name') {
-        const groups = await getWorkspaceGroups(workspaceId)
+        const groups = await (workspaceGroups ?? getWorkspaceGroups(workspaceId))
         return matchByName(groups, parsed.name, {
             ambiguousCode: 'AMBIGUOUS_GROUP',
             notFoundCode: 'GROUP_NOT_FOUND',

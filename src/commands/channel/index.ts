@@ -66,6 +66,18 @@ Notes:
         .option('--users <refs>', 'Comma-separated user references to add (id:N, email, or name)')
         .option('--public', 'Create a public channel')
         .option('--private', 'Create a private channel')
+        .option(
+            '--default-groups <refs>',
+            'Replace default audience groups (comma-separated IDs or names)',
+        )
+        .option(
+            '--default-users <refs>',
+            'Replace default audience users (comma-separated id:N, email, or name)',
+        )
+        .option(
+            '--clear-default-audience',
+            'Disable the default audience and clear its groups and users',
+        )
         .option('--dry-run', 'Show what would be created without creating')
         .option('--json', 'Output created channel as JSON')
         .option('--full', 'Include all fields in JSON output')
@@ -74,20 +86,37 @@ Notes:
             `
 Examples:
   tdc channel create "Engineering"
+  tdc channel create "Squad" --default-groups "Design" --default-users alice@doist.com
   tdc channel create "Leadership Team" --private --users id:10,id:20
-  tdc channel create "Product" --workspace "Doist" --description "Product discussions" --json`,
+  tdc channel create "Product" --workspace "Doist" --description "Product discussions" --json
+
+Notes:
+  Default audience lists must be non-empty and enable default recipients.
+  --clear-default-audience cannot be combined with either list option.`,
         )
         .action(createChannel)
 
     channel
         .command('update <channel-ref> [name]')
-        .description('Update channel metadata')
+        .description('Update channel metadata and default audience')
         .option('--workspace <ref>', 'Workspace ID or name')
         .option('--name <name>', 'New channel name')
         .option('--description <text>', 'New channel description')
         .option('--clear-description', 'Clear the channel description')
         .option('--public', 'Make the channel public')
         .option('--private', 'Make the channel private')
+        .option(
+            '--default-groups <refs>',
+            'Replace default audience groups (comma-separated IDs or names)',
+        )
+        .option(
+            '--default-users <refs>',
+            'Replace default audience users (comma-separated id:N, email, or name)',
+        )
+        .option(
+            '--clear-default-audience',
+            'Disable the default audience and clear its groups and users',
+        )
         .option('--dry-run', 'Show what would be updated without updating')
         .option('--json', 'Output updated channel as JSON')
         .option('--full', 'Include all fields in JSON output')
@@ -97,7 +126,14 @@ Examples:
 Examples:
   tdc channel update "Engineering" "Platform Engineering"
   tdc channel update id:abc123 --description "Team discussions"
-  tdc channel update "Leadership" --private --json`,
+  tdc channel update id:abc123 --default-groups "Design" --dry-run
+  tdc channel update id:abc123 --clear-default-audience
+  tdc channel update "Leadership" --private --json
+
+Notes:
+  Each default audience list replaces that list; omitted lists are unchanged.
+  Lists must be non-empty and enable default recipients.
+  Use --clear-default-audience alone to disable defaults and empty both lists.`,
         )
         .action(updateChannel)
 
@@ -220,7 +256,8 @@ Examples:
 
 Notes:
   "Groups fully in channel" lists groups whose entire current membership is
-  already in the channel — a hint, not a persistent link.`,
+  already in the channel — a hint, not a persistent link.
+  JSON includes defaultAudience with resolved group and user names.`,
         )
         .action(listChannelMembers)
 

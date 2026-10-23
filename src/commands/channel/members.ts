@@ -23,29 +23,51 @@ export async function listChannelMembers(
 
     const [channel, groups] = await Promise.all([channelPromise, getWorkspaceGroups(workspaceId)])
     const userIds = channelUserIds(channel)
-    const userMap = await fetchUsersByIds(workspaceId, userIds)
+    const includeAudience = outputMode === 'json' || outputMode === 'ndjson'
+    const defaultRecipients = channel.defaultRecipients ?? []
+    const defaultGroups = channel.defaultGroups ?? []
+    const userMap = await fetchUsersByIds(
+        workspaceId,
+        includeAudience ? [...new Set([...userIds, ...defaultRecipients])] : userIds,
+    )
 
     const userIdSet = new Set(userIds)
     const fullyInChannel = groupsFullyInChannel(groups, userIdSet)
 
-    const members = userIds.map((id) => {
+    const describeUser = (id: number) => {
         const user = userMap.get(id)
         const email = user && !isRestrictedWorkspaceUser(user) ? (user.email ?? null) : null
         return { id, name: user?.fullName ?? null, email }
-    })
+    }
+    const members = userIds.map(describeUser)
+    const groupMap = new Map(groups.map((group) => [group.id, group]))
+    const defaultAudience = {
+        useDefaultRecipients: channel.useDefaultRecipients ?? false,
+        groups: defaultGroups.map((id) => ({ id, name: groupMap.get(id)?.name ?? null })),
+        users: defaultRecipients.map(describeUser),
+    }
 
     const slimPayload = {
         id: channel.id,
         name: channel.name,
         workspaceId: channel.workspaceId,
         members,
+        useDefaultRecipients: channel.useDefaultRecipients ?? false,
+        defaultGroups,
+        defaultRecipients,
+        defaultAudience,
         groupsFullyInChannel: fullyInChannel.map((g) => ({
             id: g.id,
             name: g.name,
             userIds: g.userIds,
         })),
     }
-    const fullPayload = { ...channel, members, groupsFullyInChannel: fullyInChannel }
+    const fullPayload = {
+        ...channel,
+        members,
+        defaultAudience,
+        groupsFullyInChannel: fullyInChannel,
+    }
 
     if (outputMode === 'json') {
         console.log(formatJson(options.full ? fullPayload : slimPayload))

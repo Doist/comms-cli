@@ -126,8 +126,68 @@ describe('tdc channel members list (default)', () => {
         ])
     })
 
+    it.each([['--json'], ['--json', '--full'], ['--ndjson']])(
+        'exposes default audience with %j',
+        async (...flags) => {
+            const audience = {
+                useDefaultRecipients: true,
+                defaultGroups: ['GR200', 'missing'],
+                defaultRecipients: [1, 4, 99],
+            }
+            refsMocks.resolveChannelRef.mockResolvedValue(createChannel([1, 2, 3], audience))
+            const client = createClient()
+            apiMocks.getCommsClient.mockResolvedValue(client)
+            const log = captureConsole('log')
+            await createProgram().parseAsync([
+                'node',
+                'tdc',
+                'channel',
+                'members',
+                'list',
+                'General',
+                ...flags,
+            ])
+            const payload = JSON.parse(log.mock.calls[0][0] as string)
+            expect(payload).toMatchObject(audience)
+            expect(payload.defaultAudience).toEqual({
+                useDefaultRecipients: true,
+                groups: [
+                    { id: 'GR200', name: 'Backend' },
+                    { id: 'missing', name: null },
+                ],
+                users: [
+                    { id: 1, name: 'Alice', email: 'a@d.com' },
+                    { id: 4, name: 'Dave', email: 'd@d.com' },
+                    { id: 99, name: null, email: null },
+                ],
+            })
+            expect(payload.members).toHaveLength(3)
+            expect(client.workspaceUsers.getUserById).toHaveBeenCalledTimes(5)
+            expect(client.channels.getChannel).not.toHaveBeenCalled()
+        },
+    )
+
+    it('exposes an empty disabled default audience', async () => {
+        refsMocks.resolveChannelRef.mockResolvedValue(
+            createChannel([], {
+                useDefaultRecipients: false,
+                defaultGroups: [],
+                defaultRecipients: [],
+            }),
+        )
+        const log = captureConsole('log')
+        await createProgram().parseAsync(['node', 'tdc', 'channel', 'members', 'General', '--json'])
+        expect(JSON.parse(log.mock.calls[0][0] as string).defaultAudience).toEqual({
+            useDefaultRecipients: false,
+            groups: [],
+            users: [],
+        })
+    })
+
     it('omits email for restricted members', async () => {
-        refsMocks.resolveChannelRef.mockResolvedValue(createChannel([6]))
+        refsMocks.resolveChannelRef.mockResolvedValue(
+            createChannel([6], { useDefaultRecipients: true, defaultRecipients: [6] }),
+        )
         apiMocks.getCommsClient.mockResolvedValue({
             workspaceUsers: {
                 getUserById: vi.fn().mockResolvedValue({
@@ -145,6 +205,11 @@ describe('tdc channel members list (default)', () => {
 
         const payload = JSON.parse(consoleSpy.mock.calls[0][0] as string)
         expect(payload.members[0]).toEqual({ id: 6, name: 'Restricted User', email: null })
+        expect(payload.defaultAudience.users[0]).toEqual({
+            id: 6,
+            name: 'Restricted User',
+            email: null,
+        })
     })
 
     it('falls back to user:<id> for unknown members', async () => {
