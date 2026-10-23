@@ -47,6 +47,7 @@ vi.mock('../../lib/input.js', () => ({
 vi.mock('chalk')
 
 import { clearWorkspaceUserCache } from '../../lib/api.js'
+import { CliError } from '../../lib/errors.js'
 import { openEditor, readStdin, readStdinToEnd } from '../../lib/input.js'
 import { registerThreadCommand } from './index.js'
 
@@ -185,6 +186,14 @@ function createClient({
 }
 
 const createProgram = () => createTestProgram(registerThreadCommand)
+
+async function viewOutput(client: ReturnType<typeof createClient>, args: string[]) {
+    apiMocks.getCommsClient.mockResolvedValue(client)
+    const program = createProgram()
+    const consoleSpy = captureConsole('log')
+    await program.parseAsync(['node', 'tdc', 'thread', 'view', '500', ...args])
+    return consoleSpy.mock.calls.map((c) => c[0]).join('\n')
+}
 
 // Shared setup for the --file suites: a fresh mock client wired into getCommsClient
 // plus a program. Tests asserting on output call captureConsole('log') themselves.
@@ -736,14 +745,6 @@ describe('thread view comment count header', () => {
 
     const users = { 1: { id: 1, fullName: 'Alice' }, 2: { id: 2, fullName: 'Bob' } }
 
-    async function viewOutput(client: ReturnType<typeof createClient>, args: string[]) {
-        apiMocks.getCommsClient.mockResolvedValue(client)
-        const program = createProgram()
-        const consoleSpy = captureConsole('log')
-        await program.parseAsync(['node', 'tdc', 'thread', 'view', '500', ...args])
-        return consoleSpy.mock.calls.map((c) => c[0]).join('\n')
-    }
-
     it('shows the plain count when every comment came back', async () => {
         const client = createClient({
             comments: [createComment(1, 1), createComment(2, 2), createComment(3, 3)],
@@ -847,6 +848,67 @@ describe('thread view error propagation', () => {
         const output = consoleSpy.mock.calls.map((c) => c[0]).join('\n')
         expect(output).toContain('Alice')
         expect(output).toContain('user:2')
+    })
+})
+
+describe('thread view when the channel lookup fails', () => {
+    beforeEach(() => {
+        clearWorkspaceUserCache()
+        vi.clearAllMocks()
+        configMocks.getConfig.mockResolvedValue({})
+        groupsMock.getWorkspaceGroups.mockResolvedValue([])
+        groupsMock.getWorkspaceUsers.mockResolvedValue([])
+    })
+
+    const rateLimited = new CliError(
+        'RATE_LIMITED',
+        'Comms is rate limiting requests: 429 Too Many Requests.',
+    )
+
+    function clientWithChannelError(error: CliError) {
+        const client = createClient({ comments: [createComment(1, 1)] })
+        client.channels.getChannel.mockRejectedValue(error)
+        return client
+    }
+
+    it('shows the thread with the channel id when rate limited', async () => {
+        const output = await viewOutput(clientWithChannelError(rateLimited), [])
+
+        expect(output).toContain('Test Thread')
+        expect(output).toContain('[ch:CH100]')
+        expect(output).toContain('Comment 1')
+    })
+
+    it('sets channelName to null in --json output when rate limited', async () => {
+        const output = JSON.parse(await viewOutput(clientWithChannelError(rateLimited), ['--json']))
+
+        expect(output.thread).toMatchObject({ channelId: 'CH100', channelName: null })
+        expect(output.comments).toHaveLength(1)
+    })
+
+    it('sets channelName to null in --ndjson output when rate limited', async () => {
+        const output = await viewOutput(clientWithChannelError(rateLimited), ['--ndjson'])
+        const [threadLine, commentLine] = output.split('\n').map((line) => JSON.parse(line))
+
+        expect(threadLine).toMatchObject({ type: 'thread', channelId: 'CH100', channelName: null })
+        expect(commentLine).toMatchObject({ type: 'comment', id: '1' })
+    })
+
+    it('sets channelName to null for a single comment when rate limited', async () => {
+        const output = JSON.parse(
+            await viewOutput(clientWithChannelError(rateLimited), ['--comment', '1', '--json']),
+        )
+
+        expect(output).toMatchObject({ id: '1', channelName: null })
+    })
+
+    it('still fails on any other error', async () => {
+        const notFound = new CliError('NOT_FOUND', 'Comms could not find that resource: 404.')
+
+        await expect(viewOutput(clientWithChannelError(notFound), [])).rejects.toHaveProperty(
+            'code',
+            'NOT_FOUND',
+        )
     })
 })
 

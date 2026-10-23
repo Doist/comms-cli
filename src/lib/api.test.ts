@@ -384,7 +384,10 @@ describe('wrapResult — central 403 translation', () => {
         await expect(client.channels.deleteChannel('CH429')).rejects.toMatchObject({
             code: 'RATE_LIMITED',
             message: 'Comms is rate limiting requests: 429 Too Many Requests.',
-            hints: ['Wait a moment, then retry'],
+            hints: [
+                'Wait a minute or two before retrying',
+                'Retrying sooner keeps the limit in place, because rejected calls count against it too',
+            ],
         })
     })
 
