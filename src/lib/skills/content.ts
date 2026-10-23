@@ -336,9 +336,11 @@ If a channel is not found in \`tdc channels\`, widen with broader listings such 
 
 \`tdc channel threads\` returns every thread in the channel; pagination filters (\`--limit\`, \`--cursor\`, \`--since\`, \`--until\`, \`--unread\`) are applied client-side after fetch. \`--archive-filter\` is applied server-side. Results are sorted newest-first by last activity. In \`--json\` / \`--ndjson\`, the response includes a \`nextCursor\` string (opaque) you can pass via \`--cursor\` to fetch the next page; NDJSON emits the cursor as a final \`{ "_meta": true, "nextCursor": "..." }\` line.
 
-Both \`channel create\` and \`channel update\` accept \`--default-groups <refs>\` (comma-separated group IDs or names) and \`--default-users <refs>\` (comma-separated user IDs, emails, or names). These set the default audience for new threads and enable \`useDefaultRecipients\`; each supplied list replaces that server-side list, while omitted lists are unchanged on update. Empty strings or empty list entries are errors. \`--clear-default-audience\` disables defaults and empties both lists, and cannot be combined with either list option. \`--dry-run\` prints resolved IDs before any mutation. This does not change channel membership.
+On \`channel create\` and \`channel update\`, \`--default-groups\` and \`--default-users\` set who new threads are addressed to. They do not add channel members.
 
-\`channel list --json --full\` preserves \`useDefaultRecipients\`, \`defaultGroups\`, and \`defaultRecipients\`. For a single channel, \`channel members list <ref> --json\` includes these fields and \`defaultAudience: { useDefaultRecipients, groups: [{id, name}], users: [{id, name, email}] }\` (also with \`--full\` or \`--ndjson\`). Unavailable names/emails are null.
+On update, each supplied list replaces that list. Omitted lists stay unchanged. Use \`--clear-default-audience\` to disable defaults and empty both lists.
+
+Use \`channel members list <ref> --json\` to inspect the default audience.
 
 For \`tdc channel members add/remove/set\`, refs accept user identifiers (\`id:N\`, email, name) or \`group:<ref>\`, which expands to the group's current members. Group expansion is one-shot — it is not a persistent link, so users added to the group later will not auto-join the channel. \`set\` replaces membership with the resolved set and is dry-run by default (pass \`--apply\` to mutate); it refuses to remove the acting user unless \`--include-self\` is passed.
 
