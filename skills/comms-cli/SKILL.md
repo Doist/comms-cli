@@ -258,6 +258,7 @@ tdc users --ids-only              # Output only user IDs
 tdc status                        # Show your status (default login is enough)
 tdc status --json                 # Show it as { status } JSON (null when unset; --full for the whole user)
 tdc status set "Deep work" --emoji 🎯 --for 2h --pause-notifications  # Set it (replaces any current status; needs --full-access)
+tdc status set "On holiday" --pause-activity  # Pause Todoist Karma and streaks while it is active (independent of --pause-notifications)
 tdc status set "On holiday" --until 2026-10-20T09:00  # End at a date (YYYY-MM-DD, YYYY-MM-DDTHH:MM or a full ISO 8601 timestamp; local time unless it has Z or an offset)
 tdc status set "Away" --dry-run   # Preview without setting
 tdc status set "Away" --json      # Set and return { status } as JSON
@@ -323,6 +324,8 @@ All group *writes* (`groups create`, `rename`, `delete`, `add-user`, `remove-use
 `tdc status set` and `tdc status clear` need the `user:write` scope, which only `tdc auth login --full-access` grants. `tdc status` (show) works on a default login.
 
 Only pass `--pause-notifications` when the user asks for it. It holds back Comms notifications only for now: each app has to read the status and hold its own notifications back, and Todoist does not yet. Held notifications are not sent later.
+
+Only pass `--pause-activity` when the user asks for it. It pauses their Todoist Karma and streaks while the status is active. It is independent of `--pause-notifications`: it does not hold back notifications, and pausing notifications does not protect Karma.
 
 If a channel is not found in `tdc channels`, widen with broader listings such as `tdc channels --scope public`, then `tdc channels --scope public --state all`. Check `tdc channels --help` for other available filters.
 

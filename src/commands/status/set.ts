@@ -15,6 +15,7 @@ type SetStatusOptions = MutationOptions & {
     until?: string
     for?: string
     pauseNotifications?: boolean
+    pauseActivity?: boolean
 }
 
 function resolveMessage(message: string): string {
@@ -89,7 +90,14 @@ export async function setStatus(message: string, options: SetStatusOptions): Pro
         message: text,
         ...(emoji ? { emoji } : {}),
         ...(activeUntil ? { activeUntil } : {}),
-        ...(options.pauseNotifications ? { effects: { pauseNotifications: {} } } : {}),
+        ...(options.pauseNotifications || options.pauseActivity
+            ? {
+                  effects: {
+                      ...(options.pauseNotifications ? { pauseNotifications: {} } : {}),
+                      ...(options.pauseActivity ? { pauseActivity: {} } : {}),
+                  },
+              }
+            : {}),
     }
 
     if (options.dryRun) {
@@ -98,6 +106,7 @@ export async function setStatus(message: string, options: SetStatusOptions): Pro
             Emoji: emoji,
             Until: activeUntil ? formatDateTime(activeUntil) : undefined,
             'Pause notifications': options.pauseNotifications ? 'yes' : undefined,
+            'Pause activity': options.pauseActivity ? 'yes' : undefined,
         })
         return
     }
