@@ -8,10 +8,10 @@ export type DefaultAudienceOptions = {
     clearDefaultAudience?: boolean
 }
 
-// The SDK forwards this boolean but omits it from its channel request types.
-export type DefaultAudienceArgs = Pick<UpdateChannelArgs, 'defaultGroups' | 'defaultRecipients'> & {
-    useDefaultRecipients?: boolean
-}
+export type DefaultAudienceArgs = Pick<
+    UpdateChannelArgs,
+    'useDefaultRecipients' | 'defaultGroups' | 'defaultRecipients'
+>
 
 export function validateDefaultAudienceOptions(options: DefaultAudienceOptions): void {
     if (
