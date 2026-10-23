@@ -263,10 +263,14 @@ function wrapResult(
                 )
             }
             if (isRateLimited(error)) {
+                // Agents follow this hint literally, so it says how long to wait.
                 throw new CliError(
                     'RATE_LIMITED',
                     'Comms is rate limiting requests: 429 Too Many Requests.',
-                    ['Wait a moment, then retry'],
+                    [
+                        'Wait a minute or two before retrying',
+                        'Retrying sooner keeps the limit in place, because rejected calls count against it too',
+                    ],
                 )
             }
             if (isServerError(error)) {
