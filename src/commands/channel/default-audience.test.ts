@@ -69,3 +69,35 @@ describe('default audience group resolution', () => {
         )
     })
 })
+
+describe('default audience concurrent resolution', () => {
+    it('starts user resolution while groups are pending and waits for both results', async () => {
+        const pendingGroups = Promise.withResolvers<Group[]>()
+        const pendingUsers =
+            Promise.withResolvers<{ id: number; fullName: string; email: string }[]>()
+        apiMocks.getWorkspaceGroups.mockReturnValue(pendingGroups.promise)
+        apiMocks.getWorkspaceUsers.mockReturnValue(pendingUsers.promise)
+
+        const resolved = vi.fn()
+        const result = buildDefaultAudienceArgs(
+            { defaultGroups: 'Design', defaultUsers: 'alice@doist.com' },
+            69,
+        ).then((args) => {
+            resolved(args)
+            return args
+        })
+
+        await vi.waitFor(() => expect(apiMocks.getWorkspaceUsers).toHaveBeenCalled())
+        expect(resolved).not.toHaveBeenCalled()
+
+        pendingUsers.resolve([{ id: 10, fullName: 'Alice', email: 'alice@doist.com' }])
+        expect(resolved).not.toHaveBeenCalled()
+        pendingGroups.resolve(groups)
+
+        await expect(result).resolves.toEqual({
+            useDefaultRecipients: true,
+            defaultGroups: ['GR1'],
+            defaultRecipients: [10],
+        })
+    })
+})

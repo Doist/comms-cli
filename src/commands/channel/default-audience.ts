@@ -1,4 +1,4 @@
-import type { UpdateChannelArgs } from '@doist/comms-sdk'
+import type { Group, UpdateChannelArgs } from '@doist/comms-sdk'
 import { getWorkspaceGroups } from '../../lib/api.js'
 import { CliError } from '../../lib/errors.js'
 import { parseRef, resolveGroupRef, resolveUserRefs } from '../../lib/refs.js'
@@ -41,20 +41,29 @@ export async function buildDefaultAudienceArgs(
     options: DefaultAudienceOptions,
     workspaceId: number,
 ): Promise<DefaultAudienceArgs> {
-    const args: DefaultAudienceArgs = {}
+    let groupsPromise: Promise<Group[]> | undefined
     if (options.defaultGroups !== undefined) {
         const refs = options.defaultGroups.split(',').map((ref) => ref.trim())
         const workspaceGroups = refs.some((ref) => parseRef(ref).type === 'name')
             ? getWorkspaceGroups(workspaceId)
             : undefined
-        const groups = await Promise.all(
+        groupsPromise = Promise.all(
             refs.map((ref) => resolveGroupRef(ref, workspaceId, workspaceGroups)),
         )
+    }
+    const usersPromise =
+        options.defaultUsers !== undefined
+            ? resolveUserRefs(options.defaultUsers, workspaceId)
+            : undefined
+    const [groups, userIds] = await Promise.all([groupsPromise, usersPromise])
+
+    const args: DefaultAudienceArgs = {}
+    if (groups !== undefined) {
         args.defaultGroups = groups.map((group) => group.id)
         args.useDefaultRecipients = true
     }
-    if (options.defaultUsers !== undefined) {
-        args.defaultRecipients = await resolveUserRefs(options.defaultUsers, workspaceId)
+    if (userIds !== undefined) {
+        args.defaultRecipients = userIds
         args.useDefaultRecipients = true
     }
     return args
