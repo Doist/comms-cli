@@ -1,6 +1,7 @@
 import type { UpdateChannelArgs } from '@doist/comms-sdk'
+import { getWorkspaceGroups } from '../../lib/api.js'
 import { CliError } from '../../lib/errors.js'
-import { resolveGroupRef, resolveUserRefs } from '../../lib/refs.js'
+import { parseRef, resolveGroupRef, resolveUserRefs } from '../../lib/refs.js'
 
 export type DefaultAudienceOptions = {
     defaultGroups?: string
@@ -42,8 +43,12 @@ export async function buildDefaultAudienceArgs(
 ): Promise<DefaultAudienceArgs> {
     const args: DefaultAudienceArgs = {}
     if (options.defaultGroups !== undefined) {
+        const refs = options.defaultGroups.split(',').map((ref) => ref.trim())
+        const workspaceGroups = refs.some((ref) => parseRef(ref).type === 'name')
+            ? getWorkspaceGroups(workspaceId)
+            : undefined
         const groups = await Promise.all(
-            options.defaultGroups.split(',').map((ref) => resolveGroupRef(ref.trim(), workspaceId)),
+            refs.map((ref) => resolveGroupRef(ref, workspaceId, workspaceGroups)),
         )
         args.defaultGroups = groups.map((group) => group.id)
         args.useDefaultRecipients = true

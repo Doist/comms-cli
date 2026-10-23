@@ -9,6 +9,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 const apiMocks = vi.hoisted(() => ({
     getCommsClient: vi.fn(),
     getCurrentWorkspaceId: vi.fn().mockResolvedValue(1),
+    getWorkspaceGroups: vi.fn().mockResolvedValue([]),
 }))
 
 const refsMocks = vi.hoisted(() => ({
@@ -28,6 +29,7 @@ const globalArgsMocks = vi.hoisted(() => ({
 vi.mock('../../lib/api.js', () => ({
     getCommsClient: apiMocks.getCommsClient,
     getCurrentWorkspaceId: apiMocks.getCurrentWorkspaceId,
+    getWorkspaceGroups: apiMocks.getWorkspaceGroups,
 }))
 
 vi.mock('../../lib/refs.js', () => ({
@@ -987,9 +989,17 @@ describe.each(['create', 'update'])('channel %s default audience', (command) => 
             ...fields,
         })
         if (flags.includes('--default-groups')) {
-            expect(refsMocks.resolveGroupRef).toHaveBeenCalledWith('26Q4|KLM', 69)
+            expect(refsMocks.resolveGroupRef).toHaveBeenCalledWith(
+                '26Q4|KLM',
+                69,
+                expect.any(Promise),
+            )
             if (flags[1].includes(','))
-                expect(refsMocks.resolveGroupRef).toHaveBeenCalledWith('id:GR2', 69)
+                expect(refsMocks.resolveGroupRef).toHaveBeenCalledWith(
+                    'id:GR2',
+                    69,
+                    expect.any(Promise),
+                )
         }
         if (flags.includes('--default-users')) {
             expect(refsMocks.resolveUserRefs).toHaveBeenCalledWith('id:10,alice@doist.com,Bob', 69)
@@ -1122,7 +1132,11 @@ describe.each(['create', 'update'])('channel %s default audience', (command) => 
                 '26Q4|KLM',
             ])
             expect(refsMocks.resolveChannelRef).toHaveBeenCalledWith('Engineering', 69)
-            expect(refsMocks.resolveGroupRef).toHaveBeenCalledWith('26Q4|KLM', 69)
+            expect(refsMocks.resolveGroupRef).toHaveBeenCalledWith(
+                '26Q4|KLM',
+                69,
+                expect.any(Promise),
+            )
             expect(mutation).toHaveBeenCalledWith({
                 id: 'CH10',
                 name: 'Engineering',
