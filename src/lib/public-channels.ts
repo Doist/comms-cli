@@ -3,21 +3,28 @@ import { getCommsClient } from './api.js'
 import { CliError } from './errors.js'
 import { includePrivateChannels } from './global-args.js'
 
-const channelCache = new Map<number, Channel[]>()
+type WorkspaceChannels = { channels: Channel[]; publicIds: Set<string> }
 
-export async function getWorkspaceChannels(workspaceId: number): Promise<Channel[]> {
+const channelCache = new Map<number, WorkspaceChannels>()
+
+async function loadWorkspaceChannels(workspaceId: number): Promise<WorkspaceChannels> {
     const cached = channelCache.get(workspaceId)
     if (cached) return cached
 
     const client = await getCommsClient()
     const channels = await client.channels.getChannels({ workspaceId })
-    channelCache.set(workspaceId, channels)
-    return channels
+    const publicIds = new Set(channels.filter((ch) => ch.public).map((ch) => ch.id))
+    const loaded = { channels, publicIds }
+    channelCache.set(workspaceId, loaded)
+    return loaded
+}
+
+export async function getWorkspaceChannels(workspaceId: number): Promise<Channel[]> {
+    return (await loadWorkspaceChannels(workspaceId)).channels
 }
 
 export async function getPublicChannelIds(workspaceId: number): Promise<Set<string>> {
-    const channels = await getWorkspaceChannels(workspaceId)
-    return new Set(channels.filter((ch) => ch.public).map((ch) => ch.id))
+    return (await loadWorkspaceChannels(workspaceId)).publicIds
 }
 
 export function clearChannelCache(): void {
