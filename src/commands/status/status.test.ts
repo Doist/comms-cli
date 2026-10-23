@@ -104,6 +104,17 @@ describe('tdc status', () => {
             })
         })
 
+        it('passes the activity effect through --json', async () => {
+            const status = {
+                message: 'Holiday',
+                effects: { pauseActivity: { scope: { mode: 'all' } } },
+            }
+            apiMocks.getSessionUser.mockResolvedValue({ status })
+            const spy = captureConsole('log')
+            await run('show', '--json')
+            expect(JSON.parse(logged(spy))).toEqual({ status })
+        })
+
         it('says so when there is no status', async () => {
             apiMocks.getSessionUser.mockResolvedValue({ status: null })
             const spy = captureConsole('log')
@@ -425,7 +436,7 @@ describe('tdc status reports what the server returned', () => {
         expect(help).toContain('each app')
     })
 
-    it('describes --pause-activity as protecting Karma and streaks, independent of notifications, without claiming Comms acts on it', () => {
+    it('describes --pause-activity as protecting Karma and streaks, independent of notifications', () => {
         const program = createTestProgram(registerStatusCommand)
         const set = program.commands
             .find((c) => c.name() === 'status')
@@ -435,6 +446,16 @@ describe('tdc status reports what the server returned', () => {
         expect(help).toContain('Karma')
         expect(help).toContain('streaks')
         expect(help).toMatch(/independent/i)
+    })
+
+    it('does not claim in the --pause-activity description that Comms acts on it', () => {
+        const program = createTestProgram(registerStatusCommand)
+        const set = program.commands
+            .find((c) => c.name() === 'status')
+            ?.commands.find((c) => c.name() === 'set')
+        const option = set?.options.find((o) => o.long === '--pause-activity')
+        expect(option?.description).toContain('Karma')
+        expect(option?.description).not.toMatch(/comms/i)
     })
 
     it('succeeds, with one line, when set and clear do what was asked', async () => {
