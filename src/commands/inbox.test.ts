@@ -24,19 +24,22 @@ vi.mock('../lib/global-args.js', async (importOriginal) => ({
     includePrivateChannels: vi.fn().mockReturnValue(true),
 }))
 
-vi.mock('../lib/public-channels.js', () => ({
-    getPublicChannelIds: vi.fn(),
-}))
-
 vi.mock('chalk')
 
+import { includePrivateChannels } from '../lib/global-args.js'
+import { clearChannelCache } from '../lib/public-channels.js'
 import { registerInboxCommand } from './inbox.js'
 
 const createProgram = () => createTestProgram(registerInboxCommand)
 
+beforeEach(() => {
+    clearChannelCache()
+})
+
 function mockClient(overrides: {
     inboxThreads?: unknown[]
     unreadData?: unknown[]
+    channels?: unknown[]
     getChannel?: ReturnType<typeof vi.fn>
     getInbox?: ReturnType<typeof vi.fn>
     getUnread?: ReturnType<typeof vi.fn>
@@ -45,13 +48,14 @@ function mockClient(overrides: {
     const getUnread =
         overrides.getUnread ??
         vi.fn().mockResolvedValue({ data: overrides.unreadData ?? [], version: 1 })
+    const getChannels = vi.fn().mockResolvedValue(overrides.channels ?? [])
     const getChannel = overrides.getChannel ?? vi.fn()
     apiMocks.getCommsClient.mockResolvedValue({
         inbox: { getInbox },
         threads: { getUnread },
-        channels: { getChannel },
+        channels: { getChannels, getChannel },
     })
-    return { getInbox, getUnread, getChannel }
+    return { getInbox, getUnread, getChannels, getChannel }
 }
 
 describe('inbox --workspace conflict', () => {
@@ -134,7 +138,7 @@ describe('inbox --ids-only', () => {
     it('outputs thread IDs without fetching channel names when no channel filter is set', async () => {
         vi.clearAllMocks()
         apiMocks.getCurrentWorkspaceId.mockResolvedValue(1)
-        const { getChannel } = mockClient({
+        const { getChannels, getChannel } = mockClient({
             inboxThreads: [
                 {
                     id: 'thread-1',
@@ -157,6 +161,7 @@ describe('inbox --ids-only', () => {
         await createProgram().parseAsync(['node', 'tdc', 'inbox', '--ids-only'])
 
         expect(consoleSpy).toHaveBeenCalledWith('thread-1\nthread-2')
+        expect(getChannels).not.toHaveBeenCalled()
         expect(getChannel).not.toHaveBeenCalled()
     })
 })
@@ -176,7 +181,7 @@ describe('inbox empty output (channel filter)', () => {
         }
         mockClient({
             inboxThreads: [thread],
-            getChannel: vi.fn().mockResolvedValue({ id: 'CH10', name: 'engineering' }),
+            channels: [{ id: 'CH10', name: 'engineering', public: true }],
         })
         logSpy = captureConsole('log')
     })
@@ -187,6 +192,70 @@ describe('inbox empty output (channel filter)', () => {
 
         expect(logSpy).toHaveBeenCalledTimes(1)
         expect(logSpy).toHaveBeenCalledWith('[]')
+    })
+})
+
+describe('inbox channel names', () => {
+    const threadIn = (channelId: string) => ({
+        id: `thread-${channelId}`,
+        channelId,
+        title: channelId,
+        posted: '2026-05-01T00:00:00Z',
+        url: `https://example.test/thread-${channelId}`,
+    })
+    let logSpy: ReturnType<typeof vi.spyOn>
+
+    beforeEach(() => {
+        vi.clearAllMocks()
+        apiMocks.getCurrentWorkspaceId.mockResolvedValue(1)
+        logSpy = captureConsole('log')
+    })
+
+    function channelNamesByThread(): Record<string, unknown> {
+        const output = JSON.parse(logSpy.mock.calls[0]?.[0] as string) as Array<{
+            id: string
+            channelName: unknown
+        }>
+        return Object.fromEntries(output.map((t) => [t.id, t.channelName]))
+    }
+
+    it('reuses the public-channel list for names without per-channel lookups', async () => {
+        vi.mocked(includePrivateChannels).mockReturnValueOnce(false)
+        const { getChannels, getChannel } = mockClient({
+            inboxThreads: [threadIn('CH1'), threadIn('CH2'), threadIn('CH3')],
+            channels: [
+                { id: 'CH1', name: 'engineering', public: true },
+                { id: 'CH2', name: 'design', public: true },
+                { id: 'CH3', name: 'secret', public: false },
+            ],
+        })
+
+        await createProgram().parseAsync(['node', 'tdc', 'inbox', '--json', '--full'])
+
+        expect(channelNamesByThread()).toEqual({
+            'thread-CH1': 'engineering',
+            'thread-CH2': 'design',
+        })
+        expect(getChannels).toHaveBeenCalledTimes(1)
+        expect(getChannel).not.toHaveBeenCalled()
+    })
+
+    it('looks up only the channels missing from the list', async () => {
+        const { getChannels, getChannel } = mockClient({
+            inboxThreads: [threadIn('CH1'), threadIn('CH-left')],
+            channels: [{ id: 'CH1', name: 'engineering', public: true }],
+            getChannel: vi.fn().mockResolvedValue({ id: 'CH-left', name: 'old-team' }),
+        })
+
+        await createProgram().parseAsync(['node', 'tdc', 'inbox', '--json', '--full'])
+
+        expect(channelNamesByThread()).toEqual({
+            'thread-CH1': 'engineering',
+            'thread-CH-left': 'old-team',
+        })
+        expect(getChannels).toHaveBeenCalledTimes(1)
+        expect(getChannel).toHaveBeenCalledTimes(1)
+        expect(getChannel).toHaveBeenCalledWith('CH-left')
     })
 })
 
@@ -249,7 +318,7 @@ describe('inbox unread mentions', () => {
         mockClient({
             inboxThreads: threads,
             unreadData,
-            getChannel: vi.fn().mockResolvedValue({ id: 'CH1', name: 'engineering' }),
+            channels: [{ id: 'CH1', name: 'engineering', public: true }],
         })
         logSpy = captureConsole('log')
     })
