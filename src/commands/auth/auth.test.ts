@@ -421,6 +421,7 @@ describe('auth command', () => {
                     accessToken: 'tk_refreshed_1234567890',
                     refreshToken: 'rt_refreshed_1234567890',
                 }),
+                { preserveStorage: true },
             )
             expect(stdoutPayload()).toBe('tk_refreshed_1234567890')
             // The stored-token read path is bypassed entirely on a refresh.
@@ -674,6 +675,7 @@ describe('auth command', () => {
                     refreshToken: 'rt_refreshed_1234567890',
                     accessTokenExpiresAt: expect.any(Number),
                 }),
+                { preserveStorage: true },
             )
             expect(mockCreateWrappedCommsClient).toHaveBeenCalledWith('tk_refreshed_1234567890', {
                 baseUrl: 'https://comms.staging.todoist.com',
