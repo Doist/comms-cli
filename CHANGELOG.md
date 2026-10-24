@@ -1,3 +1,9 @@
+## [3.7.1](https://github.com/Doist/comms-cli/compare/v3.7.0...v3.7.1) (2026-10-24)
+
+### Bug Fixes
+
+- **deps:** update dependency @doist/cli-core to v1.7.2 ([#95](https://github.com/Doist/comms-cli/issues/95)) ([37b77f5](https://github.com/Doist/comms-cli/commit/37b77f5482949899d74a8e98665d28d1a1e628cb)), closes [Doist/cli-core#155](https://github.com/Doist/cli-core/issues/155) [Doist/todoist-cli#577](https://github.com/Doist/todoist-cli/issues/577)
+
 ## [3.7.0](https://github.com/Doist/comms-cli/compare/v3.6.6...v3.7.0) (2026-10-21)
 
 ### Features
