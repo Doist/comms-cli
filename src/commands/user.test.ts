@@ -255,6 +255,19 @@ describe('user status line', () => {
         expect(lines).toContain('Status:    🎯 Deep work')
     })
 
+    it('notes a paused activity on the status line', async () => {
+        apiMocks.getSessionUser.mockResolvedValue({
+            ...baseUser,
+            status: { message: 'Holiday', effects: { pauseActivity: {} } },
+        })
+        const consoleSpy = captureConsole('log')
+
+        await createProgram().parseAsync(['node', 'tdc', 'user'])
+
+        const lines = consoleSpy.mock.calls.map((call) => call[0])
+        expect(lines).toContain('Status:    Holiday (activity paused)')
+    })
+
     it('includes the status in the curated --json output, and omits it when there is none', async () => {
         apiMocks.getSessionUser.mockResolvedValue({
             ...baseUser,

@@ -64,6 +64,57 @@ describe('tdc status', () => {
             expect(logged(spy)).toBe('🎯 Deep work (notifications paused)')
         })
 
+        it('names each paused effect, notifications first', async () => {
+            apiMocks.getSessionUser.mockResolvedValue({
+                status: {
+                    message: 'Holiday',
+                    effects: {
+                        pauseActivity: { scope: { mode: 'all' } },
+                        pauseNotifications: { scope: { mode: 'all' } },
+                    },
+                },
+            })
+            const spy = captureConsole('log')
+            await run('show')
+            expect(logged(spy)).toBe('Holiday (notifications paused, activity paused)')
+        })
+
+        it('shows the activity pause on its own, after the expiry', async () => {
+            apiMocks.getSessionUser.mockResolvedValue({
+                status: {
+                    message: 'Holiday',
+                    activeUntil: '2026-10-20T09:00:00.000Z',
+                    effects: { pauseActivity: { scope: { mode: 'all' } } },
+                },
+            })
+            const spy = captureConsole('log')
+            await run('show')
+            expect(logged(spy)).toMatch(/^Holiday \(until .+, activity paused\)$/)
+            expect(logged(spy)).not.toContain('notifications paused')
+        })
+
+        it('keeps the JSON shape for a status without the effect', async () => {
+            apiMocks.getSessionUser.mockResolvedValue({
+                status: { message: 'Away', effects: { pauseNotifications: {} } },
+            })
+            const spy = captureConsole('log')
+            await run('show', '--json')
+            expect(JSON.parse(logged(spy))).toEqual({
+                status: { message: 'Away', effects: { pauseNotifications: {} } },
+            })
+        })
+
+        it('passes the activity effect through --json', async () => {
+            const status = {
+                message: 'Holiday',
+                effects: { pauseActivity: { scope: { mode: 'all' } } },
+            }
+            apiMocks.getSessionUser.mockResolvedValue({ status })
+            const spy = captureConsole('log')
+            await run('show', '--json')
+            expect(JSON.parse(logged(spy))).toEqual({ status })
+        })
+
         it('says so when there is no status', async () => {
             apiMocks.getSessionUser.mockResolvedValue({ status: null })
             const spy = captureConsole('log')
@@ -103,6 +154,50 @@ describe('tdc status', () => {
                 activeUntil: new Date('2026-10-20T09:00:00Z'),
                 effects: { pauseNotifications: {} },
             })
+        })
+
+        it('sends only the activity effect for --pause-activity', async () => {
+            captureConsole('log')
+            await run('set', 'Holiday', '--pause-activity')
+            expect(users.setStatus).toHaveBeenCalledWith({
+                message: 'Holiday',
+                effects: { pauseActivity: {} },
+            })
+        })
+
+        it('sends both effects when both flags are given', async () => {
+            captureConsole('log')
+            await run('set', 'Holiday', '--pause-notifications', '--pause-activity')
+            expect(users.setStatus).toHaveBeenCalledWith({
+                message: 'Holiday',
+                effects: { pauseNotifications: {}, pauseActivity: {} },
+            })
+        })
+
+        it('lists the activity pause in the --dry-run preview only when asked for', async () => {
+            const spy = captureConsole('log')
+            await run('set', 'Holiday', '--pause-activity', '--dry-run')
+            expect(logged(spy)).toContain('Pause activity')
+            expect(users.setStatus).not.toHaveBeenCalled()
+
+            spy.mockClear()
+            await run('set', 'Holiday', '--dry-run')
+            expect(logged(spy)).toContain('Would set status')
+            expect(logged(spy)).not.toContain('Pause activity')
+        })
+
+        it('prints the activity pause in the text output', async () => {
+            users.setStatus.mockResolvedValue({
+                id: 1,
+                status: {
+                    message: 'Holiday',
+                    emoji: null,
+                    effects: { pauseActivity: { scope: { mode: 'all' } } },
+                },
+            })
+            const spy = captureConsole('log')
+            await run('set', 'Holiday', '--pause-activity')
+            expect(logged(spy)).toBe('Status set: Holiday (activity paused)')
         })
 
         it('turns --for into an expiry that long from now', async () => {
@@ -339,6 +434,28 @@ describe('tdc status reports what the server returned', () => {
         expect(help).toContain('--pause-notifications')
         expect(help).toContain('Comms only for now')
         expect(help).toContain('each app')
+    })
+
+    it('describes --pause-activity as protecting Karma and streaks, independent of notifications', () => {
+        const program = createTestProgram(registerStatusCommand)
+        const set = program.commands
+            .find((c) => c.name() === 'status')
+            ?.commands.find((c) => c.name() === 'set')
+        const help = set?.helpInformation() ?? ''
+        expect(help).toContain('--pause-activity')
+        expect(help).toContain('Karma')
+        expect(help).toContain('streaks')
+        expect(help).toMatch(/independent/i)
+    })
+
+    it('does not claim in the --pause-activity description that Comms acts on it', () => {
+        const program = createTestProgram(registerStatusCommand)
+        const set = program.commands
+            .find((c) => c.name() === 'status')
+            ?.commands.find((c) => c.name() === 'set')
+        const option = set?.options.find((o) => o.long === '--pause-activity')
+        expect(option?.description).toContain('Karma')
+        expect(option?.description).not.toMatch(/comms/i)
     })
 
     it('succeeds, with one line, when set and clear do what was asked', async () => {
