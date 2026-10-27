@@ -1,3 +1,9 @@
+## [3.8.0](https://github.com/Doist/comms-cli/compare/v3.7.1...v3.8.0) (2026-10-27)
+
+### Features
+
+- **status:** add --pause-activity to status set and show it ([#92](https://github.com/Doist/comms-cli/issues/92)) ([a5c1c52](https://github.com/Doist/comms-cli/commit/a5c1c52554add5c429428f1dc145aab406505e22))
+
 ## [3.7.1](https://github.com/Doist/comms-cli/compare/v3.7.0...v3.7.1) (2026-10-24)
 
 ### Bug Fixes
