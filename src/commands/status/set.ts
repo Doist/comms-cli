@@ -99,10 +99,10 @@ export async function setStatus(message: string, options: SetStatusOptions): Pro
     if (options.dryRun) {
         printDryRun('set status', {
             Message: text,
-            Emoji: emoji,
-            Until: activeUntil ? formatDateTime(activeUntil) : undefined,
-            'Pause notifications': options.pauseNotifications ? 'yes' : undefined,
-            'Pause activity': options.pauseActivity ? 'yes' : undefined,
+            Emoji: emoji ?? 'cleared',
+            Until: activeUntil ? formatDateTime(activeUntil) : 'cleared',
+            'Pause notifications': options.pauseNotifications ? 'yes' : 'cleared',
+            'Pause activity': options.pauseActivity ? 'yes' : 'cleared',
         })
         return
     }

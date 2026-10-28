@@ -183,17 +183,23 @@ describe('tdc status', () => {
             })
         })
 
-        it('lists the activity pause in the --dry-run preview only when asked for', async () => {
-            const spy = captureConsole('log')
-            await run('set', 'Holiday', '--pause-activity', '--dry-run')
-            expect(logged(spy)).toContain('Pause activity')
-            expect(users.setStatus).not.toHaveBeenCalled()
-
-            spy.mockClear()
-            await run('set', 'Holiday', '--dry-run')
-            expect(logged(spy)).toContain('Would set status')
-            expect(logged(spy)).not.toContain('Pause activity')
-        })
+        it.each([
+            { flags: [], pauseActivity: 'cleared' },
+            { flags: ['--pause-activity'], pauseActivity: 'yes' },
+        ])(
+            'previews cleared values and Pause activity: $pauseActivity on --dry-run',
+            async ({ flags, pauseActivity }) => {
+                const spy = captureConsole('log')
+                await run('set', 'Holiday', ...flags, '--dry-run')
+                expect(users.setStatus).not.toHaveBeenCalled()
+                const out = logged(spy)
+                expect(out).toContain('Message: Holiday')
+                expect(out).toContain('Emoji: cleared')
+                expect(out).toContain('Until: cleared')
+                expect(out).toContain('Pause notifications: cleared')
+                expect(out).toContain(`Pause activity: ${pauseActivity}`)
+            },
+        )
 
         it('prints the activity pause in the text output', async () => {
             users.setStatus.mockResolvedValue({
