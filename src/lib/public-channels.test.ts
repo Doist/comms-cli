@@ -6,11 +6,7 @@ vi.mock('./api.js', () => ({
 
 import { getCommsClient } from './api.js'
 import { includePrivateChannels, resetGlobalArgs } from './global-args.js'
-import {
-    assertChannelIsPublic,
-    clearPublicChannelCache,
-    getPublicChannelIds,
-} from './public-channels.js'
+import { assertChannelIsPublic, clearChannelCache, getPublicChannelIds } from './public-channels.js'
 
 const mockGetCommsClient = vi.mocked(getCommsClient)
 
@@ -78,7 +74,7 @@ describe('includePrivateChannels', () => {
 
 describe('getPublicChannelIds', () => {
     beforeEach(() => {
-        clearPublicChannelCache()
+        clearChannelCache()
     })
 
     it('returns only public channel IDs', async () => {
@@ -128,7 +124,7 @@ describe('assertChannelIsPublic', () => {
     const originalEnv = process.env.COMMS_INCLUDE_PRIVATE_CHANNELS
 
     beforeEach(() => {
-        clearPublicChannelCache()
+        clearChannelCache()
         resetGlobalArgs()
         process.argv = ['node', 'tdc']
         delete process.env.COMMS_INCLUDE_PRIVATE_CHANNELS
