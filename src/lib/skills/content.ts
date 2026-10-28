@@ -261,7 +261,7 @@ tdc users --include-removed       # Include users removed from the workspace
 tdc users --ids-only              # Output only user IDs
 tdc status                        # Show your status (default login is enough)
 tdc status --json                 # Show it as { status } JSON (null when unset; --full for the whole user)
-tdc status set "Deep work" --emoji 🎯 --for 2h --pause-notifications  # Set it (replaces any current status; needs --full-access)
+tdc status set "Deep work" --emoji 🎯 --for 2h --pause-notifications  # Set supported fields (needs --full-access)
 tdc status set "On holiday" --pause-activity  # Pause Todoist Karma and streaks while it is active (independent of --pause-notifications)
 tdc status set "On holiday" --until 2026-10-20T09:00  # End at a date (YYYY-MM-DD, YYYY-MM-DDTHH:MM or a full ISO 8601 timestamp; local time unless it has Z or an offset)
 tdc status set "Away" --dry-run   # Preview without setting
@@ -326,6 +326,8 @@ tdc groups remove-user <ref> id:123,id:456      # Comma-separated ID refs
 All group *writes* (\`groups create\`, \`rename\`, \`delete\`, \`add-user\`, \`remove-user\`) need the \`workspaces:write\` scope, which only \`tdc auth login --full-access\` grants. Group *reads* (\`groups\`, \`groups view\`) work on a default login.
 
 \`tdc status set\` and \`tdc status clear\` need the \`user:write\` scope, which only \`tdc auth login --full-access\` grants. \`tdc status\` (show) works on a default login.
+
+\`tdc status set\` replaces the fields this CLI supports: omitted emoji, expiration and pause flags clear those values, while other fields and effects are preserved.
 
 Only pass \`--pause-notifications\` when the user asks for it. It holds back Comms notifications only for now: each app has to read the status and hold its own notifications back, and Todoist does not yet. Held notifications are not sent later.
 

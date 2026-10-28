@@ -88,25 +88,21 @@ export async function setStatus(message: string, options: SetStatusOptions): Pro
 
     const args: SetStatusArgs = {
         message: text,
-        ...(emoji ? { emoji } : {}),
-        ...(activeUntil ? { activeUntil } : {}),
-        ...(options.pauseNotifications || options.pauseActivity
-            ? {
-                  effects: {
-                      ...(options.pauseNotifications ? { pauseNotifications: {} } : {}),
-                      ...(options.pauseActivity ? { pauseActivity: {} } : {}),
-                  },
-              }
-            : {}),
+        emoji: emoji ?? null,
+        activeUntil: activeUntil ?? null,
+        effects: {
+            pauseNotifications: options.pauseNotifications ? {} : null,
+            pauseActivity: options.pauseActivity ? {} : null,
+        },
     }
 
     if (options.dryRun) {
         printDryRun('set status', {
             Message: text,
-            Emoji: emoji,
-            Until: activeUntil ? formatDateTime(activeUntil) : undefined,
-            'Pause notifications': options.pauseNotifications ? 'yes' : undefined,
-            'Pause activity': options.pauseActivity ? 'yes' : undefined,
+            Emoji: emoji ?? 'cleared',
+            Until: activeUntil ? formatDateTime(activeUntil) : 'cleared',
+            'Pause notifications': options.pauseNotifications ? 'yes' : 'cleared',
+            'Pause activity': options.pauseActivity ? 'yes' : 'cleared',
         })
         return
     }

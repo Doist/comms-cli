@@ -22,7 +22,7 @@ Examples:
 
     status
         .command('set <message>')
-        .description('Set your status, replacing any current one')
+        .description('Set your status, replacing its message, emoji, expiration, and pause effects')
         .option('--emoji <emoji>', 'Emoji to show next to the message')
         .option(
             '--until <datetime>',
@@ -49,6 +49,7 @@ Setting or clearing it needs the user:write scope, so log in with tdc auth login
 its own notifications back, and Todoist does not yet. Held notifications are not sent later.
 --pause-activity protects your Todoist Karma and streaks. It does not hold back notifications,
 and --pause-notifications does not protect Karma, so pass both if you want both.
+Omitted emoji, expiration, and pause flags clear those values. Other fields and effects are preserved.
 
 Examples:
   tdc status set "On holiday" --emoji 🏝️ --until 2026-10-20T09:00

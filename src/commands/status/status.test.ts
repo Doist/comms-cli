@@ -131,10 +131,15 @@ describe('tdc status', () => {
     })
 
     describe('set', () => {
-        it('sends the message alone when nothing else is given', async () => {
+        it('explicitly removes omitted optional values and known effects', async () => {
             captureConsole('log')
             await run('set', 'Away')
-            expect(users.setStatus).toHaveBeenCalledWith({ message: 'Away' })
+            expect(users.setStatus).toHaveBeenCalledWith({
+                message: 'Away',
+                emoji: null,
+                activeUntil: null,
+                effects: { pauseNotifications: null, pauseActivity: null },
+            })
         })
 
         it('sends emoji, an --until date and the pause effect', async () => {
@@ -152,7 +157,7 @@ describe('tdc status', () => {
                 message: 'Holiday',
                 emoji: '🏝️',
                 activeUntil: new Date('2026-10-20T09:00:00Z'),
-                effects: { pauseNotifications: {} },
+                effects: { pauseNotifications: {}, pauseActivity: null },
             })
         })
 
@@ -160,8 +165,10 @@ describe('tdc status', () => {
             captureConsole('log')
             await run('set', 'Holiday', '--pause-activity')
             expect(users.setStatus).toHaveBeenCalledWith({
+                emoji: null,
+                activeUntil: null,
                 message: 'Holiday',
-                effects: { pauseActivity: {} },
+                effects: { pauseNotifications: null, pauseActivity: {} },
             })
         })
 
@@ -169,22 +176,30 @@ describe('tdc status', () => {
             captureConsole('log')
             await run('set', 'Holiday', '--pause-notifications', '--pause-activity')
             expect(users.setStatus).toHaveBeenCalledWith({
+                emoji: null,
+                activeUntil: null,
                 message: 'Holiday',
                 effects: { pauseNotifications: {}, pauseActivity: {} },
             })
         })
 
-        it('lists the activity pause in the --dry-run preview only when asked for', async () => {
-            const spy = captureConsole('log')
-            await run('set', 'Holiday', '--pause-activity', '--dry-run')
-            expect(logged(spy)).toContain('Pause activity')
-            expect(users.setStatus).not.toHaveBeenCalled()
-
-            spy.mockClear()
-            await run('set', 'Holiday', '--dry-run')
-            expect(logged(spy)).toContain('Would set status')
-            expect(logged(spy)).not.toContain('Pause activity')
-        })
+        it.each([
+            { flags: [], pauseActivity: 'cleared' },
+            { flags: ['--pause-activity'], pauseActivity: 'yes' },
+        ])(
+            'previews cleared values and Pause activity: $pauseActivity on --dry-run',
+            async ({ flags, pauseActivity }) => {
+                const spy = captureConsole('log')
+                await run('set', 'Holiday', ...flags, '--dry-run')
+                expect(users.setStatus).not.toHaveBeenCalled()
+                const out = logged(spy)
+                expect(out).toContain('Message: Holiday')
+                expect(out).toContain('Emoji: cleared')
+                expect(out).toContain('Until: cleared')
+                expect(out).toContain('Pause notifications: cleared')
+                expect(out).toContain(`Pause activity: ${pauseActivity}`)
+            },
+        )
 
         it('prints the activity pause in the text output', async () => {
             users.setStatus.mockResolvedValue({
@@ -204,6 +219,8 @@ describe('tdc status', () => {
             captureConsole('log')
             await run('set', 'Focus', '--for', '1h30m')
             expect(users.setStatus).toHaveBeenCalledWith({
+                emoji: null,
+                effects: { pauseNotifications: null, pauseActivity: null },
                 message: 'Focus',
                 activeUntil: new Date('2026-10-14T13:30:00.000Z'),
             })
@@ -240,6 +257,8 @@ describe('tdc status', () => {
             captureConsole('log')
             await run('set', 'Holiday', '--until', '2026-10-20')
             expect(users.setStatus).toHaveBeenCalledWith({
+                emoji: null,
+                effects: { pauseNotifications: null, pauseActivity: null },
                 message: 'Holiday',
                 activeUntil: new Date(2026, 9, 20),
             })
@@ -357,7 +376,12 @@ describe('tdc status set input guards', () => {
     it('sends the trimmed message', async () => {
         captureConsole('log')
         await run('set', '  Away  ')
-        expect(users.setStatus).toHaveBeenCalledWith({ message: 'Away' })
+        expect(users.setStatus).toHaveBeenCalledWith({
+            emoji: null,
+            activeUntil: null,
+            effects: { pauseNotifications: null, pauseActivity: null },
+            message: 'Away',
+        })
     })
 
     it.each([80, 41])(
@@ -373,6 +397,8 @@ describe('tdc status set input guards', () => {
         captureConsole('log')
         await run('set', 'ok', '--until', '2026-10-20T09:00+02:00')
         expect(users.setStatus).toHaveBeenCalledWith({
+            emoji: null,
+            effects: { pauseNotifications: null, pauseActivity: null },
             message: 'ok',
             activeUntil: new Date('2026-10-20T07:00:00Z'),
         })
