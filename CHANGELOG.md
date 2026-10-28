@@ -1,3 +1,9 @@
+## [3.8.1](https://github.com/Doist/comms-cli/compare/v3.8.0...v3.8.1) (2026-10-28)
+
+### Bug Fixes
+
+- send explicit Status field and effect removals ([#96](https://github.com/Doist/comms-cli/issues/96)) ([63135a9](https://github.com/Doist/comms-cli/commit/63135a9c5910c94467ff201dcc4baff00afd9ae4))
+
 ## [3.8.0](https://github.com/Doist/comms-cli/compare/v3.7.1...v3.8.0) (2026-10-27)
 
 ### Features
