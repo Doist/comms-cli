@@ -57,11 +57,11 @@ const workspaceUsers = [
 function createClient() {
     return {
         workspaceUsers: {
-            getUserById: vi.fn(async ({ userId }: { workspaceId: number; userId: number }) => {
-                const user = workspaceUsers.find((u) => u.id === userId)
-                if (!user) throw new Error(`User ${userId} not found`)
-                return user
-            }),
+            getUsersByIds: vi.fn(async ({ userIds }: { workspaceId: number; userIds: number[] }) =>
+                Object.fromEntries(
+                    userIds.map((id) => [id, workspaceUsers.find((u) => u.id === id) ?? null]),
+                ),
+            ),
         },
         channels: { getChannel: vi.fn() },
     }
@@ -130,11 +130,13 @@ describe('tdc channel members list (default)', () => {
         refsMocks.resolveChannelRef.mockResolvedValue(createChannel([6]))
         apiMocks.getCommsClient.mockResolvedValue({
             workspaceUsers: {
-                getUserById: vi.fn().mockResolvedValue({
-                    id: 6,
-                    fullName: 'Restricted User',
-                    email: 'restricted@example.com',
-                    restricted: true,
+                getUsersByIds: vi.fn().mockResolvedValue({
+                    6: {
+                        id: 6,
+                        fullName: 'Restricted User',
+                        email: 'restricted@example.com',
+                        restricted: true,
+                    },
                 }),
             },
         })

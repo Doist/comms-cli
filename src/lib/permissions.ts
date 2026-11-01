@@ -15,6 +15,7 @@ const KNOWN_SAFE_API_METHODS = new Set([
     'workspaces.getPublicChannels',
     'workspaceUsers.getWorkspaceUsers',
     'workspaceUsers.getUserById',
+    'workspaceUsers.getUsersByIds',
     'threads.getThread',
     'threads.getThreads',
     'threads.getUnread',

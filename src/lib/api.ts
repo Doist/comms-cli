@@ -42,6 +42,7 @@ const API_SPINNER_MESSAGES: Record<string, { text: string; color?: 'blue' | 'gre
         'workspaces.getPublicChannels': { text: 'Loading public channels...', color: 'blue' },
         'workspaceUsers.getWorkspaceUsers': { text: 'Loading workspace users...', color: 'blue' },
         'workspaceUsers.getUserById': { text: 'Loading user details...', color: 'blue' },
+        'workspaceUsers.getUsersByIds': { text: 'Loading user details...', color: 'blue' },
 
         // Thread operations
         'threads.getThread': { text: 'Loading thread...', color: 'blue' },

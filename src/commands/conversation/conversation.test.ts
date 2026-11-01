@@ -159,6 +159,9 @@ function createClient({
             getUserById: vi.fn(
                 async ({ userId }: { workspaceId: number; userId: number }) => users[userId],
             ),
+            getUsersByIds: vi.fn(async ({ userIds }: { workspaceId: number; userIds: number[] }) =>
+                Object.fromEntries(userIds.map((id) => [id, users[id] ?? null])),
+            ),
             getWorkspaceUsers: vi.fn(async () => Object.values(users)),
         },
     }
@@ -985,14 +988,14 @@ describe('conversation view error propagation', () => {
             activeConversations: [conversation],
             messagesByConversation: { '42': [] },
         })
-        client.workspaceUsers.getUserById.mockRejectedValue(new Error('User lookup failed'))
+        client.workspaceUsers.getUsersByIds.mockRejectedValue(new Error('User lookup failed'))
         apiMocks.getCommsClient.mockResolvedValue(client)
 
         const program = createProgram()
         const consoleSpy = captureConsole('log')
 
-        // view.ts swallows individual user-lookup failures and falls back to
-        // `user:${id}` — the conversation itself still renders.
+        // view.ts swallows a failed user lookup and falls back to `user:${id}` —
+        // the conversation itself still renders.
         await program.parseAsync(['node', 'tdc', 'conversation', 'view', '42'])
 
         const output = consoleSpy.mock.calls.map((c) => c[0]).join('\n')

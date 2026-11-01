@@ -23,21 +23,15 @@ export async function fetchUsersByIds(
 ): Promise<Map<number, VisibleWorkspaceUser>> {
     if (userIds.length === 0) return new Map()
     const client = await getCommsClient()
-    // Per-member fetch keeps latency tied to channel size, not workspace size
+    // A by-id batch keeps latency tied to channel size, not workspace size
     // (mirrors groups/view); missing/unresolvable users are simply skipped.
-    const entries = await Promise.all(
-        userIds.map(async (userId) => {
-            try {
-                const user = await client.workspaceUsers.getUserById({ workspaceId, userId })
-                return [userId, user] as const
-            } catch {
-                return null
-            }
-        }),
-    )
+    const users = await client.workspaceUsers
+        .getUsersByIds({ workspaceId, userIds })
+        .catch((): Record<number, VisibleWorkspaceUser | null> => ({}))
     const map = new Map<number, VisibleWorkspaceUser>()
-    for (const entry of entries) {
-        if (entry) map.set(entry[0], entry[1])
+    for (const userId of userIds) {
+        const user = users[userId]
+        if (user) map.set(userId, user)
     }
     return map
 }
