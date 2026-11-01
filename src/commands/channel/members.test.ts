@@ -159,6 +159,20 @@ describe('tdc channel members list (default)', () => {
         const output = consoleSpy.mock.calls.map((c) => c[0]).join('\n')
         expect(output).toContain('user:99')
     })
+
+    it('falls back to user:<id> for every member when the lookup fails', async () => {
+        refsMocks.resolveChannelRef.mockResolvedValue(createChannel([1, 2]))
+        const client = createClient()
+        client.workspaceUsers.getUsersByIds.mockRejectedValue(new Error('Unauthorized'))
+        apiMocks.getCommsClient.mockResolvedValue(client)
+        const consoleSpy = captureConsole('log')
+
+        await createProgram().parseAsync(['node', 'tdc', 'channel', 'members', 'General'])
+
+        const output = consoleSpy.mock.calls.map((c) => c[0]).join('\n')
+        expect(output).toContain('user:1')
+        expect(output).toContain('user:2')
+    })
 })
 
 describe('tdc channel members add', () => {

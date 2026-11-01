@@ -267,6 +267,19 @@ describe('tdc groups view', () => {
         expect(output.members[1]).toMatchObject({ id: 2, name: 'Bob' })
     })
 
+    it('renders every member as user:N when the lookup fails', async () => {
+        mockGetUsersByIds.mockRejectedValueOnce(new Error('Unauthorized'))
+        const program = createProgram()
+        const consoleSpy = captureConsole('log')
+
+        await program.parseAsync(['node', 'tdc', 'groups', 'view', 'Frontend', '--json'])
+
+        const output = JSON.parse(consoleSpy.mock.calls[0][0])
+        expect(output.members).toEqual(
+            frontend.userIds.map((id) => ({ id, name: null, email: null })),
+        )
+    })
+
     it('outputs JSON with all fields when --full', async () => {
         const program = createProgram()
         const consoleSpy = captureConsole('log')
