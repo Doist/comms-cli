@@ -47,7 +47,7 @@ export async function createThread(
 
     const client = await getCommsClient()
     const channel = await client.channels.getChannel(channelId)
-    await assertChannelIsPublic(channelId, channel.workspaceId)
+    await assertChannelIsPublic(channelId, channel.workspaceId, channel.public)
 
     let resolved: ResolvedNotify | undefined
     if (allIds) {

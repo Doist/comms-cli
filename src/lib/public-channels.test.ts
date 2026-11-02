@@ -16,10 +16,14 @@ const mockGetCommsClient = vi.mocked(getCommsClient)
 
 function makeMockChannels(
     channels: Array<{ id: string; public: boolean }>,
+    workspacePublicChannels: Array<{ id: string }> = [],
 ): ReturnType<typeof getCommsClient> {
     return Promise.resolve({
         channels: {
             getChannels: vi.fn().mockResolvedValue(channels),
+        },
+        workspaces: {
+            getPublicChannels: vi.fn().mockResolvedValue(workspacePublicChannels),
         },
     }) as unknown as ReturnType<typeof getCommsClient>
 }
@@ -159,6 +163,58 @@ describe('assertChannelIsPublic', () => {
         mockGetCommsClient.mockImplementation(() => makeMockChannels([{ id: 'CH5', public: true }]))
 
         await expect(assertChannelIsPublic('CH5', 100)).resolves.toBeUndefined()
+    })
+
+    it("allows a public channel the user hasn't joined", async () => {
+        mockGetCommsClient.mockImplementation(() =>
+            makeMockChannels([{ id: 'CH5', public: true }], [{ id: 'CH5' }, { id: 'CH7' }]),
+        )
+
+        await expect(assertChannelIsPublic('CH7', 100)).resolves.toBeUndefined()
+    })
+
+    it('throws for a channel that is neither joined nor public', async () => {
+        mockGetCommsClient.mockImplementation(() =>
+            makeMockChannels([{ id: 'CH5', public: true }], [{ id: 'CH5' }, { id: 'CH7' }]),
+        )
+
+        await expect(assertChannelIsPublic('CH9', 100)).rejects.toThrow('private channel')
+    })
+
+    it("only lists the workspace's public channels for a channel the user hasn't joined", async () => {
+        const getPublicChannels = vi.fn().mockResolvedValue([{ id: 'CH5' }, { id: 'CH7' }])
+        mockGetCommsClient.mockResolvedValue({
+            channels: {
+                getChannels: vi.fn().mockResolvedValue([
+                    { id: 'CH5', public: true },
+                    { id: 'CH6', public: false },
+                ]),
+            },
+            workspaces: { getPublicChannels },
+        } as unknown as Awaited<ReturnType<typeof getCommsClient>>)
+
+        await assertChannelIsPublic('CH5', 100)
+        await expect(assertChannelIsPublic('CH6', 100)).rejects.toThrow('private channel')
+        expect(getPublicChannels).not.toHaveBeenCalled()
+
+        await assertChannelIsPublic('CH7', 100)
+        await assertChannelIsPublic('CH7', 100)
+        expect(getPublicChannels).toHaveBeenCalledTimes(1)
+        expect(getPublicChannels).toHaveBeenCalledWith(100)
+    })
+
+    it('uses the public flag a caller passes instead of looking the channel up', async () => {
+        const getChannels = vi.fn()
+        const getPublicChannels = vi.fn()
+        mockGetCommsClient.mockResolvedValue({
+            channels: { getChannels },
+            workspaces: { getPublicChannels },
+        } as unknown as Awaited<ReturnType<typeof getCommsClient>>)
+
+        await expect(assertChannelIsPublic('CH7', 100, true)).resolves.toBeUndefined()
+        await expect(assertChannelIsPublic('CH6', 100, false)).rejects.toThrow('private channel')
+        expect(getChannels).not.toHaveBeenCalled()
+        expect(getPublicChannels).not.toHaveBeenCalled()
     })
 
     it('allows private channels when --include-private-channels is set', async () => {

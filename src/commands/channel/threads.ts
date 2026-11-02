@@ -156,7 +156,7 @@ export async function showChannelThreads(
     }
 
     const channel = await resolveChannelRef(channelRef, workspaceId)
-    await assertChannelIsPublic(channel.id, workspaceId)
+    await assertChannelIsPublic(channel.id, workspaceId, channel.public)
 
     const limitNum = options.limit ? parseInt(options.limit, 10) : 50
     const limit = Number.isFinite(limitNum) && limitNum > 0 ? limitNum : 50
