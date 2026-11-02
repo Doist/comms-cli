@@ -203,6 +203,20 @@ describe('assertChannelIsPublic', () => {
         expect(getPublicChannels).toHaveBeenCalledWith(100)
     })
 
+    it('uses the public flag a caller passes instead of looking the channel up', async () => {
+        const getChannels = vi.fn()
+        const getPublicChannels = vi.fn()
+        mockGetCommsClient.mockResolvedValue({
+            channels: { getChannels },
+            workspaces: { getPublicChannels },
+        } as unknown as Awaited<ReturnType<typeof getCommsClient>>)
+
+        await expect(assertChannelIsPublic('CH7', 100, true)).resolves.toBeUndefined()
+        await expect(assertChannelIsPublic('CH6', 100, false)).rejects.toThrow('private channel')
+        expect(getChannels).not.toHaveBeenCalled()
+        expect(getPublicChannels).not.toHaveBeenCalled()
+    })
+
     it('allows private channels when --include-private-channels is set', async () => {
         process.argv = ['node', 'tdc', '--include-private-channels']
         resetGlobalArgs()

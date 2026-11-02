@@ -41,14 +41,26 @@ export function clearPublicChannelCache(): void {
     workspacePublicChannelCache.clear()
 }
 
-export async function assertChannelIsPublic(channelId: string, workspaceId: number): Promise<void> {
-    if (includePrivateChannels()) return
+async function isPublicChannel(channelId: string, workspaceId: number): Promise<boolean> {
     const joined = await getJoinedChannels(workspaceId)
-    const isPublic =
+    return (
         joined.get(channelId) ??
         // getChannels only returns joined channels, so an unjoined one could still be public.
         (await getWorkspacePublicChannelIds(workspaceId)).has(channelId)
-    if (!isPublic) {
+    )
+}
+
+/**
+ * Throws unless the channel is public or --include-private-channels is set. Callers that
+ * already have the channel pass its `public` flag, which skips the lookups.
+ */
+export async function assertChannelIsPublic(
+    channelId: string,
+    workspaceId: number,
+    isPublic?: boolean,
+): Promise<void> {
+    if (includePrivateChannels()) return
+    if (!(isPublic ?? (await isPublicChannel(channelId, workspaceId)))) {
         throw new CliError('NOT_FOUND', 'This thread belongs to a private channel.', [
             'Use --include-private-channels to access it',
         ])

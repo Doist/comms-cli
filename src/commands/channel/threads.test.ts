@@ -425,7 +425,7 @@ describe('channel threads', () => {
 
         await program.parseAsync(['node', 'tdc', 'channel', 'threads', '12345', '--json'])
 
-        expect(vi.mocked(assertChannelIsPublic)).toHaveBeenCalledWith('CH100', 1)
+        expect(vi.mocked(assertChannelIsPublic)).toHaveBeenCalledWith('CH100', 1, true)
     })
 
     it('propagates the error when the channel is private and the guard rejects', async () => {

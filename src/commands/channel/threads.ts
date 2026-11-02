@@ -74,7 +74,7 @@ export async function showChannelThreads(
     }
 
     const channel = await resolveChannelRef(channelRef, workspaceId)
-    await assertChannelIsPublic(channel.id, workspaceId)
+    await assertChannelIsPublic(channel.id, workspaceId, channel.public)
 
     const archived = archiveFilterToFlag(options.archiveFilter)
     const client = await getCommsClient()
