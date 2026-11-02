@@ -1,3 +1,10 @@
+## [3.9.1](https://github.com/Doist/comms-cli/compare/v3.9.0...v3.9.1) (2026-11-02)
+
+### Bug Fixes
+
+- **channel:** list every thread in the window, not just the newest 20 ([#101](https://github.com/Doist/comms-cli/issues/101)) ([5d18feb](https://github.com/Doist/comms-cli/commit/5d18feb830f8522d09317306fab8bd16fc42b1e8))
+- stop treating unjoined public channels as private ([#102](https://github.com/Doist/comms-cli/issues/102)) ([f8b2719](https://github.com/Doist/comms-cli/commit/f8b271987eac85bfa89ff8d02caf0e31f75edf83))
+
 ## [3.9.0](https://github.com/Doist/comms-cli/compare/v3.8.2...v3.9.0) (2026-11-02)
 
 ### Features
