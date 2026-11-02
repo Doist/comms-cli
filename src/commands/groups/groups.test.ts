@@ -182,34 +182,34 @@ describe('tdc groups list (default)', () => {
 })
 
 describe('tdc groups view', () => {
-    const mockGetUserById = vi.fn()
+    const mockGetUsersByIds = vi.fn()
 
     beforeEach(() => {
         refsMocks.resolveGroupRef.mockResolvedValue(frontend)
-        mockGetUserById.mockImplementation(
-            async ({ userId }: { workspaceId: number; userId: number }) => {
-                const user = workspaceUsers.find((u) => u.id === userId)
-                if (!user) throw new Error(`User ${userId} not found`)
-                return user
-            },
+        mockGetUsersByIds.mockImplementation(
+            async ({ userIds }: { workspaceId: number; userIds: number[] }) =>
+                Object.fromEntries(
+                    userIds.map((id) => [id, workspaceUsers.find((u) => u.id === id) ?? null]),
+                ),
         )
         apiMocks.getCommsClient.mockResolvedValue({
-            workspaceUsers: { getUserById: mockGetUserById },
+            workspaceUsers: { getUsersByIds: mockGetUsersByIds },
         })
     })
 
-    it('resolves group ref and fetches each member individually', async () => {
+    it('resolves group ref and fetches its members in one batch', async () => {
         const program = createProgram()
         const consoleSpy = captureConsole('log')
 
         await program.parseAsync(['node', 'tdc', 'groups', 'view', 'Frontend'])
 
         expect(refsMocks.resolveGroupRef).toHaveBeenCalledWith('Frontend', 1)
-        // Per-member fetch, not a workspace-wide load
-        expect(mockGetUserById).toHaveBeenCalledTimes(frontend.userIds.length)
-        for (const userId of frontend.userIds) {
-            expect(mockGetUserById).toHaveBeenCalledWith({ workspaceId: 1, userId })
-        }
+        // One by-id batch, not a workspace-wide load
+        expect(mockGetUsersByIds).toHaveBeenCalledTimes(1)
+        expect(mockGetUsersByIds).toHaveBeenCalledWith({
+            workspaceId: 1,
+            userIds: frontend.userIds,
+        })
         expect(apiMocks.getWorkspaceUsers).not.toHaveBeenCalled()
         const text = consoleSpy.mock.calls.map((c) => c[0]).join('\n')
         expect(text).toContain('Alice')
@@ -234,11 +234,13 @@ describe('tdc groups view', () => {
     })
 
     it('omits email for restricted members', async () => {
-        mockGetUserById.mockResolvedValueOnce({
-            id: 1,
-            fullName: 'Restricted User',
-            email: 'restricted@example.com',
-            restricted: true,
+        mockGetUsersByIds.mockResolvedValueOnce({
+            1: {
+                id: 1,
+                fullName: 'Restricted User',
+                email: 'restricted@example.com',
+                restricted: true,
+            },
         })
         const program = createProgram()
         const consoleSpy = captureConsole('log')
@@ -249,9 +251,11 @@ describe('tdc groups view', () => {
         expect(output.members[0]).toEqual({ id: 1, name: 'Restricted User', email: null })
     })
 
-    it('renders user:N for members whose lookup fails', async () => {
-        mockGetUserById.mockImplementationOnce(async () => {
-            throw new Error('User not found')
+    it('renders user:N for members the lookup cannot resolve', async () => {
+        mockGetUsersByIds.mockResolvedValueOnce({
+            1: null,
+            2: workspaceUsers.find((u) => u.id === 2),
+            3: workspaceUsers.find((u) => u.id === 3),
         })
         const program = createProgram()
         const consoleSpy = captureConsole('log')
@@ -259,8 +263,21 @@ describe('tdc groups view', () => {
         await program.parseAsync(['node', 'tdc', 'groups', 'view', 'Frontend', '--json'])
 
         const output = JSON.parse(consoleSpy.mock.calls[0][0])
-        const missing = output.members.find((m: { id: number }) => m.id === frontend.userIds[0])
-        expect(missing).toMatchObject({ id: 1, name: null, email: null })
+        expect(output.members[0]).toEqual({ id: 1, name: null, email: null })
+        expect(output.members[1]).toMatchObject({ id: 2, name: 'Bob' })
+    })
+
+    it('renders every member as user:N when the lookup fails', async () => {
+        mockGetUsersByIds.mockRejectedValueOnce(new Error('Unauthorized'))
+        const program = createProgram()
+        const consoleSpy = captureConsole('log')
+
+        await program.parseAsync(['node', 'tdc', 'groups', 'view', 'Frontend', '--json'])
+
+        const output = JSON.parse(consoleSpy.mock.calls[0][0])
+        expect(output.members).toEqual(
+            frontend.userIds.map((id) => ({ id, name: null, email: null })),
+        )
     })
 
     it('outputs JSON with all fields when --full', async () => {

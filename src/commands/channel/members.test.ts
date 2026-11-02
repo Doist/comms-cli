@@ -57,11 +57,11 @@ const workspaceUsers = [
 function createClient() {
     return {
         workspaceUsers: {
-            getUserById: vi.fn(async ({ userId }: { workspaceId: number; userId: number }) => {
-                const user = workspaceUsers.find((u) => u.id === userId)
-                if (!user) throw new Error(`User ${userId} not found`)
-                return user
-            }),
+            getUsersByIds: vi.fn(async ({ userIds }: { workspaceId: number; userIds: number[] }) =>
+                Object.fromEntries(
+                    userIds.map((id) => [id, workspaceUsers.find((u) => u.id === id) ?? null]),
+                ),
+            ),
         },
         channels: { getChannel: vi.fn() },
     }
@@ -130,11 +130,13 @@ describe('tdc channel members list (default)', () => {
         refsMocks.resolveChannelRef.mockResolvedValue(createChannel([6]))
         apiMocks.getCommsClient.mockResolvedValue({
             workspaceUsers: {
-                getUserById: vi.fn().mockResolvedValue({
-                    id: 6,
-                    fullName: 'Restricted User',
-                    email: 'restricted@example.com',
-                    restricted: true,
+                getUsersByIds: vi.fn().mockResolvedValue({
+                    6: {
+                        id: 6,
+                        fullName: 'Restricted User',
+                        email: 'restricted@example.com',
+                        restricted: true,
+                    },
                 }),
             },
         })
@@ -156,6 +158,20 @@ describe('tdc channel members list (default)', () => {
 
         const output = consoleSpy.mock.calls.map((c) => c[0]).join('\n')
         expect(output).toContain('user:99')
+    })
+
+    it('falls back to user:<id> for every member when the lookup fails', async () => {
+        refsMocks.resolveChannelRef.mockResolvedValue(createChannel([1, 2]))
+        const client = createClient()
+        client.workspaceUsers.getUsersByIds.mockRejectedValue(new Error('Unauthorized'))
+        apiMocks.getCommsClient.mockResolvedValue(client)
+        const consoleSpy = captureConsole('log')
+
+        await createProgram().parseAsync(['node', 'tdc', 'channel', 'members', 'General'])
+
+        const output = consoleSpy.mock.calls.map((c) => c[0]).join('\n')
+        expect(output).toContain('user:1')
+        expect(output).toContain('user:2')
     })
 })
 

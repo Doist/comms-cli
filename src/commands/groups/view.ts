@@ -1,4 +1,4 @@
-import { isRestrictedWorkspaceUser } from '@doist/comms-sdk'
+import { isRestrictedWorkspaceUser, type VisibleWorkspaceUser } from '@doist/comms-sdk'
 import { getCommsClient, getCurrentWorkspaceId } from '../../lib/api.js'
 import type { ViewOptions } from '../../lib/options.js'
 import { colors, formatJson, formatNdjson, pluralize } from '../../lib/output.js'
@@ -11,21 +11,16 @@ export async function viewGroup(ref: string, options: GroupViewOptions): Promise
     const group = await resolveGroupRef(ref, workspaceId)
 
     const client = await getCommsClient()
-    // Per-member fetch avoids loading the whole workspace directory for a small group.
-    const members = await Promise.all(
-        group.userIds.map(async (id) => {
-            try {
-                const user = await client.workspaceUsers.getUserById({
-                    workspaceId,
-                    userId: id,
-                })
-                const email = isRestrictedWorkspaceUser(user) ? null : (user.email ?? null)
-                return { id, name: user.fullName, email }
-            } catch {
-                return { id, name: null as string | null, email: null as string | null }
-            }
-        }),
-    )
+    // A by-id batch avoids loading the whole workspace directory for a small group.
+    const users = await client.workspaceUsers
+        .getUsersByIds({ workspaceId, userIds: group.userIds })
+        .catch((): Record<number, VisibleWorkspaceUser | null> => ({}))
+    const members = group.userIds.map((id) => {
+        const user = users[id]
+        if (!user) return { id, name: null as string | null, email: null as string | null }
+        const email = isRestrictedWorkspaceUser(user) ? null : (user.email ?? null)
+        return { id, name: user.fullName, email }
+    })
 
     if (options.json) {
         if (options.full) {

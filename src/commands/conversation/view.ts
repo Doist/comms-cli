@@ -1,4 +1,4 @@
-import type { CommsApi } from '@doist/comms-sdk'
+import type { CommsApi, VisibleWorkspaceUser } from '@doist/comms-sdk'
 import chalk from 'chalk'
 import { getCommsClient } from '../../lib/api.js'
 import { formatRelativeDate } from '../../lib/dates.js'
@@ -8,24 +8,20 @@ import { colors, filterEntityFields } from '../../lib/output.js'
 import { resolveConversationId } from '../../lib/refs.js'
 import { buildConversationTitle, type ConversationViewOptions } from './helpers.js'
 
-/** Per-ID lookup, deduped — avoids a workspace-wide fetch for a single conversation. */
+/** By-ID batch — avoids a workspace-wide fetch for a single conversation. */
 async function fetchUserNamesByIds(
     client: CommsApi,
     workspaceId: number,
     userIds: readonly number[],
 ): Promise<Map<number, string>> {
-    const unique = [...new Set(userIds)]
-    const entries = await Promise.all(
-        unique.map(async (userId) => {
-            try {
-                const user = await client.workspaceUsers.getUserById({ workspaceId, userId })
-                return [userId, user.fullName] as const
-            } catch {
-                return null
-            }
-        }),
-    )
-    return new Map(entries.filter((e): e is readonly [number, string] => e !== null))
+    const users = await client.workspaceUsers
+        .getUsersByIds({ workspaceId, userIds: [...userIds] })
+        .catch((): Record<number, VisibleWorkspaceUser | null> => ({}))
+    const names = new Map<number, string>()
+    for (const [id, user] of Object.entries(users)) {
+        if (user) names.set(Number(id), user.fullName)
+    }
+    return names
 }
 
 export async function viewConversation(
