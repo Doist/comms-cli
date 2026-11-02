@@ -1,25 +1,34 @@
+import type { Channel } from '@doist/comms-sdk'
 import { getCommsClient } from './api.js'
 import { CliError } from './errors.js'
 import { includePrivateChannels } from './global-args.js'
 
-const publicChannelCache = new Map<number, Set<string>>()
+type WorkspaceChannels = { channels: Channel[]; publicIds: Set<string> }
 
-export async function getPublicChannelIds(workspaceId: number): Promise<Set<string>> {
-    const cached = publicChannelCache.get(workspaceId)
+const channelCache = new Map<number, WorkspaceChannels>()
+
+async function loadWorkspaceChannels(workspaceId: number): Promise<WorkspaceChannels> {
+    const cached = channelCache.get(workspaceId)
     if (cached) return cached
 
     const client = await getCommsClient()
     const channels = await client.channels.getChannels({ workspaceId })
-    const publicIds = new Set<string>()
-    for (const ch of channels) {
-        if (ch.public) publicIds.add(ch.id)
-    }
-    publicChannelCache.set(workspaceId, publicIds)
-    return publicIds
+    const publicIds = new Set(channels.filter((ch) => ch.public).map((ch) => ch.id))
+    const loaded = { channels, publicIds }
+    channelCache.set(workspaceId, loaded)
+    return loaded
 }
 
-export function clearPublicChannelCache(): void {
-    publicChannelCache.clear()
+export async function getWorkspaceChannels(workspaceId: number): Promise<Channel[]> {
+    return (await loadWorkspaceChannels(workspaceId)).channels
+}
+
+export async function getPublicChannelIds(workspaceId: number): Promise<Set<string>> {
+    return (await loadWorkspaceChannels(workspaceId)).publicIds
+}
+
+export function clearChannelCache(): void {
+    channelCache.clear()
 }
 
 export async function assertChannelIsPublic(channelId: string, workspaceId: number): Promise<void> {

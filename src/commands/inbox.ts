@@ -9,7 +9,7 @@ import { CliError } from '../lib/errors.js'
 import { includePrivateChannels, isAccessible } from '../lib/global-args.js'
 import { toDate, type PaginatedViewOptions } from '../lib/options.js'
 import { colors, formatJson, formatNdjson } from '../lib/output.js'
-import { getPublicChannelIds } from '../lib/public-channels.js'
+import { getPublicChannelIds, getWorkspaceChannels } from '../lib/public-channels.js'
 import { resolveWorkspaceRef } from '../lib/refs.js'
 import { fetchUnreadThreads, unreadFlags } from '../lib/threads.js'
 
@@ -80,11 +80,17 @@ async function showInbox(workspaceRef: string | undefined, options: InboxOptions
 
     let channelMap = new Map<string, string>()
     if (outputMode !== 'ids-only' || options.channel) {
-        const channelIds = [...new Set(inboxThreads.map((t) => t.channelId))]
-        const channelEntries = await Promise.all(
-            channelIds.map(async (id) => [id, await client.channels.getChannel(id)] as const),
+        const channels = await getWorkspaceChannels(workspaceId)
+        channelMap = new Map(channels.map((ch) => [ch.id, ch.name]))
+        // The list only has channels the user is a member of, but an inbox thread can sit
+        // in one they've left, so look those up one by one.
+        const unlistedIds = [...new Set(inboxThreads.map((t) => t.channelId))].filter(
+            (id) => !channelMap.has(id),
         )
-        channelMap = new Map(channelEntries.map(([id, channel]) => [id, channel.name]))
+        const unlisted = await Promise.all(
+            unlistedIds.map(async (id) => [id, await client.channels.getChannel(id)] as const),
+        )
+        for (const [id, channel] of unlisted) channelMap.set(id, channel.name)
     }
 
     if (options.channel) {
