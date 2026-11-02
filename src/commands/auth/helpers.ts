@@ -85,6 +85,23 @@ export async function resetCurrentWorkspaceAfterLogin(
     }
 }
 
+/**
+ * Drop the `oauthClients` cache of DCR-registered clients that earlier versions
+ * kept in config. Logins now use the client ID metadata document, and
+ * refreshing an existing account reads the client id stored on that account,
+ * so nothing reads the cache any more. Best-effort: login should not fail
+ * because this tidy-up did.
+ */
+export async function clearLegacyOAuthClientsAfterLogin(): Promise<void> {
+    try {
+        const { oauthClients } = await getConfig()
+        if (oauthClients === undefined) return
+        await updateConfig({ oauthClients: undefined })
+    } catch {
+        // Leaving the stale cache in place is harmless.
+    }
+}
+
 async function clearCurrentWorkspaceAfterLogin(
     currentWorkspace: number | undefined,
 ): Promise<void> {

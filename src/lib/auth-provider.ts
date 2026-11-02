@@ -3,27 +3,19 @@ import {
     type AuthAccount,
     type AuthProvider,
     type CredentialStore,
-    createDcrProvider,
     createKeyringTokenStore,
-    type DcrRegisteredClient,
+    createPkceProvider,
     type ExchangeInput,
     type ExchangeResult,
     type KeyringTokenStore,
-    type PrepareInput,
     type RefreshInput,
     type TokenBundle,
     type ValidateInput,
 } from '@doist/cli-core/auth'
 import { createWrappedCommsClient } from './api.js'
-import { LOGO_URI, SECURE_STORE_SERVICE } from './auth-constants.js'
+import { OAUTH_CLIENT_ID, SECURE_STORE_SERVICE } from './auth-constants.js'
 import { makeCommsAccount, toCommsAccount } from './comms-account.js'
-import {
-    type AuthMode,
-    getConfig,
-    getConfigPath,
-    type StoredOAuthClient,
-    updateConfig,
-} from './config.js'
+import { type AuthMode, getConfig, getConfigPath } from './config.js'
 import { CliError } from './errors.js'
 import { parseRef } from './refs.js'
 import { splitScopeString } from './scopes.js'
@@ -58,7 +50,6 @@ export const FULL_ACCESS_SCOPES = [...READ_WRITE_SCOPES, ...FULL_ACCESS_EXTRA_SC
 const AUTH_HINTS = ['Try again: tdc auth login', 'Or set COMMS_API_TOKEN environment variable']
 
 const WRITE_SCOPES = new Set([...DEFAULT_WRITE_SCOPES, ...FULL_ACCESS_EXTRA_SCOPES])
-const MAX_CACHED_OAUTH_CLIENTS = 25
 
 /**
  * Single source of truth shared by `attachCommsLoginCommand`'s `resolveScopes`
@@ -134,20 +125,20 @@ export type CommsOAuthConfig = {
     authBaseUrl: string
     authorizationUrl: string
     tokenUrl: string
-    registrationUrl: string
     resource: string
 }
 
 /**
  * Todoist is the OAuth authorization server; Comms is the protected resource.
- * The CLI registers as a public DCR client (PKCE, no client secret) and pins
- * tokens to the Comms resource via the RFC 8707 `resource` indicator. The
- * registration / authorize / token-exchange / refresh mechanics all live in
- * cli-core's `createDcrProvider`; the Comms-specific behaviour is:
+ * The CLI signs in as a public client (PKCE, no client secret) identified by
+ * its client ID metadata document (`OAUTH_CLIENT_ID`), so there is no
+ * registration step, and pins tokens to the Comms resource via the RFC 8707
+ * `resource` indicator. The authorize / token-exchange / refresh mechanics
+ * live in cli-core's `createPkceProvider`; the Comms-specific behaviour is:
  *
  *  - endpoint + resource resolution from `COMMS_BASE_URL` / `COMMS_AS_URL`
  *    (see `getCommsOAuthResource` / `getTodoistAuthBaseUrl`),
- *  - caching the registered `client_id` in config (`loadClient` / `saveClient`),
+ *  - choosing the `client_id` (see `resolveClientId`),
  *  - recording the server-granted scope on the account (the `exchangeCode`
  *    wrapper stashes it on the handshake for `validate`; `refreshToken`
  *    refreshes it), and
@@ -157,26 +148,11 @@ export type CommsOAuthConfig = {
 export function createCommsAuthProvider(
     fetchImpl: typeof fetch = fetch,
 ): AuthProvider<CommsAccount> {
-    const base = createDcrProvider<CommsAccount>({
-        registrationUrl: ({ handshake }) => getOAuthConfigForHandshake(handshake).registrationUrl,
+    const base = createPkceProvider<CommsAccount>({
         authorizeUrl: ({ handshake }) => getOAuthConfigForHandshake(handshake).authorizationUrl,
         tokenUrl: ({ handshake }) => getOAuthConfigForHandshake(handshake).tokenUrl,
         resource: ({ handshake }) => getOAuthConfigForHandshake(handshake).resource,
-        clientMetadata: {
-            clientName: 'Comms CLI',
-            clientUri: 'https://github.com/doist/comms-cli',
-            logoUri: LOGO_URI,
-            tokenEndpointAuthMethod: 'none',
-            grantTypes: ['authorization_code', 'refresh_token'],
-            responseTypes: ['code'],
-            // DCR scope is the upper bound this public client may request.
-            // Per-login authorize scopes are still narrowed by `resolveScopes`;
-            // keeping registration broad lets one cached client serve read-only,
-            // default, and full-access logins.
-            extra: { scope: FULL_ACCESS_SCOPES.join(' ') },
-        },
-        loadClient: loadCachedClient,
-        saveClient: saveCachedClient,
+        clientId: ({ handshake }) => resolveClientId(handshake),
         validate: validateCommsToken,
         errorHints: AUTH_HINTS,
         fetchImpl,
@@ -204,6 +180,19 @@ export function createCommsAuthProvider(
             return account ? { ...exchange, account } : exchange
         },
     }
+}
+
+/**
+ * The `client_id` for an authorize or refresh request. A login starts from an
+ * empty handshake, so it always uses the client ID metadata document. A refresh
+ * carries the client the stored token was issued to
+ * (`getCommsOAuthRefreshHandshake`), which must be reused because Todoist binds
+ * refresh tokens to their client: for accounts that last signed in through DCR
+ * that is the `client_id` registered back then, and they keep using it until
+ * the next `tdc auth login` moves them to the metadata document.
+ */
+function resolveClientId(handshake: Record<string, unknown>): string {
+    return optionalHandshakeString(handshake, 'clientId') ?? OAUTH_CLIENT_ID
 }
 
 /**
@@ -273,10 +262,11 @@ function buildRefreshAccount(
 
 /**
  * The handshake `refreshAccessToken` forwards to the provider's
- * `refreshToken`. cli-core doesn't persist the DCR handshake, so we
- * reconstruct it from the stored account: `clientId` (read by cli-core's
- * refresh grant), the resource / auth base URL (read by the endpoint
- * resolvers), and the identity fields (read by `buildRefreshAccount`).
+ * `refreshToken`. cli-core doesn't persist the login handshake, so we
+ * reconstruct it from the stored account: `clientId` (the client the token was
+ * issued to, read by `resolveClientId`), the resource / auth base URL (read by
+ * the endpoint resolvers), and the identity fields (read by
+ * `buildRefreshAccount`).
  */
 export function getCommsOAuthRefreshHandshake(account: CommsAccount): Record<string, unknown> {
     if (!account.oauthClientId || !account.authBaseUrl || !account.authResource) {
@@ -294,12 +284,6 @@ export function getCommsOAuthRefreshHandshake(account: CommsAccount): Record<str
         authBaseUrl: account.authBaseUrl,
         resource: account.authResource,
     }
-}
-
-/** Endpoint + resource config derived from the environment (login path). */
-function getCommsOAuthConfig(): CommsOAuthConfig {
-    const resource = getCommsOAuthResource()
-    return buildCommsOAuthConfig(getTodoistAuthBaseUrl(resource), resource)
 }
 
 /**
@@ -320,63 +304,8 @@ function buildCommsOAuthConfig(authBaseUrl: string, resource: string): CommsOAut
         authBaseUrl,
         authorizationUrl: `${authBaseUrl}/oauth/authorize`,
         tokenUrl: `${authBaseUrl}/oauth/access_token`,
-        registrationUrl: `${authBaseUrl}/oauth/register`,
         resource,
     }
-}
-
-/**
- * `loadClient` hook: reuse a registered `client_id` cached in config for the
- * current auth server + resource + redirect URI. Keying on `redirectUri` is
- * required — the registration is bound to its `redirect_uris` and the callback
- * port can change between logins.
- */
-async function loadCachedClient(input: PrepareInput): Promise<DcrRegisteredClient | undefined> {
-    const config = getCommsOAuthConfig()
-    const { oauthClients } = await getConfig()
-    const cached = (Array.isArray(oauthClients) ? oauthClients : [])
-        .filter(isStoredOAuthClient)
-        .find(
-            (client) =>
-                client.authBaseUrl === config.authBaseUrl &&
-                client.authResource === config.resource &&
-                client.redirectUri === input.redirectUri,
-        )
-    return cached ? { clientId: cached.clientId } : undefined
-}
-
-/** `saveClient` hook: persist a freshly registered public client for reuse. */
-async function saveCachedClient(client: DcrRegisteredClient, input: PrepareInput): Promise<void> {
-    const config = getCommsOAuthConfig()
-    const entry: StoredOAuthClient = {
-        clientId: client.clientId,
-        authBaseUrl: config.authBaseUrl,
-        authResource: config.resource,
-        redirectUri: input.redirectUri,
-    }
-    const stored = await getConfig()
-    const existing = (Array.isArray(stored.oauthClients) ? stored.oauthClients : [])
-        .filter(isStoredOAuthClient)
-        .filter(
-            (other) =>
-                other.authBaseUrl !== entry.authBaseUrl ||
-                other.authResource !== entry.authResource ||
-                other.redirectUri !== entry.redirectUri,
-        )
-    await updateConfig({
-        oauthClients: [...existing, entry].slice(-MAX_CACHED_OAUTH_CLIENTS),
-    })
-}
-
-function isStoredOAuthClient(value: unknown): value is StoredOAuthClient {
-    if (!value || typeof value !== 'object' || Array.isArray(value)) return false
-    const record = value as Record<string, unknown>
-    return (
-        typeof record.clientId === 'string' &&
-        typeof record.authBaseUrl === 'string' &&
-        typeof record.authResource === 'string' &&
-        typeof record.redirectUri === 'string'
-    )
 }
 
 function getCommsOAuthResource(): string {
@@ -501,7 +430,7 @@ function hasErrorCode(error: unknown, code: string): boolean {
 /**
  * Operator-facing hints describing what Todoist's token endpoint actually
  * issued — surfaced only when Comms later rejects the token during `validate`.
- * Reconstructed from the `ExchangeResult` (cli-core's DCR exchange surfaces the
+ * Reconstructed from the `ExchangeResult` (cli-core's PKCE exchange surfaces the
  * access token, refresh-token presence, and granted scope).
  */
 function describeTokenResponse(exchange: ExchangeResult<CommsAccount>): string[] {

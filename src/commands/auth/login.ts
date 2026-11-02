@@ -12,7 +12,11 @@ import {
 } from '../../lib/auth-provider.js'
 import { withUnvalidatedChoices } from '../../lib/completion.js'
 import { CliError } from '../../lib/errors.js'
-import { logTokenStorageResult, resetCurrentWorkspaceAfterLogin } from './helpers.js'
+import {
+    clearLegacyOAuthClientsAfterLogin,
+    logTokenStorageResult,
+    resetCurrentWorkspaceAfterLogin,
+} from './helpers.js'
 
 const PREFERRED_CALLBACK_PORT = 8766
 
@@ -38,6 +42,7 @@ export function attachCommsLoginCommand(parent: Command): Command {
         renderError,
         async onSuccess({ view, account }) {
             await resetCurrentWorkspaceAfterLogin(store, account)
+            await clearLegacyOAuthClientsAfterLogin()
             const isMachineOutput = view.json || view.ndjson
             if (!isMachineOutput) {
                 console.log(chalk.green('✓'), 'OAuth authentication successful!')

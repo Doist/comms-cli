@@ -174,7 +174,7 @@ describe('auth shims over the cli-core keyring store', () => {
                 skewMs: 60_000,
                 lockPath: '/home/user/.config/comms-cli/config.json.refresh.lock',
                 handshake: expect.objectContaining({
-                    // cli-core's createDcrProvider refresh reads `clientId`.
+                    // The provider's refresh grant sends this as `client_id`.
                     clientId: 'tdd_123',
                     accountId: '42',
                     accountLabel: 'Ada',
@@ -186,7 +186,7 @@ describe('auth shims over the cli-core keyring store', () => {
         )
     })
 
-    it('getTokenRefreshOptions resolves the DCR handshake from the account cli-core hands it', () => {
+    it('getTokenRefreshOptions resolves the refresh handshake from the account cli-core hands it', () => {
         const options = getTokenRefreshOptions()
 
         expect(options.lockPath).toBe('/home/user/.config/comms-cli/config.json.refresh.lock')

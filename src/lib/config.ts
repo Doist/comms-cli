@@ -83,6 +83,11 @@ export type StoredUser = {
     authResource?: string
 }
 
+/**
+ * A DCR-registered OAuth client that earlier versions cached in config. No
+ * longer read or written; `tdc auth login` removes the cache, and it stays a
+ * recognised key so configs that still carry it pass `tdc doctor`.
+ */
 export type StoredOAuthClient = {
     clientId: string
     authBaseUrl: string

@@ -140,8 +140,9 @@ don't duplicate it here.
   `UPDATE_CHANNELS`.
 - **`auth.ts`** — read-side token resolver: `getApiToken`, `probeApiToken`,
   `getAuthMetadata`, `NoTokenError`, `TOKEN_ENV_VAR` (`COMMS_API_TOKEN`).
-- **`auth-provider.ts`** — `createCommsAuthProvider()` (cli-core **DCR** provider
-  with a Comms `validate` hook), `createCommsTokenStore()` (cli-core keyring
+- **`auth-provider.ts`** — `createCommsAuthProvider()` (cli-core **PKCE** provider
+  signing in with the client ID metadata document at `OAUTH_CLIENT_ID`, plus a
+  Comms `validate` hook), `createCommsTokenStore()` (cli-core keyring
   store wrapped with env-token + manual-token fallbacks), `matchCommsAccount`,
   `getScopes`, `MANUAL_TOKEN_ACCOUNT` / `isManualTokenAccount`,
   `findAccountInStore`, `getActiveTokenSource`. **No legacy/v1 migration** — this
@@ -200,8 +201,18 @@ is tried as an id vs a name.
 and the `login` / `logout` / `status` / `token view` and `account
 list/use/current/remove` attachers. comms supplies (a) a
 `UserRecordStore<CommsAccount>` adapter (`user-records.ts`) over its config file
-and (b) a Comms **DCR** provider `validate` (`auth-provider.ts`) that probes
+and (b) a Comms OAuth provider (`auth-provider.ts`) whose `validate` probes
 `getSessionUser` and records auth mode/scope (derived from `handshake.readOnly`).
+
+The CLI's OAuth `client_id` is the URL of its client ID metadata document,
+`oauth/client-metadata.json` on `main` (`OAUTH_CLIENT_ID` in
+`auth-constants.ts`), so there is no registration step. Todoist fetches the
+document from that exact URL and binds tokens to it: never move, rename, or
+delete it. Each account stores the `client_id` its token was issued to
+(`oauthClientId`) and refreshes with it, so accounts from versions that
+registered through DCR keep refreshing with their DCR client until the next
+`tdc auth login`, which moves them to the metadata document and drops the old
+`oauthClients` cache from config.
 
 Read path (`auth.ts`): env `COMMS_API_TOKEN` first, then the keyring store
 (`createCommsTokenStore` — wrapped so `active` / `activeBundle` / `activeAccount`
