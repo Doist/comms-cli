@@ -1,3 +1,9 @@
+## [3.9.0](https://github.com/Doist/comms-cli/compare/v3.8.2...v3.9.0) (2026-11-02)
+
+### Features
+
+- **auth:** sign in with a client ID metadata document instead of DCR ([#100](https://github.com/Doist/comms-cli/issues/100)) ([5e82293](https://github.com/Doist/comms-cli/commit/5e822932b72b1384b95a4c4332648fa1cd43ca36))
+
 ## [3.8.2](https://github.com/Doist/comms-cli/compare/v3.8.1...v3.8.2) (2026-11-02)
 
 ### Performance Improvements
