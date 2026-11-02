@@ -68,6 +68,10 @@ export type ThreadsCursor = {
     before: number
     /** IDs of the threads already shown from that same moment, which the next page skips. */
     shown: string[]
+    /** With --unread, how many of the channel's unread threads are still to come... */
+    unreadLeft?: number
+    /** ...and a fingerprint of the unread threads that count came from, to tell when it's stale. */
+    unreadSet?: string
 }
 
 export function encodeCursor(cursor: ThreadsCursor): string {
@@ -84,16 +88,27 @@ export function decodeCursor(cursor: string | undefined): ThreadsCursor | undefi
         throw new CliError('INVALID_CURSOR', `Invalid cursor: ${cursor}`)
     }
 
-    const { before, shown } = (parsed ?? {}) as { before?: unknown; shown?: unknown }
+    const isIdList = (ids: unknown): ids is string[] =>
+        Array.isArray(ids) && ids.every((id) => typeof id === 'string')
+    const { before, shown, unreadLeft, unreadSet } = (parsed ?? {}) as {
+        before?: unknown
+        shown?: unknown
+        unreadLeft?: unknown
+        unreadSet?: unknown
+    }
     if (
         typeof before !== 'number' ||
         !Number.isFinite(before) ||
         before < 0 ||
-        !Array.isArray(shown) ||
-        !shown.every((id) => typeof id === 'string')
+        !isIdList(shown) ||
+        (unreadLeft !== undefined &&
+            (!Number.isInteger(unreadLeft) || (unreadLeft as number) < 0)) ||
+        (unreadSet !== undefined && typeof unreadSet !== 'string')
     ) {
         throw new CliError('INVALID_CURSOR', `Invalid cursor: ${cursor}`)
     }
 
-    return { before, shown }
+    return unreadLeft === undefined || unreadSet === undefined
+        ? { before, shown }
+        : { before, shown, unreadLeft: unreadLeft as number, unreadSet: unreadSet as string }
 }

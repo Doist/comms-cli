@@ -1,3 +1,4 @@
+import { createHash } from 'node:crypto'
 import { outputIds, resolveOutputMode } from '@doist/cli-core'
 import type { ArchiveFilter, CommsApi, GetThreadsArgs, Thread } from '@doist/comms-sdk'
 import chalk from 'chalk'
@@ -100,15 +101,33 @@ async function fetchChannelThreads(
     return kept
 }
 
+/** A short fingerprint of a set of thread IDs, to tell whether it changed between pages. */
+function fingerprint(ids: string[]): string {
+    return createHash('sha256')
+        .update([...ids].sort().join(','))
+        .digest('base64url')
+        .slice(0, 16)
+}
+
 /** Where the page after `page` starts: past its last thread and anything shown with it. */
-function cursorAfter(page: Thread[], previous: ThreadsCursor | undefined): ThreadsCursor {
+function cursorAfter(
+    page: Thread[],
+    previous: ThreadsCursor | undefined,
+    unread: { left: number; set: string } | undefined,
+): ThreadsCursor {
     const before = new Date(page[page.length - 1].lastUpdated).getTime()
     const shown = page
         .filter((thread) => new Date(thread.lastUpdated).getTime() === before)
         .map((thread) => thread.id)
     // Threads from one moment can span several pages, so keep the ones earlier pages showed.
     if (previous?.before === before) shown.push(...previous.shown)
-    return { before, shown }
+    if (!unread) return { before, shown }
+    return {
+        before,
+        shown,
+        unreadLeft: Math.max(0, unread.left - page.length),
+        unreadSet: unread.set,
+    }
 }
 
 export async function showChannelThreads(
@@ -154,13 +173,22 @@ export async function showChannelThreads(
     const unreadOnly = options.unread ? await unreadThreadsPromise : undefined
 
     // One more than the page needs, to know whether there's a next page.
-    let wanted = limit + 1
-    if (unreadOnly && !cursor) {
-        // The first page needn't look past the channel's last unread thread. Later pages
-        // can't tell how many of those earlier pages already showed.
-        const unreadHere = [...unreadOnly.values()].filter((u) => u.channelId === channel.id)
-        wanted = Math.min(wanted, unreadHere.length)
+    // With --unread, no need to look past the channel's last unread thread. The first page
+    // counts them and the cursor carries what's left, but only while the channel's unread
+    // threads stay the same. Once they change, later pages can't trust the count and read on.
+    let unread: { left: number; set: string } | undefined
+    if (unreadOnly) {
+        const unreadIds = [...unreadOnly.values()]
+            .filter((u) => u.channelId === channel.id)
+            .map((u) => u.threadId)
+        const set = fingerprint(unreadIds)
+        if (!cursor) {
+            unread = { left: unreadIds.length, set }
+        } else if (cursor.unreadSet === set && cursor.unreadLeft !== undefined) {
+            unread = { left: cursor.unreadLeft, set }
+        }
     }
+    const wanted = Math.min(limit + 1, unread?.left ?? Infinity)
 
     // The API's bounds are whole seconds and inclusive, so they can let in a little extra
     // around --since, --until and the cursor. The exact filters still run on each thread.
@@ -200,7 +228,8 @@ export async function showChannelThreads(
     threads.sort((a, b) => new Date(b.lastUpdated).getTime() - new Date(a.lastUpdated).getTime())
 
     const page = threads.slice(0, limit)
-    const nextCursor = threads.length > limit ? encodeCursor(cursorAfter(page, cursor)) : null
+    const nextCursor =
+        threads.length > limit ? encodeCursor(cursorAfter(page, cursor, unread)) : null
 
     if (outputMode === 'ids-only') {
         await outputIds(

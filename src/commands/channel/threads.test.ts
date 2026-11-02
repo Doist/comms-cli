@@ -706,6 +706,30 @@ describe('channel threads paging', () => {
         })
     })
 
+    it('keeps the --since and --until window on every call past the first', async () => {
+        const threads = minutelyThreads(1200)
+        const since = threads[899].lastUpdated.getTime()
+        const until = threads[99].lastUpdated.getTime()
+        const { mockGetThreads } = setupBackend(threads)
+
+        const { ids, nextCursor } = await listThreads([
+            '--since',
+            new Date(since).toISOString(),
+            '--until',
+            new Date(until).toISOString(),
+            '--limit',
+            '1000',
+        ])
+
+        expect(ids).toEqual(idsOf(threads.slice(100, 900)))
+        expect(nextCursor).toBeNull()
+        expect(mockGetThreads.mock.calls.length).toBeGreaterThan(1)
+        for (const [call] of mockGetThreads.mock.calls) {
+            expect(call.newerThan).toEqual(new Date(since))
+            expect(call.olderThan?.getTime()).toBeLessThanOrEqual(until)
+        }
+    })
+
     it('fills the default --limit of 50 from a single call', async () => {
         const threads = minutelyThreads(80)
         const { mockGetThreads } = setupBackend(threads)
@@ -782,6 +806,29 @@ describe('channel threads paging', () => {
         expect(ids).toEqual(idsOf(threads))
     })
 
+    it('walks threads with millisecond times inside one second exactly once', async () => {
+        const threads = minutelyThreads(10)
+        const second = threads[2].lastUpdated.getTime()
+        for (let i = 2; i < 8; i++) {
+            threads[i].lastUpdated = new Date(second + 900 - (i - 2) * 150)
+        }
+        setupBackend(threads)
+
+        const walked: string[] = []
+        let cursor: string | null = null
+        do {
+            const page = await listThreads([
+                '--limit',
+                '2',
+                ...(cursor ? ['--cursor', cursor] : []),
+            ])
+            walked.push(...page.ids)
+            cursor = page.nextCursor
+        } while (cursor)
+
+        expect(walked).toEqual(idsOf(threads))
+    })
+
     it('fails rather than leave threads out when more than a call shares one second', async () => {
         const threads = minutelyThreads(600)
         for (const thread of threads) thread.lastUpdated = new Date(threads[0].lastUpdated)
@@ -816,6 +863,47 @@ describe('channel threads paging', () => {
 
         expect(ids).toEqual([])
         expect(mockGetThreads).not.toHaveBeenCalled()
+    })
+
+    it('--unread pages after the first also stop at the last unread thread', async () => {
+        const threads = minutelyThreads(1200)
+        const { mockGetThreads } = setupBackend(
+            threads,
+            threads.slice(0, 150).map((t) => ({ threadId: t.id, channelId: 'CH100' })),
+        )
+
+        const pages: string[][] = []
+        let cursor: string | null = null
+        do {
+            mockGetThreads.mockClear()
+            const page = await listThreads(['--unread', ...(cursor ? ['--cursor', cursor] : [])])
+            pages.push(page.ids)
+            cursor = page.nextCursor
+            // Every page stops at the last unread thread instead of reading the 1,050 after it.
+            expect(mockGetThreads).toHaveBeenCalledTimes(1)
+        } while (cursor)
+
+        expect(pages).toEqual([
+            idsOf(threads.slice(0, 50)),
+            idsOf(threads.slice(50, 100)),
+            idsOf(threads.slice(100, 150)),
+        ])
+    })
+
+    it('--unread reads on when the unread threads change between pages', async () => {
+        const threads = minutelyThreads(1200)
+        const unread = threads.slice(0, 51).map((t) => ({ threadId: t.id, channelId: 'CH100' }))
+        setupBackend(threads, unread)
+
+        const first = await listThreads(['--unread'])
+        // A thread from the first page gets read and an older one turns unread, so the
+        // channel still has 51 unread threads, just not the same ones.
+        unread[0] = { threadId: threads[700].id, channelId: 'CH100' }
+        const second = await listThreads(['--unread', '--cursor', first.nextCursor as string])
+
+        expect(first.ids).toEqual(idsOf(threads.slice(0, 50)))
+        expect(second.ids).toEqual([threads[50].id, threads[700].id])
+        expect(second.nextCursor).toBeNull()
     })
 })
 
@@ -854,6 +942,20 @@ describe('cursor helpers', () => {
         expect(() => decodeCursor(encodeRaw({ before: 1, shown: [1] }))).toThrowError(
             expect.objectContaining({ code: 'INVALID_CURSOR' }),
         )
+    })
+
+    it('round-trips the count of unread threads still to come', () => {
+        const cursor = { before: 1000, shown: ['T1'], unreadLeft: 3, unreadSet: 'abc' }
+        expect(decodeCursor(encodeCursor(cursor))).toEqual(cursor)
+    })
+
+    it('throws INVALID_CURSOR when unreadLeft is not a whole number', () => {
+        expect(() =>
+            decodeCursor(encodeRaw({ before: 1, shown: [], unreadLeft: -1 })),
+        ).toThrowError(expect.objectContaining({ code: 'INVALID_CURSOR' }))
+        expect(() =>
+            decodeCursor(encodeRaw({ before: 1, shown: [], unreadLeft: 1.5 })),
+        ).toThrowError(expect.objectContaining({ code: 'INVALID_CURSOR' }))
     })
 
     it('throws INVALID_CURSOR for an offset cursor from older versions', () => {
