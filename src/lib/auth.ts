@@ -69,7 +69,7 @@ function refreshLockPath(): string {
  * Refresh wiring for cli-core's `auth status` / `auth token view` attachers,
  * so both hand back a token that is usable right now rather than whatever
  * was last stored. The handshake is resolved per account because cli-core
- * doesn't persist the DCR client metadata the refresh grant needs.
+ * doesn't persist the OAuth client metadata the refresh grant needs.
  */
 export function getTokenRefreshOptions(): TokenRefreshOptions<CommsAccount> {
     return {

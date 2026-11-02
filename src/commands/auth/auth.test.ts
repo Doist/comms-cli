@@ -882,7 +882,8 @@ describe('auth command', () => {
             expect(mockAttachLoginCommand).toHaveBeenCalledTimes(1)
             const [, options] = mockAttachLoginCommand.mock.calls[0]
             expect(options.preferredPort).toBe(8766)
-            expect(typeof options.provider.prepare).toBe('function')
+            // The client ID metadata document needs no registration step.
+            expect(options.provider.prepare).toBeUndefined()
             expect(typeof options.provider.authorize).toBe('function')
             expect(typeof options.provider.exchangeCode).toBe('function')
             expect(typeof options.provider.validateToken).toBe('function')
@@ -968,6 +969,45 @@ describe('auth command', () => {
 
             expect(mockUpdateConfig).toHaveBeenCalledTimes(1)
             expect(mockUpdateConfig).toHaveBeenCalledWith({ currentWorkspace: undefined })
+        })
+        it('drops the DCR client cache left in config by earlier versions after login', async () => {
+            mockGetConfig.mockResolvedValue({
+                oauthClients: [
+                    {
+                        clientId: 'tdd_123',
+                        authBaseUrl: 'https://todoist.com',
+                        authResource: 'https://comms.todoist.com',
+                        redirectUri: 'http://127.0.0.1:8766/callback',
+                    },
+                ],
+            })
+            storeMocks.active.mockResolvedValue(null)
+            createProgram()
+
+            const [, options] = mockAttachLoginCommand.mock.calls[0]
+            await options.onSuccess({
+                account: OAUTH_ACCOUNT,
+                view: { json: true, ndjson: false },
+                flags: {},
+            })
+
+            expect(mockUpdateConfig).toHaveBeenCalledWith({ oauthClients: undefined })
+        })
+
+        it('does not fail login when dropping the DCR client cache fails', async () => {
+            mockGetConfig.mockResolvedValue({ oauthClients: [] })
+            mockUpdateConfig.mockRejectedValue(new Error('disk full'))
+            storeMocks.active.mockResolvedValue(null)
+            createProgram()
+
+            const [, options] = mockAttachLoginCommand.mock.calls[0]
+            await expect(
+                options.onSuccess({
+                    account: OAUTH_ACCOUNT,
+                    view: { json: true, ndjson: false },
+                    flags: {},
+                }),
+            ).resolves.toBeUndefined()
         })
     })
 
