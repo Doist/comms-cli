@@ -192,8 +192,9 @@ Examples:
   tdc channel threads id:CbC8n2Kp4Qx6Rz9Lm3Va --limit 20 --cursor <cursor-from-previous>
 
 Notes:
-  Sorted newest-first by last activity. --limit, --cursor, --since, --until,
-  and --unread are applied client-side; --archive-filter is applied server-side.`,
+  Sorted newest-first by last activity. Pages back through the whole channel
+  until the page is full. --since and --until are applied server-side,
+  --unread client-side.`,
         )
         .action(showChannelThreads)
 

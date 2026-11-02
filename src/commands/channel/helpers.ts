@@ -62,12 +62,24 @@ export async function resolveChannelByRef(
     return resolveChannelRef(ref, workspaceId)
 }
 
-export function encodeCursor(offset: number): string {
-    return Buffer.from(JSON.stringify({ offset })).toString('base64url')
+/** Where the previous page of `channel threads` stopped. */
+export type ThreadsCursor = {
+    /** `lastUpdated` of the last thread shown, in milliseconds. */
+    before: number
+    /** IDs of the threads already shown from that same moment, which the next page skips. */
+    shown: string[]
+    /** With --unread, how many of the channel's unread threads are still to come... */
+    unreadLeft?: number
+    /** ...and a fingerprint of the unread threads that count came from, to tell when it's stale. */
+    unreadSet?: string
 }
 
-export function decodeCursor(cursor: string | undefined): number {
-    if (!cursor) return 0
+export function encodeCursor(cursor: ThreadsCursor): string {
+    return Buffer.from(JSON.stringify(cursor)).toString('base64url')
+}
+
+export function decodeCursor(cursor: string | undefined): ThreadsCursor | undefined {
+    if (!cursor) return undefined
 
     let parsed: unknown
     try {
@@ -76,15 +88,27 @@ export function decodeCursor(cursor: string | undefined): number {
         throw new CliError('INVALID_CURSOR', `Invalid cursor: ${cursor}`)
     }
 
+    const isIdList = (ids: unknown): ids is string[] =>
+        Array.isArray(ids) && ids.every((id) => typeof id === 'string')
+    const { before, shown, unreadLeft, unreadSet } = (parsed ?? {}) as {
+        before?: unknown
+        shown?: unknown
+        unreadLeft?: unknown
+        unreadSet?: unknown
+    }
     if (
-        !parsed ||
-        typeof parsed !== 'object' ||
-        typeof (parsed as { offset?: unknown }).offset !== 'number' ||
-        !Number.isFinite((parsed as { offset: number }).offset) ||
-        (parsed as { offset: number }).offset < 0
+        typeof before !== 'number' ||
+        !Number.isFinite(before) ||
+        before < 0 ||
+        !isIdList(shown) ||
+        (unreadLeft !== undefined &&
+            (!Number.isInteger(unreadLeft) || (unreadLeft as number) < 0)) ||
+        (unreadSet !== undefined && typeof unreadSet !== 'string')
     ) {
         throw new CliError('INVALID_CURSOR', `Invalid cursor: ${cursor}`)
     }
 
-    return (parsed as { offset: number }).offset
+    return unreadLeft === undefined || unreadSet === undefined
+        ? { before, shown }
+        : { before, shown, unreadLeft: unreadLeft as number, unreadSet: unreadSet as string }
 }
