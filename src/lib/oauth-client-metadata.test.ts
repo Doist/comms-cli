@@ -12,6 +12,11 @@ const DOCUMENT_PATH = fileURLToPath(new URL('../../oauth/client-metadata.json', 
 const raw = readFileSync(DOCUMENT_PATH, 'utf8')
 const document = JSON.parse(raw) as Record<string, unknown>
 
+/** These metadata arrays are sets, so compare them without regard to order. */
+function sorted(value: unknown): unknown {
+    return Array.isArray(value) ? [...value].sort() : value
+}
+
 describe('OAuth client ID metadata document', () => {
     it('is served from the URL the CLI sends as its client_id', () => {
         expect(OAUTH_CLIENT_ID).toBe(
@@ -25,7 +30,7 @@ describe('OAuth client ID metadata document', () => {
     })
 
     it('registers portless loopback callbacks for the host cli-core binds', () => {
-        expect(document.redirect_uris).toEqual([
+        expect(sorted(document.redirect_uris)).toEqual([
             'http://127.0.0.1/callback',
             'http://localhost/callback',
         ])
@@ -33,8 +38,8 @@ describe('OAuth client ID metadata document', () => {
 
     it('is a public client that can refresh', () => {
         expect(document.token_endpoint_auth_method).toBe('none')
-        expect(document.grant_types).toEqual(['authorization_code', 'refresh_token'])
-        expect(document.response_types).toEqual(['code'])
+        expect(sorted(document.grant_types)).toEqual(['authorization_code', 'refresh_token'])
+        expect(sorted(document.response_types)).toEqual(['code'])
     })
 
     it('allows every scope a login can request', () => {

@@ -22,7 +22,7 @@ Overwrite `icons/comms-cli.png` with the new PNG, keeping the name. It's the `LO
 
 **Never rename or delete it.** `tdc` signs in with its client ID metadata document (`oauth/client-metadata.json`), which Todoist re-reads (caching it for up to an hour), so the consent screen follows the document's `logo_uri`. But versions before the switch to that document registered an OAuth client through DCR instead, and Todoist stores a DCR client's `logo_uri` at registration and never refreshes it, so every URL a released version has sent must keep serving the icon. If you ever change `LOGO_URI` and the document's `logo_uri` (keep them equal; a test checks), keep the old file in place too. (1.0.0 to 1.4.0 used a commit-pinned URL that no longer resolves, and 3.6.1 to 3.6.4 registered `icons/comms-cli_512px.png`, which has since been removed, so clients first registered by those versions show Todoist's fallback icon.)
 
-The consent screen picks up a replaced file as soon as it's on `main` (allow about ten minutes: GitHub's raw files and Todoist's image proxy each cache for five). No release is needed unless `LOGO_URI` itself changes.
+The consent screen picks up a replaced file as soon as it's on `main` (allow about ten minutes: GitHub's raw files and Todoist's image proxy each cache for five). No release is needed unless the URL itself changes. A new URL means changing both `LOGO_URI`, which needs a release for the sign-in pages, and the document's `logo_uri`, which reaches the consent screen once Todoist re-reads the document (up to an hour after it's on `main`).
 
 ## 3. Update Comms web
 
