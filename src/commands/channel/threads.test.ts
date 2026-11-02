@@ -81,12 +81,14 @@ function createThread(id: number | string, overrides: Partial<Thread> = {}): Thr
     }
 }
 
+type UnreadEntry = { threadId: string; channelId?: string; directMention?: boolean }
+
 function setupClient({
     threads = [],
     unread = [],
 }: {
     threads?: Thread[]
-    unread?: { threadId: string; directMention?: boolean }[] | null
+    unread?: UnreadEntry[] | null
 } = {}) {
     const mockGetThreads = vi.fn().mockResolvedValue(threads)
     const mockGetUnread = vi.fn().mockResolvedValue({ data: unread ?? [], version: 1 })
@@ -165,6 +167,7 @@ describe('channel threads', () => {
             workspaceId: 1,
             channelId: 'CH100',
             archived: false,
+            limit: 51,
         })
     })
 
@@ -183,7 +186,11 @@ describe('channel threads', () => {
             '--json',
         ])
 
-        expect(mockGetThreads).toHaveBeenCalledWith({ workspaceId: 1, channelId: 'CH100' })
+        expect(mockGetThreads).toHaveBeenCalledWith({
+            workspaceId: 1,
+            channelId: 'CH100',
+            limit: 51,
+        })
     })
 
     it('--archive-filter archived passes archived:true', async () => {
@@ -205,6 +212,7 @@ describe('channel threads', () => {
             workspaceId: 1,
             channelId: 'CH100',
             archived: true,
+            limit: 51,
         })
     })
 
@@ -227,7 +235,7 @@ describe('channel threads', () => {
     it('--unread filters to unread threads only', async () => {
         setupClient({
             threads: [createThread(1), createThread(2), createThread(3)],
-            unread: [{ threadId: '2' }],
+            unread: [{ threadId: '2', channelId: 'CH100' }],
         })
         const consoleSpy = captureConsole('log')
         const program = createProgram()
@@ -595,6 +603,171 @@ describe('channel threads', () => {
 
         const output = JSON.parse(consoleSpy.mock.calls[0][0])
         expect(output.results[0]).toHaveProperty('pinned', true)
+    })
+})
+
+type GetThreadsCall = { newerThan?: Date; olderThan?: Date; limit?: number }
+
+// Behaves like threads/get: most recently active first with id as the tiebreaker, date bounds
+// that are inclusive and in whole seconds, and 20 threads unless the call asks for more.
+function setupBackend(threads: Thread[], unread: UnreadEntry[] = []) {
+    const seconds = (date: Date) => Math.floor(date.getTime() / 1000)
+    const mockGetThreads = vi.fn(async ({ newerThan, olderThan, limit }: GetThreadsCall) =>
+        threads
+            .filter((t) => !newerThan || seconds(t.lastUpdated) >= seconds(newerThan))
+            .filter((t) => !olderThan || seconds(t.lastUpdated) <= seconds(olderThan))
+            .sort(
+                (a, b) =>
+                    b.lastUpdated.getTime() - a.lastUpdated.getTime() || a.id.localeCompare(b.id),
+            )
+            .slice(0, limit ?? 20),
+    )
+    apiMocks.getCommsClient.mockResolvedValue({
+        threads: {
+            getThreads: mockGetThreads,
+            getUnread: vi.fn().mockResolvedValue({ data: unread, version: 1 }),
+        },
+    })
+    return { mockGetThreads }
+}
+
+// One thread a minute, newest first, ending at 2026-10-31T00:00:00Z.
+function minutelyThreads(count: number): Thread[] {
+    const newest = Date.parse('2026-10-31T00:00:00Z')
+    return Array.from({ length: count }, (_, i) =>
+        createThread(`T${String(i).padStart(4, '0')}`, {
+            lastUpdated: new Date(newest - i * 60_000),
+        }),
+    )
+}
+
+const idsOf = (threads: Thread[]) => threads.map((t) => t.id)
+
+async function listThreads(args: string[]): Promise<{ ids: string[]; nextCursor: string | null }> {
+    const consoleSpy = captureConsole('log')
+    await createProgram().parseAsync([
+        'node',
+        'tdc',
+        'channel',
+        'threads',
+        '12345',
+        '--json',
+        ...args,
+    ])
+    const output = JSON.parse(consoleSpy.mock.calls[0][0])
+    return { ids: idsOf(output.results), nextCursor: output.nextCursor }
+}
+
+describe('channel threads paging', () => {
+    beforeEach(() => {
+        vi.clearAllMocks()
+        apiMocks.getCurrentWorkspaceId.mockResolvedValue(1)
+        refsMocks.resolveChannelRef.mockResolvedValue(channel())
+    })
+
+    it('lists every thread in a --since window, not just the newest 20', async () => {
+        const threads = minutelyThreads(30)
+        setupBackend(threads)
+
+        const { ids, nextCursor } = await listThreads([
+            '--since',
+            '2026-10-30T23:37:00Z',
+            '--limit',
+            '200',
+        ])
+
+        expect(ids).toEqual(idsOf(threads.slice(0, 24)))
+        expect(nextCursor).toBeNull()
+    })
+
+    it('passes --since and --until to the API', async () => {
+        const { mockGetThreads } = setupBackend(minutelyThreads(5))
+
+        await listThreads(['--since', '2026-10-01', '--until', '2026-10-31T00:00:00.250Z'])
+
+        expect(mockGetThreads).toHaveBeenCalledWith({
+            workspaceId: 1,
+            channelId: 'CH100',
+            archived: false,
+            newerThan: new Date('2026-10-01T00:00:00Z'),
+            // Rounded up, because the API compares whole seconds and --until is exclusive.
+            olderThan: new Date('2026-10-31T00:00:01Z'),
+            limit: 51,
+        })
+    })
+
+    it('fills the default --limit of 50 from a single call', async () => {
+        const threads = minutelyThreads(80)
+        const { mockGetThreads } = setupBackend(threads)
+
+        const { ids, nextCursor } = await listThreads([])
+
+        expect(ids).toEqual(idsOf(threads.slice(0, 50)))
+        expect(nextCursor).toEqual(encodeCursor(50))
+        expect(mockGetThreads).toHaveBeenCalledTimes(1)
+    })
+
+    it('keeps calling past 500 threads to fill a larger page', async () => {
+        const threads = minutelyThreads(700)
+        const { mockGetThreads } = setupBackend(threads)
+
+        const { ids, nextCursor } = await listThreads(['--limit', '600'])
+
+        expect(ids).toEqual(idsOf(threads.slice(0, 600)))
+        expect(nextCursor).toEqual(encodeCursor(600))
+        expect(mockGetThreads).toHaveBeenCalledTimes(2)
+    })
+
+    it('follows --cursor past the first 500 threads', async () => {
+        const threads = minutelyThreads(700)
+        setupBackend(threads)
+
+        const { ids, nextCursor } = await listThreads([
+            '--limit',
+            '100',
+            '--cursor',
+            encodeCursor(550),
+        ])
+
+        expect(ids).toEqual(idsOf(threads.slice(550, 650)))
+        expect(nextCursor).toEqual(encodeCursor(650))
+    })
+
+    it('skips the threads a second call returns again from the same second', async () => {
+        const threads = minutelyThreads(600)
+        for (let i = 495; i < 510; i++) {
+            threads[i].lastUpdated = new Date(threads[495].lastUpdated)
+        }
+        setupBackend(threads)
+
+        const { ids } = await listThreads(['--limit', '600'])
+
+        expect(ids).toEqual(idsOf(threads))
+    })
+
+    it('--unread stops once it has found the unread threads in this channel', async () => {
+        const threads = minutelyThreads(1200)
+        const { mockGetThreads } = setupBackend(threads, [
+            { threadId: threads[700].id, channelId: 'CH100' },
+            { threadId: 'in-another-channel', channelId: 'CH200' },
+        ])
+
+        const { ids } = await listThreads(['--unread'])
+
+        expect(ids).toEqual([threads[700].id])
+        // A one-thread call (one thread is unread here), then 500 at a time until it turns up.
+        expect(mockGetThreads).toHaveBeenCalledTimes(3)
+    })
+
+    it('--unread skips the thread calls when nothing in this channel is unread', async () => {
+        const { mockGetThreads } = setupBackend(minutelyThreads(10), [
+            { threadId: 'in-another-channel', channelId: 'CH200' },
+        ])
+
+        const { ids } = await listThreads(['--unread'])
+
+        expect(ids).toEqual([])
+        expect(mockGetThreads).not.toHaveBeenCalled()
     })
 })
 

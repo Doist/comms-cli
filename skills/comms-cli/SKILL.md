@@ -331,7 +331,7 @@ Only pass `--pause-activity` when the user asks for it. It pauses their Todoist 
 
 If a channel is not found in `tdc channels`, widen with broader listings such as `tdc channels --scope public`, then `tdc channels --scope public --state all`. Check `tdc channels --help` for other available filters.
 
-`tdc channel threads` returns every thread in the channel; pagination filters (`--limit`, `--cursor`, `--since`, `--until`, `--unread`) are applied client-side after fetch. `--archive-filter` is applied server-side. Results are sorted newest-first by last activity. In `--json` / `--ndjson`, the response includes a `nextCursor` string (opaque) you can pass via `--cursor` to fetch the next page; NDJSON emits the cursor as a final `{ "_meta": true, "nextCursor": "..." }` line.
+`tdc channel threads` covers the whole channel: it pages back through threads, newest-first by last activity, until it has enough for the requested page. `--since` and `--until` are applied server-side, `--unread` client-side. In `--json` / `--ndjson`, the response includes a `nextCursor` string (opaque) you can pass via `--cursor` to fetch the next page; NDJSON emits the cursor as a final `{ "_meta": true, "nextCursor": "..." }` line.
 
 For `tdc channel members add/remove/set`, refs accept user identifiers (`id:N`, email, name) or `group:<ref>`, which expands to the group's current members. Group expansion is one-shot — it is not a persistent link, so users added to the group later will not auto-join the channel. `set` replaces membership with the resolved set and is dry-run by default (pass `--apply` to mutate); it refuses to remove the acting user unless `--include-self` is passed.
 
