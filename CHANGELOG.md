@@ -1,3 +1,9 @@
+## [3.8.2](https://github.com/Doist/comms-cli/compare/v3.8.1...v3.8.2) (2026-11-02)
+
+### Performance Improvements
+
+- resolve member names with one getUsersByIds call ([#97](https://github.com/Doist/comms-cli/issues/97)) ([ee7c93e](https://github.com/Doist/comms-cli/commit/ee7c93e6de42cb8d344da8cf0ad68cf5c81b165a))
+
 ## [3.8.1](https://github.com/Doist/comms-cli/compare/v3.8.0...v3.8.1) (2026-10-28)
 
 ### Bug Fixes
