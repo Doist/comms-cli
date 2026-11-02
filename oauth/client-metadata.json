@@ -1,0 +1,11 @@
+{
+    "client_id": "https://raw.githubusercontent.com/Doist/comms-cli/main/oauth/client-metadata.json",
+    "client_name": "Comms CLI",
+    "client_uri": "https://github.com/doist/comms-cli",
+    "logo_uri": "https://raw.githubusercontent.com/doist/comms-cli/main/icons/comms-cli.png",
+    "redirect_uris": ["http://127.0.0.1/callback", "http://localhost/callback"],
+    "grant_types": ["authorization_code", "refresh_token"],
+    "response_types": ["code"],
+    "token_endpoint_auth_method": "none",
+    "scope": "user:read workspaces:read comms:channels:read comms:content:read comms:messages:read comms:content:write comms:messages:write user:write workspaces:write comms:channels:write comms:channels:delete comms:content:delete comms:messages:delete"
+}
