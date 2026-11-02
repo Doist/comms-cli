@@ -15,7 +15,7 @@ import {
 import { assertChannelIsPublic } from '../../lib/public-channels.js'
 import { resolveChannelRef, resolveWorkspaceRef } from '../../lib/refs.js'
 import { fetchUnreadThreads, unreadFlags, type UnreadThreadMap } from '../../lib/threads.js'
-import { decodeCursor, encodeCursor } from './helpers.js'
+import { decodeCursor, encodeCursor, type ThreadsCursor } from './helpers.js'
 
 type ChannelThreadsOptions = PaginatedViewOptions & {
     workspace?: string
@@ -57,18 +57,20 @@ const ceilToSecond = (ts: number) => Math.ceil(ts / 1000) * 1000
  * Pages back through a channel's threads, most recently active first, until `wanted` of them
  * pass `keep` or the channel runs out. Each call after the first starts from the oldest
  * `lastUpdated` so far. The API compares that inclusively and in whole seconds, so threads
- * from that second come back again and are skipped by id.
+ * from that second come back again and are skipped by id. `repeats` is how many threads the
+ * first call returns that an earlier page already showed, so it can ask for that many more.
  */
 async function fetchChannelThreads(
     client: CommsApi,
     query: Omit<GetThreadsArgs, 'limit'>,
     keep: (thread: Thread) => boolean,
     wanted: number,
+    repeats: number,
 ): Promise<Thread[]> {
     const kept: Thread[] = []
     const seen = new Set<string>()
     let olderThan = query.olderThan
-    let limit = Math.min(wanted, MAX_THREADS_PER_CALL)
+    let limit = Math.min(wanted + repeats, MAX_THREADS_PER_CALL)
 
     while (kept.length < wanted) {
         const batch = await client.threads.getThreads(
@@ -82,15 +84,31 @@ async function fetchChannelThreads(
             if (keep(thread)) kept.push(thread)
         }
         if (batch.length < limit) break
+        if (added === 0) {
+            // More than a full call of threads share one second, and paging by date can't get
+            // past them without leaving some out.
+            throw new CliError(
+                'PAGINATION_STALLED',
+                `threads/get returned a full page with no new threads (channel ${query.channelId}); results would be incomplete`,
+            )
+        }
 
-        const oldest = ceilToSecond(new Date(batch[batch.length - 1].lastUpdated).getTime())
-        // If a whole call came back from one second, asking for that second again would loop
-        // forever, so step past it.
-        olderThan = new Date(added > 0 ? oldest : oldest - 1000)
+        olderThan = new Date(ceilToSecond(new Date(batch[batch.length - 1].lastUpdated).getTime()))
         limit = MAX_THREADS_PER_CALL
     }
 
     return kept
+}
+
+/** Where the page after `page` starts: past its last thread and anything shown with it. */
+function cursorAfter(page: Thread[], previous: ThreadsCursor | undefined): ThreadsCursor {
+    const before = new Date(page[page.length - 1].lastUpdated).getTime()
+    const shown = page
+        .filter((thread) => new Date(thread.lastUpdated).getTime() === before)
+        .map((thread) => thread.id)
+    // Threads from one moment can span several pages, so keep the ones earlier pages showed.
+    if (previous?.before === before) shown.push(...previous.shown)
+    return { before, shown }
 }
 
 export async function showChannelThreads(
@@ -123,7 +141,7 @@ export async function showChannelThreads(
 
     const limitNum = options.limit ? parseInt(options.limit, 10) : 50
     const limit = Number.isFinite(limitNum) && limitNum > 0 ? limitNum : 50
-    const offset = decodeCursor(options.cursor)
+    const cursor = decodeCursor(options.cursor)
 
     const archived = archiveFilterToFlag(options.archiveFilter)
     const client = await getCommsClient()
@@ -136,22 +154,31 @@ export async function showChannelThreads(
     const unreadOnly = options.unread ? await unreadThreadsPromise : undefined
 
     // One more than the page needs, to know whether there's a next page.
-    let wanted = offset + limit + 1
-    if (unreadOnly) {
+    let wanted = limit + 1
+    if (unreadOnly && !cursor) {
+        // The first page needn't look past the channel's last unread thread. Later pages
+        // can't tell how many of those earlier pages already showed.
         const unreadHere = [...unreadOnly.values()].filter((u) => u.channelId === channel.id)
         wanted = Math.min(wanted, unreadHere.length)
     }
 
     // The API's bounds are whole seconds and inclusive, so they can let in a little extra
-    // around --since and --until. The exact filters still run on each thread.
+    // around --since, --until and the cursor. The exact filters still run on each thread.
+    const shownBefore = new Set(cursor?.shown)
     const keep = (thread: Thread) => {
         const lastUpdated = new Date(thread.lastUpdated).getTime()
         return (
+            (!cursor ||
+                lastUpdated < cursor.before ||
+                (lastUpdated === cursor.before && !shownBefore.has(thread.id))) &&
             (!unreadOnly || unreadOnly.has(thread.id)) &&
             (sinceTs === undefined || lastUpdated >= sinceTs) &&
             (untilTs === undefined || lastUpdated < untilTs)
         )
     }
+
+    // Start where the previous page stopped, or at --until, whichever is older.
+    const startTs = Math.min(cursor?.before ?? Infinity, untilTs ?? Infinity)
 
     const [threads, unreadThreads] = await Promise.all([
         fetchChannelThreads(
@@ -161,18 +188,19 @@ export async function showChannelThreads(
                 channelId: channel.id,
                 ...(archived === undefined ? {} : { archived }),
                 ...(sinceTs === undefined ? {} : { newerThan: new Date(sinceTs) }),
-                ...(untilTs === undefined ? {} : { olderThan: new Date(ceilToSecond(untilTs)) }),
+                ...(startTs === Infinity ? {} : { olderThan: new Date(ceilToSecond(startTs)) }),
             },
             keep,
             wanted,
+            cursor?.shown.length ?? 0,
         ),
         unreadThreadsPromise,
     ])
 
     threads.sort((a, b) => new Date(b.lastUpdated).getTime() - new Date(a.lastUpdated).getTime())
 
-    const page = threads.slice(offset, offset + limit)
-    const nextCursor = offset + limit < threads.length ? encodeCursor(offset + limit) : null
+    const page = threads.slice(0, limit)
+    const nextCursor = threads.length > limit ? encodeCursor(cursorAfter(page, cursor)) : null
 
     if (outputMode === 'ids-only') {
         await outputIds(

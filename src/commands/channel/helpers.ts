@@ -62,12 +62,20 @@ export async function resolveChannelByRef(
     return resolveChannelRef(ref, workspaceId)
 }
 
-export function encodeCursor(offset: number): string {
-    return Buffer.from(JSON.stringify({ offset })).toString('base64url')
+/** Where the previous page of `channel threads` stopped. */
+export type ThreadsCursor = {
+    /** `lastUpdated` of the last thread shown, in milliseconds. */
+    before: number
+    /** IDs of the threads already shown from that same moment, which the next page skips. */
+    shown: string[]
 }
 
-export function decodeCursor(cursor: string | undefined): number {
-    if (!cursor) return 0
+export function encodeCursor(cursor: ThreadsCursor): string {
+    return Buffer.from(JSON.stringify(cursor)).toString('base64url')
+}
+
+export function decodeCursor(cursor: string | undefined): ThreadsCursor | undefined {
+    if (!cursor) return undefined
 
     let parsed: unknown
     try {
@@ -76,15 +84,16 @@ export function decodeCursor(cursor: string | undefined): number {
         throw new CliError('INVALID_CURSOR', `Invalid cursor: ${cursor}`)
     }
 
+    const { before, shown } = (parsed ?? {}) as { before?: unknown; shown?: unknown }
     if (
-        !parsed ||
-        typeof parsed !== 'object' ||
-        typeof (parsed as { offset?: unknown }).offset !== 'number' ||
-        !Number.isFinite((parsed as { offset: number }).offset) ||
-        (parsed as { offset: number }).offset < 0
+        typeof before !== 'number' ||
+        !Number.isFinite(before) ||
+        before < 0 ||
+        !Array.isArray(shown) ||
+        !shown.every((id) => typeof id === 'string')
     ) {
         throw new CliError('INVALID_CURSOR', `Invalid cursor: ${cursor}`)
     }
 
-    return (parsed as { offset: number }).offset
+    return { before, shown }
 }

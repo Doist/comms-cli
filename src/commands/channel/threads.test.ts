@@ -350,7 +350,9 @@ describe('channel threads', () => {
 
         const output = JSON.parse(consoleSpy.mock.calls[0][0])
         expect(output.results.map((t: { id: string }) => t.id)).toEqual(['1', '2'])
-        expect(output.nextCursor).toEqual(encodeCursor(2))
+        expect(output.nextCursor).toEqual(
+            encodeCursor({ before: Date.parse('2026-01-04T00:00:00Z'), shown: ['2'] }),
+        )
     })
 
     it('--ids-only keeps pagination notices on stderr and skips unread enrichment', async () => {
@@ -377,7 +379,7 @@ describe('channel threads', () => {
 
         expect(consoleSpy).toHaveBeenCalledWith('1\n2')
         expect(errorSpy).toHaveBeenCalledWith(
-            `More threads available. Use --cursor ${encodeCursor(2)}`,
+            `More threads available. Use --cursor ${encodeCursor({ before: Date.parse('2026-01-02T00:00:00Z'), shown: ['2'] })}`,
         )
         expect(mockGetUnread).not.toHaveBeenCalled()
     })
@@ -404,13 +406,15 @@ describe('channel threads', () => {
             '--limit',
             '2',
             '--cursor',
-            encodeCursor(2),
+            encodeCursor({ before: Date.parse('2026-01-04T00:00:00Z'), shown: ['2'] }),
             '--json',
         ])
 
         const output = JSON.parse(consoleSpy.mock.calls[0][0])
         expect(output.results.map((t: { id: string }) => t.id)).toEqual(['3', '4'])
-        expect(output.nextCursor).toEqual(encodeCursor(4))
+        expect(output.nextCursor).toEqual(
+            encodeCursor({ before: Date.parse('2026-01-02T00:00:00Z'), shown: ['4'] }),
+        )
     })
 
     it('nextCursor is null on the last page', async () => {
@@ -561,7 +565,10 @@ describe('channel threads', () => {
         const meta = JSON.parse(lines[2])
         expect(first.id).toBe('1')
         expect(second.id).toBe('2')
-        expect(meta).toEqual({ _meta: true, nextCursor: encodeCursor(2) })
+        expect(meta).toEqual({
+            _meta: true,
+            nextCursor: encodeCursor({ before: Date.parse('2026-01-04T00:00:00Z'), shown: ['2'] }),
+        })
     })
 
     it('treats getUnread returning empty data as no unread threads', async () => {
@@ -643,6 +650,9 @@ function minutelyThreads(count: number): Thread[] {
 
 const idsOf = (threads: Thread[]) => threads.map((t) => t.id)
 
+const cursorAfter = (thread: Thread) =>
+    encodeCursor({ before: thread.lastUpdated.getTime(), shown: [thread.id] })
+
 async function listThreads(args: string[]): Promise<{ ids: string[]; nextCursor: string | null }> {
     const consoleSpy = captureConsole('log')
     await createProgram().parseAsync([
@@ -654,7 +664,7 @@ async function listThreads(args: string[]): Promise<{ ids: string[]; nextCursor:
         '--json',
         ...args,
     ])
-    const output = JSON.parse(consoleSpy.mock.calls[0][0])
+    const output = JSON.parse(consoleSpy.mock.lastCall?.[0])
     return { ids: idsOf(output.results), nextCursor: output.nextCursor }
 }
 
@@ -703,7 +713,7 @@ describe('channel threads paging', () => {
         const { ids, nextCursor } = await listThreads([])
 
         expect(ids).toEqual(idsOf(threads.slice(0, 50)))
-        expect(nextCursor).toEqual(encodeCursor(50))
+        expect(nextCursor).toEqual(cursorAfter(threads[49]))
         expect(mockGetThreads).toHaveBeenCalledTimes(1)
     })
 
@@ -714,23 +724,50 @@ describe('channel threads paging', () => {
         const { ids, nextCursor } = await listThreads(['--limit', '600'])
 
         expect(ids).toEqual(idsOf(threads.slice(0, 600)))
-        expect(nextCursor).toEqual(encodeCursor(600))
+        expect(nextCursor).toEqual(cursorAfter(threads[599]))
         expect(mockGetThreads).toHaveBeenCalledTimes(2)
     })
 
-    it('follows --cursor past the first 500 threads', async () => {
+    it('walks the channel through nextCursor with one call per page', async () => {
         const threads = minutelyThreads(700)
+        const { mockGetThreads } = setupBackend(threads)
+
+        const walked: string[] = []
+        let cursor: string | null = null
+        do {
+            const page = await listThreads([
+                '--limit',
+                '100',
+                ...(cursor ? ['--cursor', cursor] : []),
+            ])
+            walked.push(...page.ids)
+            cursor = page.nextCursor
+        } while (cursor)
+
+        expect(walked).toEqual(idsOf(threads))
+        expect(mockGetThreads).toHaveBeenCalledTimes(7)
+    })
+
+    it('carries threads from one second across page breaks', async () => {
+        const threads = minutelyThreads(10)
+        for (let i = 2; i < 8; i++) {
+            threads[i].lastUpdated = new Date(threads[2].lastUpdated)
+        }
         setupBackend(threads)
 
-        const { ids, nextCursor } = await listThreads([
-            '--limit',
-            '100',
-            '--cursor',
-            encodeCursor(550),
-        ])
+        const walked: string[] = []
+        let cursor: string | null = null
+        do {
+            const page = await listThreads([
+                '--limit',
+                '3',
+                ...(cursor ? ['--cursor', cursor] : []),
+            ])
+            walked.push(...page.ids)
+            cursor = page.nextCursor
+        } while (cursor)
 
-        expect(ids).toEqual(idsOf(threads.slice(550, 650)))
-        expect(nextCursor).toEqual(encodeCursor(650))
+        expect(walked).toEqual(idsOf(threads))
     })
 
     it('skips the threads a second call returns again from the same second', async () => {
@@ -743,6 +780,17 @@ describe('channel threads paging', () => {
         const { ids } = await listThreads(['--limit', '600'])
 
         expect(ids).toEqual(idsOf(threads))
+    })
+
+    it('fails rather than leave threads out when more than a call shares one second', async () => {
+        const threads = minutelyThreads(600)
+        for (const thread of threads) thread.lastUpdated = new Date(threads[0].lastUpdated)
+        setupBackend(threads)
+
+        await expect(listThreads(['--limit', '600'])).rejects.toHaveProperty(
+            'code',
+            'PAGINATION_STALLED',
+        )
     })
 
     it('--unread stops once it has found the unread threads in this channel', async () => {
@@ -772,14 +820,16 @@ describe('channel threads paging', () => {
 })
 
 describe('cursor helpers', () => {
-    it('encodes and decodes offsets round-trip', () => {
-        expect(decodeCursor(encodeCursor(0))).toBe(0)
-        expect(decodeCursor(encodeCursor(5))).toBe(5)
-        expect(decodeCursor(encodeCursor(100))).toBe(100)
+    const encodeRaw = (payload: unknown) =>
+        Buffer.from(JSON.stringify(payload)).toString('base64url')
+
+    it('encodes and decodes a cursor round-trip', () => {
+        const cursor = { before: Date.parse('2026-10-31T00:00:00Z'), shown: ['T1', 'T2'] }
+        expect(decodeCursor(encodeCursor(cursor))).toEqual(cursor)
     })
 
-    it('decodeCursor(undefined) returns 0', () => {
-        expect(decodeCursor(undefined)).toBe(0)
+    it('decodeCursor(undefined) returns undefined', () => {
+        expect(decodeCursor(undefined)).toBeUndefined()
     })
 
     it('throws INVALID_CURSOR on non-base64 input', () => {
@@ -788,16 +838,26 @@ describe('cursor helpers', () => {
         )
     })
 
-    it('throws INVALID_CURSOR when payload has no offset field', () => {
-        const bad = Buffer.from(JSON.stringify({ foo: 1 })).toString('base64url')
-        expect(() => decodeCursor(bad)).toThrowError(
+    it('throws INVALID_CURSOR when payload has no before field', () => {
+        expect(() => decodeCursor(encodeRaw({ shown: [] }))).toThrowError(
             expect.objectContaining({ code: 'INVALID_CURSOR' }),
         )
     })
 
-    it('throws INVALID_CURSOR when offset is negative', () => {
-        const bad = Buffer.from(JSON.stringify({ offset: -1 })).toString('base64url')
-        expect(() => decodeCursor(bad)).toThrowError(
+    it('throws INVALID_CURSOR when before is negative', () => {
+        expect(() => decodeCursor(encodeRaw({ before: -1, shown: [] }))).toThrowError(
+            expect.objectContaining({ code: 'INVALID_CURSOR' }),
+        )
+    })
+
+    it('throws INVALID_CURSOR when shown is not a list of ids', () => {
+        expect(() => decodeCursor(encodeRaw({ before: 1, shown: [1] }))).toThrowError(
+            expect.objectContaining({ code: 'INVALID_CURSOR' }),
+        )
+    })
+
+    it('throws INVALID_CURSOR for an offset cursor from older versions', () => {
+        expect(() => decodeCursor(encodeRaw({ offset: 50 }))).toThrowError(
             expect.objectContaining({ code: 'INVALID_CURSOR' }),
         )
     })
