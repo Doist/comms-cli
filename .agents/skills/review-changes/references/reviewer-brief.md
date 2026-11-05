@@ -4,7 +4,8 @@ Fill in the brackets. Give every reviewer the same brief, plus its role. Leave o
 
 ```
 Repository: Doist/comms-cli, the Comms CLI `tdc` (TypeScript, Commander, Vitest).
-The change: `git diff <base>` in <checkout path>, including untracked files.
+The change: `git diff <base>` in <checkout path>, plus the untracked files
+`git ls-files --others --exclude-standard` lists there.
 
 The task, in the owner's words:
 <quote the request; add later clarifications verbatim>
@@ -31,5 +32,5 @@ Rules:
 ## Role notes
 
 - **Task review:** missing pieces, unrequested changes, unhandled cases, tests that pass with the feature broken, a command or flag change missing from `SKILL_CONTENT`, and in a refactor any changed test input or assertion. Read each new rule against every skill in `.agents/skills/`, every check in `.agents/checks/` and `AGENTS.md`, and report contradictions.
-- **Blast-radius review:** name the one fact the change is safe because of. Prove it by running code in your own worktree. Look past text search: library versions in `package-lock.json`, API and batch response shapes, `--json` output that scripts and installed skills read.
+- **Blast-radius review:** name the one fact the change is safe because of. Prove it by running code in your own worktree. Look past text search: library versions in `package-lock.json`, API response shapes, `--json` output that scripts and installed skills read.
 - **Code review per check:** apply only that check's "Report" and "Fine" lists.

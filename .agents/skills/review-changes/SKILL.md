@@ -10,15 +10,15 @@ Reviews cost several agent runs. Run them when the owner says the change is read
 ## 1. Prepare
 
 1. `npm run verify` passes.
-2. Run `git status`. Untracked files reach the reviewers and Doistbot's model providers. Ask the owner about any that don't belong to the change. Never `git add -A` to tidy up.
+2. List the untracked files (`git ls-files --others --exclude-standard`): they reach the reviewers and Doistbot's model providers. Gitignored files (`.env`, `.tmp/`) are not listed, and `npm run review:worktree` never copies them. Check every listed file for credentials, tokens and personal data; send none that holds them, and ask the owner about any file that does or that doesn't belong to the change. Never `git add -A` to tidy up.
 3. Write the brief from [references/reviewer-brief.md](references/reviewer-brief.md): the task in the owner's words, what done means, the decisions made. Never your own opinion of the change, or your reasoning.
 
-Done when the brief is written and the tree holds only the change.
+Done when the brief is written and the tree holds only the change, with no secrets or personal data in it.
 
 ## 2. Run the reviews in parallel
 
 - **Task review**, always: a fresh subagent with the brief and the diff. It looks for missing pieces, unrequested changes, unhandled cases, tests that would pass with the feature broken, and, in a refactor, any changed test input or assertion. Doistbot can't do this: it never sees the task.
-- **Blast-radius review**, when the change alters code others rely on: `src/lib/` (the batch helpers and caches in `src/lib/api.ts` above all), command registration, global flags or argv handling in `src/index.ts`, the `@doist/cli-core` or `@doist/comms-sdk` version, other `package.json` dependencies, build or CI config. It names the one fact that makes the change safe and proves it by running code. It looks where text search stops: library versions in `package-lock.json`, the shape of API and batch responses, scripts and installed skills reading `--json` output.
+- **Blast-radius review**, when the change alters code others rely on: `src/lib/` (the client and caches in `src/lib/api.ts` above all), command registration, global flags or argv handling in `src/index.ts`, the `@doist/cli-core` or `@doist/comms-sdk` version, other `package.json` dependencies, build or CI config. It names the one fact that makes the change safe and proves it by running code. It looks where text search stops: library versions in `package-lock.json`, the shape of API responses, scripts and installed skills reading `--json` output.
 - **Code review**: Doistbot if it is set up (below). Otherwise one subagent per relevant check in `.agents/checks/`, each with the brief and that check.
 
 Every brief says: **the shared working tree is read-only.** A reviewer that needs to run or break code makes its own copy with `npm run review:worktree -- <dir>`, then `npm ci` in it, and removes it after.

@@ -5,7 +5,6 @@ Rules lint and types can't express. Most are written in `AGENTS.md` and `CODEBAS
 ## Report
 
 - A user-facing error thrown as a bare `Error`, or printed with `console.error()` and an exit code, instead of `CliError(code, message, hints?)` from `src/lib/errors.ts`; a new code missing from the `ErrorCode` type; `process.exit()` in a command handler.
-- `.data` read straight off a `client.batch(...)` result instead of the batch helpers in `src/lib/api.ts` (`assertBatchData`, `getOptionalBatchData`, `buildBatchNameMap`, `buildOptionalBatchNameMap`), or a strict helper where a missing user should not abort the command.
 - A new SDK call without an entry in `API_SPINNER_MESSAGES` (`src/lib/api.ts`), or a read-only one missing from `KNOWN_SAFE_API_METHODS` in `src/lib/permissions.ts` (a read-only token would block it).
 - A mutating command without `--json` where it has scripting value, or `json`/`full` options added by hand instead of extending `MutationOptions` in `src/lib/options.ts`.
 - Reference parsing (ids, URLs, fuzzy names) written again instead of using `src/lib/refs.ts`.
