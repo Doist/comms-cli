@@ -217,6 +217,7 @@ function buildSearchResultUrl(
         channelId?: string | null
         conversationId?: string | null
         commentId?: string | null
+        messageId?: string | null
     },
 ): string {
     if (result.type === 'thread' && result.threadId && result.channelId) {
@@ -234,8 +235,12 @@ function buildSearchResultUrl(
             commentId: result.commentId,
         })
     }
-    if (result.type === 'conversation') {
-        return getFullCommsURL({ workspaceId, conversationId: result.id })
+    if (result.type === 'conversation' && result.conversationId) {
+        return getFullCommsURL({
+            workspaceId,
+            conversationId: result.conversationId,
+            messageId: result.messageId ?? undefined,
+        })
     }
     if (result.type === 'message' && result.conversationId) {
         return getFullCommsURL({

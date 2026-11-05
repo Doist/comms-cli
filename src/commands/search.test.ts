@@ -122,3 +122,45 @@ describe('search --workspace conflict', () => {
         )
     })
 })
+
+describe('search result URLs', () => {
+    const conversationResult = {
+        id: 'conversation_BY2ETq2pEneE5MxErhvx5',
+        type: 'conversation',
+        title: "Jack's Outcasts",
+        snippet: "Jack's Outcasts",
+        snippetCreatorId: 23910351,
+        snippetLastUpdated: new Date('2026-11-04T00:00:00Z'),
+        conversationId: 'BY2ETq2pEneE5MxErhvx5',
+    }
+
+    async function searchForUrl(result: Record<string, unknown>): Promise<string> {
+        searchApiMocks.extendedSearch.mockResolvedValue({
+            items: [result],
+            hasMore: false,
+            isPlanRestricted: false,
+        })
+        const program = createProgram()
+        const logSpy = captureConsole('log')
+
+        await program.parseAsync(['node', 'tdc', 'search', 'Outcasts', '--json'])
+
+        return JSON.parse(logSpy.mock.calls[0][0]).results[0].url
+    }
+
+    beforeEach(() => {
+        vi.clearAllMocks()
+    })
+
+    it('links a chat with no messageId to the conversation', async () => {
+        await expect(searchForUrl(conversationResult)).resolves.toMatch(
+            /\/1\/msg\/BY2ETq2pEneE5MxErhvx5\/$/,
+        )
+    })
+
+    it('links a message hit to the message in its conversation', async () => {
+        await expect(
+            searchForUrl({ ...conversationResult, messageId: 'Cgim4JfqR97yE3PoxUYrj' }),
+        ).resolves.toMatch(/\/1\/msg\/BY2ETq2pEneE5MxErhvx5\/m\/Cgim4JfqR97yE3PoxUYrj\/?$/)
+    })
+})
