@@ -64,6 +64,8 @@ interface SearchRunResult {
 type SharedSearchOptionConfig = {
     addUniqueFilters?: (command: Command) => void
     limitDescription?: string
+    typeChoices?: SearchType[]
+    typeDescription?: string
 }
 
 export function addSharedSearchOptions<T extends Command>(
@@ -71,6 +73,8 @@ export function addSharedSearchOptions<T extends Command>(
     config: SharedSearchOptionConfig = {},
 ): T {
     const limitDescription = config.limitDescription ?? 'Max results (default: 50)'
+    const typeChoices = config.typeChoices ?? ['threads', 'messages', 'all']
+    const typeDescription = config.typeDescription ?? 'Filter: threads, messages, or all'
 
     command
         .option('--workspace <ref>', 'Workspace ID or name')
@@ -78,10 +82,7 @@ export function addSharedSearchOptions<T extends Command>(
         .option('--author <user-refs>', 'Filter by author (comma-separated refs)')
         .option('--to <user-refs>', 'Messages sent to user (comma-separated refs)')
         .addOption(
-            withCaseInsensitiveChoices(
-                new Option('--type <type>', 'Filter: threads, messages, or all'),
-                ['threads', 'messages', 'all'],
-            ),
+            withCaseInsensitiveChoices(new Option('--type <type>', typeDescription), typeChoices),
         )
 
     config.addUniqueFilters?.(command)
@@ -184,7 +185,7 @@ async function filterVisibleSearchResults(
     workspaceId: number,
     response: ExtendedSearchResponse,
 ): Promise<ExtendedSearchResponse> {
-    if (includePrivateChannels()) {
+    if (includePrivateChannels() || !response.items.some((item) => item.channelId)) {
         return response
     }
 
@@ -211,12 +212,12 @@ export async function runSearch(
 function buildSearchResultUrl(
     workspaceId: number,
     result: {
-        id: string
         type: string
         threadId?: string | null
         channelId?: string | null
         conversationId?: string | null
         commentId?: string | null
+        messageId?: string | null
     },
 ): string {
     if (result.type === 'thread' && result.threadId && result.channelId) {
@@ -224,24 +225,14 @@ function buildSearchResultUrl(
             workspaceId,
             channelId: result.channelId,
             threadId: result.threadId,
+            commentId: result.commentId ?? undefined,
         })
     }
-    if (result.type === 'comment' && result.threadId && result.channelId && result.commentId) {
-        return getFullCommsURL({
-            workspaceId,
-            channelId: result.channelId,
-            threadId: result.threadId,
-            commentId: result.commentId,
-        })
-    }
-    if (result.type === 'conversation') {
-        return getFullCommsURL({ workspaceId, conversationId: result.id })
-    }
-    if (result.type === 'message' && result.conversationId) {
+    if (result.type === 'conversation' && result.conversationId) {
         return getFullCommsURL({
             workspaceId,
             conversationId: result.conversationId,
-            messageId: result.id,
+            messageId: result.messageId ?? undefined,
         })
     }
     return getFullCommsURL({ workspaceId })

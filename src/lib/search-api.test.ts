@@ -50,6 +50,13 @@ describe('extendedSearch', () => {
         )
     })
 
+    it('sends the conversations type', async () => {
+        await extendedSearch({ workspaceId: 69, query: 'Outcasts', type: 'conversations' })
+
+        const requestUrl = new URL(fetchMock.mock.calls[0][0])
+        expect(requestUrl.searchParams.get('type')).toBe('conversations')
+    })
+
     it('attributes the request to the CLI via Doist-Platform', async () => {
         await extendedSearch({ workspaceId: 69, query: 'roadmap' })
 

@@ -31,6 +31,8 @@ vi.mock('../lib/search-api.js', () => searchApiMocks)
 
 vi.mock('chalk')
 
+import { includePrivateChannels } from '../lib/global-args.js'
+import { getPublicChannelIds } from '../lib/public-channels.js'
 import { registerSearchCommand } from './search.js'
 
 const createProgram = () => createTestProgram(registerSearchCommand)
@@ -120,5 +122,209 @@ describe('search --workspace conflict', () => {
                 cursor: 'cursor-1',
             }),
         )
+    })
+})
+
+describe('search result URLs', () => {
+    const conversationResult = {
+        id: 'conversation_BY2ETq2pEneE5MxErhvx5',
+        type: 'conversation',
+        title: "Jack's Outcasts",
+        snippet: "Jack's Outcasts",
+        snippetCreatorId: 23910351,
+        snippetLastUpdated: new Date('2026-11-04T00:00:00Z'),
+        conversationId: 'BY2ETq2pEneE5MxErhvx5',
+    }
+
+    async function searchForUrl(result: Record<string, unknown>): Promise<string> {
+        searchApiMocks.extendedSearch.mockResolvedValue({
+            items: [result],
+            hasMore: false,
+            isPlanRestricted: false,
+        })
+        const program = createProgram()
+        const logSpy = captureConsole('log')
+
+        await program.parseAsync(['node', 'tdc', 'search', 'Outcasts', '--json'])
+
+        return JSON.parse(logSpy.mock.calls[0][0]).results[0].url
+    }
+
+    beforeEach(() => {
+        vi.clearAllMocks()
+    })
+
+    it('links a chat with no messageId to the conversation', async () => {
+        await expect(searchForUrl(conversationResult)).resolves.toMatch(
+            /\/1\/msg\/BY2ETq2pEneE5MxErhvx5\/$/,
+        )
+    })
+
+    it('links a message hit to the message in its conversation', async () => {
+        await expect(
+            searchForUrl({ ...conversationResult, messageId: 'Cgim4JfqR97yE3PoxUYrj' }),
+        ).resolves.toMatch(/\/1\/msg\/BY2ETq2pEneE5MxErhvx5\/m\/Cgim4JfqR97yE3PoxUYrj\/?$/)
+    })
+})
+
+describe('search result links', () => {
+    beforeEach(() => {
+        vi.clearAllMocks()
+        vi.mocked(includePrivateChannels).mockReturnValue(true)
+    })
+
+    function mockThreadHit(commentId?: string) {
+        searchApiMocks.extendedSearch.mockResolvedValue({
+            items: [
+                {
+                    id: 'thread_thread-1',
+                    type: 'thread',
+                    title: 'Release',
+                    snippet: 'Release',
+                    snippetLastUpdated: new Date('2026-01-01T00:00:00Z'),
+                    threadId: 'thread-1',
+                    channelId: 'channel-1',
+                    commentId,
+                },
+            ],
+            hasMore: false,
+            isPlanRestricted: false,
+        })
+    }
+
+    it('links a comment hit to the comment', async () => {
+        mockThreadHit('comment-1')
+        const program = createProgram()
+        const log = captureConsole('log')
+
+        await program.parseAsync(['node', 'tdc', 'search', 'Release'])
+
+        expect(log).toHaveBeenCalledWith(
+            expect.stringContaining('/ch/channel-1/t/thread-1/c/comment-1'),
+        )
+    })
+
+    it('links a thread hit to the thread', async () => {
+        mockThreadHit()
+        const program = createProgram()
+        const log = captureConsole('log')
+
+        await program.parseAsync(['node', 'tdc', 'search', 'Release'])
+
+        expect(log).toHaveBeenCalledWith(expect.stringMatching(/\/ch\/channel-1\/t\/thread-1\/?$/))
+    })
+})
+
+describe('search --type conversations', () => {
+    beforeEach(() => {
+        vi.clearAllMocks()
+        vi.mocked(includePrivateChannels).mockReturnValue(true)
+        searchApiMocks.extendedSearch.mockResolvedValue({
+            items: [],
+            hasMore: false,
+            isPlanRestricted: false,
+        })
+    })
+
+    it('requests the conversations type', async () => {
+        const program = createProgram()
+        captureConsole('log')
+
+        await program.parseAsync(['node', 'tdc', 'search', 'Outcasts', '--type', 'conversations'])
+
+        expect(searchApiMocks.extendedSearch).toHaveBeenCalledWith(
+            expect.objectContaining({ query: 'Outcasts', type: 'conversations' }),
+        )
+    })
+
+    it.each([
+        ['--to', ['--to', 'id:1']],
+        ['--channel', ['--channel', 'id:1']],
+        ['--mention-me', ['--mention-me']],
+    ])('rejects %s', async (_flag, flagArgs) => {
+        const program = createProgram()
+
+        await expect(
+            program.parseAsync([
+                'node',
+                'tdc',
+                'search',
+                'Outcasts',
+                '--type',
+                'conversations',
+                ...flagArgs,
+            ]),
+        ).rejects.toThrow(
+            '--to, --channel and --mention-me cannot be used with --type conversations',
+        )
+        expect(searchApiMocks.extendedSearch).not.toHaveBeenCalled()
+    })
+
+    it('ignores case when rejecting a flag', async () => {
+        const program = createProgram()
+
+        await expect(
+            program.parseAsync([
+                'node',
+                'tdc',
+                'search',
+                'Outcasts',
+                '--type',
+                'CONVERSATIONS',
+                '--mention-me',
+            ]),
+        ).rejects.toThrow('cannot be used with --type conversations')
+    })
+
+    it('skips the channel lookup when no result has a channel', async () => {
+        vi.mocked(includePrivateChannels).mockReturnValue(false)
+        searchApiMocks.extendedSearch.mockResolvedValue({
+            items: [
+                {
+                    id: 'conversation_chat-1',
+                    type: 'conversation',
+                    title: 'Outcasts',
+                    snippet: 'Outcasts',
+                    snippetLastUpdated: new Date('2026-01-01T00:00:00Z'),
+                    conversationId: 'chat-1',
+                },
+            ],
+            hasMore: false,
+            isPlanRestricted: false,
+        })
+        const program = createProgram()
+        const log = captureConsole('log')
+
+        await program.parseAsync(['node', 'tdc', 'search', 'Outcasts', '--type', 'conversations'])
+
+        expect(getPublicChannelIds).not.toHaveBeenCalled()
+        expect(log).toHaveBeenCalledWith(expect.stringContaining('Outcasts'))
+    })
+
+    it('still filters results that have a channel', async () => {
+        vi.mocked(includePrivateChannels).mockReturnValue(false)
+        vi.mocked(getPublicChannelIds).mockResolvedValue(new Set(['public-channel']))
+        searchApiMocks.extendedSearch.mockResolvedValue({
+            items: [
+                {
+                    id: 'thread_private',
+                    type: 'thread',
+                    title: 'Private thread',
+                    snippet: 'Private thread',
+                    snippetLastUpdated: new Date('2026-01-01T00:00:00Z'),
+                    threadId: 'private',
+                    channelId: 'private-channel',
+                },
+            ],
+            hasMore: false,
+            isPlanRestricted: false,
+        })
+        const program = createProgram()
+        const log = captureConsole('log')
+
+        await program.parseAsync(['node', 'tdc', 'search', 'thread'])
+
+        expect(getPublicChannelIds).toHaveBeenCalledTimes(1)
+        expect(log).not.toHaveBeenCalledWith(expect.stringContaining('Private thread'))
     })
 })
