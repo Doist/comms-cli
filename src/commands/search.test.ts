@@ -167,6 +167,54 @@ describe('search result URLs', () => {
     })
 })
 
+describe('search result links', () => {
+    beforeEach(() => {
+        vi.clearAllMocks()
+        vi.mocked(includePrivateChannels).mockReturnValue(true)
+    })
+
+    function mockThreadHit(commentId?: string) {
+        searchApiMocks.extendedSearch.mockResolvedValue({
+            items: [
+                {
+                    id: 'thread_thread-1',
+                    type: 'thread',
+                    title: 'Release',
+                    snippet: 'Release',
+                    snippetLastUpdated: new Date('2026-01-01T00:00:00Z'),
+                    threadId: 'thread-1',
+                    channelId: 'channel-1',
+                    commentId,
+                },
+            ],
+            hasMore: false,
+            isPlanRestricted: false,
+        })
+    }
+
+    it('links a comment hit to the comment', async () => {
+        mockThreadHit('comment-1')
+        const program = createProgram()
+        const log = captureConsole('log')
+
+        await program.parseAsync(['node', 'tdc', 'search', 'Release'])
+
+        expect(log).toHaveBeenCalledWith(
+            expect.stringContaining('/ch/channel-1/t/thread-1/c/comment-1'),
+        )
+    })
+
+    it('links a thread hit to the thread', async () => {
+        mockThreadHit()
+        const program = createProgram()
+        const log = captureConsole('log')
+
+        await program.parseAsync(['node', 'tdc', 'search', 'Release'])
+
+        expect(log).toHaveBeenCalledWith(expect.stringMatching(/\/ch\/channel-1\/t\/thread-1\/?$/))
+    })
+})
+
 describe('search --type conversations', () => {
     beforeEach(() => {
         vi.clearAllMocks()

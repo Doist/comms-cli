@@ -212,7 +212,6 @@ export async function runSearch(
 function buildSearchResultUrl(
     workspaceId: number,
     result: {
-        id: string
         type: string
         threadId?: string | null
         channelId?: string | null
@@ -226,14 +225,7 @@ function buildSearchResultUrl(
             workspaceId,
             channelId: result.channelId,
             threadId: result.threadId,
-        })
-    }
-    if (result.type === 'comment' && result.threadId && result.channelId && result.commentId) {
-        return getFullCommsURL({
-            workspaceId,
-            channelId: result.channelId,
-            threadId: result.threadId,
-            commentId: result.commentId,
+            commentId: result.commentId ?? undefined,
         })
     }
     if (result.type === 'conversation' && result.conversationId) {
@@ -241,13 +233,6 @@ function buildSearchResultUrl(
             workspaceId,
             conversationId: result.conversationId,
             messageId: result.messageId ?? undefined,
-        })
-    }
-    if (result.type === 'message' && result.conversationId) {
-        return getFullCommsURL({
-            workspaceId,
-            conversationId: result.conversationId,
-            messageId: result.id,
         })
     }
     return getFullCommsURL({ workspaceId })
