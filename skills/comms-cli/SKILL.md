@@ -246,7 +246,9 @@ tdc search "query" --all          # Fetch all result pages
 
 `--since` and `--until` filter by when the matching content was posted, not when a thread was last active, so a thread found by its title (`--title-only`) counts from when it was created.
 
-To find a group chat by name, use `tdc search "name" --type conversations` first. It matches whole words in group chat titles. Use `tdc conversation list --name` for partial words, or to combine with `--participant`, `--kind`, or `--state`.
+To find a group chat by name, use `tdc search "name" --type conversations` first. It matches whole words in group chat titles, and skips chats without a title. Use `tdc conversation list --name` for partial words, or `--participant` for chats without a title. Both `--name` and `--participant` can be combined with `--kind` or `--state`.
+
+`--type conversations` can't be combined with `--to`, `--channel`, or `--mention-me`. `--author` and `--since`/`--until` match the chat's creator and creation date.
 
 ## Users, Channels & Groups
 

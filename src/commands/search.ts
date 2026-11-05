@@ -62,8 +62,12 @@ Examples:
   tdc search "Release team" --type conversations --json
 
 To find a group chat by name, use --type conversations first. It matches whole
-words in group chat titles. Use tdc conversation list --name for partial words,
-or to combine with --participant, --kind, or --state.`,
+words in group chat titles, and skips chats without a title. Use tdc conversation
+list --name for partial words, or --participant for chats without a title. Both
+--name and --participant can be combined with --kind or --state.
+
+--type conversations can't be combined with --to, --channel, or --mention-me.
+--author and --since/--until match the chat's creator and creation date.`,
         )
         .action(search)
 }
