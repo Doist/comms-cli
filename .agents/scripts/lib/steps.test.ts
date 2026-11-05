@@ -10,9 +10,13 @@ import { CHECKED_WORKFLOWS } from './tree.ts'
 const WORKFLOWS_DIR = join(REPO_ROOT, '.github/workflows')
 const readWorkflow = (name: string) => readFileSync(join(WORKFLOWS_DIR, name), 'utf8')
 
+// A line in a `run: |` script that runs a tool. The lines around them are shell guards (if, echo,
+// exit, fi).
+const TOOL_LINE = /^(npm|npx|node|gh|tsc|vitest|oxlint|oxfmt)\s/
+
 /**
- * The commands a workflow runs. A one-line `run:` is the command; a `run: |` script is named by
- * its last line, the command it exists to run (the lines above guard it).
+ * The commands a workflow runs: each one-line `run:`, and every tool line of a `run: |` script, so a
+ * check added to a script cannot hide behind the command that was already there.
  */
 function workflowCommands(text: string): string[] {
     const commands: string[] = []
@@ -25,17 +29,55 @@ function workflowCommands(text: string): string[] {
             commands.push(value.trim())
             return
         }
-        const body: string[] = []
         for (const next of lines.slice(index + 1)) {
             if (next.trim() && next.search(/\S/) <= indent.length) break
-            if (next.trim()) body.push(next.trim())
+            if (TOOL_LINE.test(next.trim())) commands.push(next.trim())
         }
-        commands.push(body.at(-1) ?? '')
     })
     return commands
 }
 
-const runsOnPullRequests = (text: string) => /^\s+pull_request:?\s*$/m.test(text)
+/** The `on:` trigger, inline (`on: [push, pull_request]`) or as an indented block. */
+function triggers(text: string): string {
+    const match = text.match(/^["']?on["']?:(.*)\n((?:(?:[ \t].*)?\n)*)/m)
+    return match ? `${match[1]}\n${match[2]}` : ''
+}
+
+const runsOnPullRequests = (text: string) => /\bpull_request(_target)?\b/.test(triggers(text))
+
+describe('reading workflows', () => {
+    it.each([
+        ['on:\n    pull_request:\n', true],
+        ['on:\n    pull_request_target:\n        types: [opened]\n', true],
+        ['on: [push, pull_request]\n', true],
+        ['on: { pull_request: {} }\n', true],
+        ['"on": pull_request\n', true],
+        ['on:\n    issues:\n        types: [opened]\n', false],
+        ["on:\n    push:\njobs:\n    a:\n        if: github.event_name == 'pull_request'\n", false],
+    ])('%j runs on pull requests: %s', (text, expected) => {
+        expect(runsOnPullRequests(text)).toBe(expected)
+    })
+
+    it('takes every tool line of a script, not only its last one', () => {
+        const text = [
+            'steps:',
+            '    - run: |',
+            '          if ! gh skill --help >/dev/null 2>&1; then',
+            '              echo "skipping"',
+            '              exit 0',
+            '          fi',
+            '          npm run new-check',
+            '          gh skill publish --dry-run',
+            '    - run: npm test',
+            '',
+        ].join('\n')
+        expect(workflowCommands(text)).toEqual([
+            'npm run new-check',
+            'gh skill publish --dry-run',
+            'npm test',
+        ])
+    })
+})
 
 describe('verify covers CI', () => {
     it('reads every pull-request workflow that runs a command', () => {
@@ -117,9 +159,15 @@ describe('preflight', () => {
                 'node_modules/vitest': { version: '2.0.0' },
             },
         })
-        writeJson(join(root, 'node_modules/zod/package.json'), { version: '1.0.0' })
-        writeJson(join(root, 'node_modules/vitest/package.json'), { version: '2.0.0' })
+        writeInstalled({
+            'node_modules/zod': { version: '1.0.0' },
+            'node_modules/vitest': { version: '2.0.0' },
+        })
     })
+
+    // What npm records about the tree it installed.
+    const writeInstalled = (packages: Record<string, { version: string }>) =>
+        writeJson(join(root, 'node_modules/.package-lock.json'), { packages })
 
     afterEach(() => rmSync(root, { recursive: true, force: true }))
 
@@ -133,15 +181,51 @@ describe('preflight', () => {
     })
 
     it('names a dependency whose installed version differs from the lockfile', () => {
-        writeJson(join(root, 'node_modules/zod/package.json'), { version: '0.9.0' })
+        writeInstalled({
+            'node_modules/zod': { version: '0.9.0' },
+            'node_modules/vitest': { version: '2.0.0' },
+        })
         expect(preflight(root, '24.0.0')).toEqual([
             'node_modules does not match package-lock.json: zod 0.9.0 (lockfile: 1.0.0). Run `npm ci`.',
         ])
     })
 
     it('names a dependency that is not installed', () => {
-        rmSync(join(root, 'node_modules/vitest'), { recursive: true })
+        writeInstalled({ 'node_modules/zod': { version: '1.0.0' } })
         expect(preflight(root, '24.0.0')[0]).toContain('vitest missing (lockfile: 2.0.0)')
+    })
+
+    it('names a transitive dependency that changed while every direct one kept its version', () => {
+        const lock = JSON.parse(readFileSync(join(root, 'package-lock.json'), 'utf8')) as {
+            packages: Record<string, unknown>
+        }
+        lock.packages['node_modules/undici'] = { version: '7.1.0' }
+        writeJson(join(root, 'package-lock.json'), lock)
+        writeInstalled({
+            'node_modules/zod': { version: '1.0.0' },
+            'node_modules/vitest': { version: '2.0.0' },
+            'node_modules/undici': { version: '7.0.0' },
+        })
+        expect(preflight(root, '24.0.0')).toEqual([
+            'node_modules does not match package-lock.json: undici 7.0.0 (lockfile: 7.1.0). Run `npm ci`.',
+        ])
+    })
+
+    it('accepts optional packages for other platforms that were never installed', () => {
+        const lock = JSON.parse(readFileSync(join(root, 'package-lock.json'), 'utf8')) as {
+            packages: Record<string, unknown>
+        }
+        lock.packages['node_modules/@oxlint/darwin-arm64'] = { version: '1.0.0', optional: true }
+        lock.packages['node_modules/@oxfmt/win32-x64'] = { version: '1.0.0', devOptional: true }
+        writeJson(join(root, 'package-lock.json'), lock)
+        expect(preflight(root, '24.0.0')).toEqual([])
+    })
+
+    it('says when node_modules has no record of what npm installed', () => {
+        rmSync(join(root, 'node_modules/.package-lock.json'))
+        expect(preflight(root, '24.0.0')).toEqual([
+            'node_modules has no record of what npm installed. Run `npm ci`.',
+        ])
     })
 
     it('names a dependency package.json and the lockfile disagree on', () => {
