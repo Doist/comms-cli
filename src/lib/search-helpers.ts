@@ -185,7 +185,7 @@ async function filterVisibleSearchResults(
     workspaceId: number,
     response: ExtendedSearchResponse,
 ): Promise<ExtendedSearchResponse> {
-    if (includePrivateChannels()) {
+    if (includePrivateChannels() || !response.items.some((item) => item.channelId)) {
         return response
     }
 
