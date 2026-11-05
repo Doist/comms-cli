@@ -206,11 +206,12 @@ describe('search --type conversations', () => {
             isPlanRestricted: false,
         })
         const program = createProgram()
-        captureConsole('log')
+        const log = captureConsole('log')
 
         await program.parseAsync(['node', 'tdc', 'search', 'Outcasts', '--type', 'conversations'])
 
         expect(getPublicChannelIds).not.toHaveBeenCalled()
+        expect(log).toHaveBeenCalledWith(expect.stringContaining('Outcasts'))
     })
 
     it('still filters results that have a channel', async () => {
