@@ -41,7 +41,7 @@ src/commands/<entity>/
 - **Subcommand files**: Export one async action handler + any option interfaces. Use `../../lib/` for lib imports. No Commander imports (only index.ts uses Commander).
 - **helpers.ts**: Only needed when multiple subcommands share a utility/constant.
 
-Single-subcommand commands (e.g., `channel.ts`, `inbox.ts`) remain as flat files.
+Single-subcommand commands (e.g., `react.ts`, `inbox.ts`) remain as flat files.
 
 ### Adding a subcommand to an existing command
 
@@ -128,7 +128,7 @@ const commands: Record<string, [string, () => Promise<(p: Command) => void>]> = 
 
 ## 4. Accessibility (`src/lib/output.ts`)
 
-The CLI supports accessible mode via `isAccessible()` (checks `TDC_ACCESSIBLE=1` or `--accessible` flag). When adding output that uses color or visual elements, consider whether information is conveyed **only** by color or decoration.
+The CLI supports accessible mode via `isAccessible()` from `src/lib/global-args.ts` (checks `TDC_ACCESSIBLE=1` or `--accessible` flag). When adding output that uses color or visual elements, consider whether information is conveyed **only** by color or decoration.
 
 ### When to add accessible alternatives
 
@@ -145,16 +145,16 @@ The CLI supports accessible mode via `isAccessible()` (checks `TDC_ACCESSIBLE=1`
 ### Pattern
 
 ```typescript
-import { isAccessible } from '../lib/output.js'
+import { isAccessible } from '../lib/global-args.js'
 
 const a11y = isAccessible()
 const prefix = a11y ? '[!] ' : ''
 console.log(chalk.yellow(`${prefix}Warning: thread is archived`))
 ```
 
-## 5. Tests (`src/__tests__/<entity>.test.ts`)
+## 5. Tests (next to the command, e.g. `src/commands/<entity>/<entity>.test.ts`)
 
-Tests mock the API layer directly using `vi.mock` and `vi.hoisted`. Follow the existing pattern in test files like `thread.test.ts` or `conversation.test.ts`.
+Tests mock the API layer directly using `vi.mock` and `vi.hoisted`. Follow the existing pattern in test files like `thread.test.ts` or `conversation.test.ts`. The `write-tests` skill has the helpers and the quality bar.
 
 ### Test setup pattern
 
@@ -223,7 +223,7 @@ This builds the project and regenerates `skills/comms-cli/SKILL.md` from the com
 ## 8. Verify
 
 ```bash
-npm run type-check
-npm test
-npm run lint:check
+npm run verify
 ```
+
+Then follow the `verify` skill to prove the command does what was asked.
