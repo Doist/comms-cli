@@ -11,7 +11,7 @@
         "build": "tsc -p tsconfig.build.json && chmod +x dist/index.js",
         "dev": "tsc -p tsconfig.build.json --watch",
         "start": "node dist/index.js",
-        "type-check": "tsc --noEmit",
+        "type-check": "tsc --noEmit && tsc --noEmit -p .agents/scripts",
         "lint": "oxlint . --fix && oxfmt",
         "lint:check": "oxlint . && oxfmt --check",
         "postinstall": "node scripts/postinstall.js",
@@ -19,7 +19,8 @@
         "sync:skill": "npm run build && node scripts/sync-skill.js",
         "test": "vitest run",
         "test:watch": "vitest",
-        "prepublishOnly": "npm run build && npm test"
+        "prepublishOnly": "npm run build && npm test",
+        "prepare": "lefthook install --reset-hooks-path"
     },
     "keywords": [
         "comms",

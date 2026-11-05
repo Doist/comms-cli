@@ -9,7 +9,7 @@ npm run build          # Compile TypeScript to dist/ (uses tsconfig.build.json, 
 npm run dev            # Watch mode compilation (uses tsconfig.build.json, excludes tests)
 npm test               # Run all tests (vitest)
 npm run test:watch     # Run tests in watch mode
-npm run type-check     # Type check without emitting (uses tsconfig.json, includes tests)
+npm run type-check     # Type check src + tests (tsconfig.json) and the agent tooling (.agents/scripts)
 npm run lint           # Fix lint issues (oxlint) + format (oxfmt)
 npm run lint:check     # Check lint + formatting (for CI)
 ```
@@ -81,9 +81,11 @@ throw new CliError('ERROR_CODE', 'User-facing message', ['Optional hint'])
 - When adding a new error code, add it to the `ErrorCode` type in `src/lib/errors.ts` under the appropriate category.
 - **Never use `process.exit(1)` in command handlers.** It terminates immediately without running `finally` blocks, which leaves the early loading spinner stuck in the terminal. Use `throw new CliError(...)` instead — this lets the process exit cleanly after spinner cleanup.
 
-## Pre-commit Hooks
+## Git hooks and agent tooling
 
-Lefthook runs type-check, oxlint, and oxfmt on pre-commit, tests on pre-push.
+- Lefthook refuses commits and pushes to `main`, runs oxlint, oxfmt and the type check on pre-commit, and the tests on pre-push. Work on a branch.
+- Agent tooling lives in `.agents/scripts/`, never in `scripts/` (which ships in the npm package).
+- How it all fits together: [`docs/agents.md`](docs/agents.md).
 
 ## Skill Content (Agent Command Reference)
 

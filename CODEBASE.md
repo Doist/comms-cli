@@ -28,6 +28,11 @@ come from `@doist/cli-core`.
 ├─ .github/workflows/     # test, lint, release, check-skill-sync,
 │                         # check-semantic-pull-request, issue-automation,
 │                         # update-comms-sdk
+├─ .agents/
+│  ├─ skills/             # Skills for agents working on this repo (add-command)
+│  └─ scripts/            # Agent tooling (git hook branch guard) and its tests.
+│                         # Not published, unlike scripts/
+├─ docs/agents.md         # How the agent tooling fits together
 ├─ AGENTS.md              # Prescriptive rules (build cmds, JSON flag, skill-sync, errors)
 ├─ CODEBASE.md            # This file — descriptive map
 ├─ CLAUDE.md              # One-liner forward to AGENTS.md
@@ -36,7 +41,8 @@ come from `@doist/cli-core`.
 ├─ tsconfig.build.json    # Excludes *.test.ts/.spec.ts, __mocks__, __fixtures__
 ├─ vitest.config.ts       # { globals, root: 'src', inlines @doist/cli-core }
 ├─ .oxlintrc.json / .oxfmtrc.json
-├─ lefthook.yml           # Pre-commit: type-check + oxlint + oxfmt; pre-push: tests
+├─ lefthook.yml           # Git hooks: branch guard; pre-commit lint, format, types;
+│                         # pre-push tests
 ├─ renovate.json          # Dependency automation
 └─ release.config.js      # semantic-release config
 ```
@@ -232,7 +238,8 @@ see a per-command `--user`).
 
 ## Testing
 
-- **Runner:** vitest. `npm test` (one-shot), `npm run test:watch`. Single file:
+- **Runner:** vitest. `npm test` (one-shot, including the agent tooling's tests
+  in `.agents/scripts/`), `npm run test:watch`. Single file:
   `npx vitest run src/lib/refs.test.ts`.
 - **Location:** colocated `*.test.ts` next to the module under test.
 - **Fixtures:** `src/lib/__fixtures__/accounts.ts` (`ACCOUNT_ALAN` /
@@ -248,9 +255,14 @@ see a per-command `--user`).
 - **Build:** `tsc -p tsconfig.build.json` → `dist/` (then `chmod +x`). Two-tsconfig
   setup: `tsconfig.json` includes tests (type-check/IDE); `tsconfig.build.json`
   excludes `*.test.ts`/`.spec.ts` and `__mocks__`.
-- **Type-check:** `npm run type-check`. **Lint/format:** `npm run lint`
+- **Type-check:** `npm run type-check` (`src/`, then `.agents/scripts/tsconfig.json`
+  for the agent tooling). **Lint/format:** `npm run lint`
   (oxlint --fix + oxfmt), `npm run lint:check` (CI). **No ESLint, no Prettier.**
-- **Pre-commit:** lefthook (type-check + oxlint + oxfmt); **pre-push:** tests.
+- **Git hooks:** lefthook, configured in `lefthook.yml` and installed by the
+  `prepare` script. `pre-commit` refuses commits on `main`, then lints and
+  formats staged files and runs the type check; `commit-msg` repeats the
+  branch rule for empty commits; `pre-push` refuses pushes to `main`, then
+  runs the tests. See `docs/agents.md`.
 - **Release:** semantic-release on merge to `main`; Conventional Commits required
   (enforced by `check-semantic-pull-request.yml`). `update-comms-sdk.yml` keeps
   `@doist/comms-sdk` current.

@@ -4,7 +4,8 @@ export default defineConfig({
     test: {
         globals: true,
         root: 'src',
-        include: ['**/*.{test,spec}.{js,ts}'],
+        // The agent tooling's tests live outside `root`, next to the tooling.
+        include: ['**/*.{test,spec}.{js,ts}', '../.agents/scripts/**/*.test.ts'],
         exclude: ['dist/**/*', 'node_modules/**/*'],
         // Inline @doist/cli-core so vitest's module mocks (e.g. vi.doMock for
         // 'node:fs/promises' or vi.mock('@doist/cli-core', …)) reach its
