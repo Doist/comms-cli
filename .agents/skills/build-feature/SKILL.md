@@ -28,8 +28,7 @@ For each behaviour: write its test at the public interface (`program.parseAsync(
 | A command, subcommand or flag      | `SKILL_CONTENT` in `src/lib/skills/content.ts`, then `npm run sync:skill`                                                               |
 | Called a new SDK method            | `API_SPINNER_MESSAGES` in `src/lib/api.ts`; a read-only one goes in `KNOWN_SAFE_API_METHODS` (`src/lib/permissions.ts`)                 |
 | A mutating command                 | `--json` through `MutationOptions` (`src/lib/options.ts`) and `formatJson()`, as "JSON output on mutating commands" in `AGENTS.md` says |
-| A batch API call                   | The batch helpers in `src/lib/api.ts` (`assertBatchData`, `getOptionalBatchData`, …); never `.data` on a batch result                   |
-| Output that uses colour or symbols | An `--accessible` alternative (`isAccessible()` from `src/lib/global-args.ts`); in lists, the name first and the id after               |
+| Output that uses colour or symbols | An `--accessible` alternative (`isAccessible()` from `src/lib/global-args.ts`); never an id and a name told apart by colour alone       |
 | A new error code                   | The `ErrorCode` type in `src/lib/errors.ts`                                                                                             |
 | Structure (new folder or helper)   | `CODEBASE.md`                                                                                                                           |
 
