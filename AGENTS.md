@@ -2,6 +2,13 @@
 
 This file provides guidance to AI coding agents when working with code in this repository.
 
+## Definition of done
+
+- **Done means proven:** a test that failed before the change and passes after, or the command's real output (`node dist/index.js <command>`, on a test workspace). For a refactor: tests that pin the behaviour, passing before and after. Reading code or a passing compile is not proof.
+- **Run `npm run verify` before calling a change done.** It runs every check CI runs, in about fifteen seconds, and records the pass. It prints what it cannot see, and says when only docs changed and there is nothing to check.
+- **Never weaken a check to pass it.** Don't skip, delete or loosen tests, edit lint, type or test config to get green, or use `--no-verify`. If a check looks wrong, say so and stop.
+- **Report honestly:** what ran, what it showed, and what you did not verify.
+
 ## Commands
 
 ```bash
@@ -12,6 +19,7 @@ npm run test:watch     # Run tests in watch mode
 npm run type-check     # Type check src + tests (tsconfig.json) and the agent tooling (.agents/scripts)
 npm run lint           # Fix lint issues (oxlint) + format (oxfmt)
 npm run lint:check     # Check lint + formatting (for CI)
+npm run verify         # Every check CI runs (lint, format, types, tests, build, skill sync)
 ```
 
 The project uses two tsconfig files: `tsconfig.json` includes test files for type-checking, while `tsconfig.build.json` extends it and excludes colocated `*.test.ts` and `*.spec.ts` files (plus `src/__mocks__`) so test-only code is not compiled into `dist/`.
