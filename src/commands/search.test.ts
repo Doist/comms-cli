@@ -164,3 +164,25 @@ describe('search result URLs', () => {
         ).resolves.toMatch(/\/1\/msg\/BY2ETq2pEneE5MxErhvx5\/m\/Cgim4JfqR97yE3PoxUYrj\/?$/)
     })
 })
+
+describe('search --type conversations', () => {
+    beforeEach(() => {
+        vi.clearAllMocks()
+        searchApiMocks.extendedSearch.mockResolvedValue({
+            items: [],
+            hasMore: false,
+            isPlanRestricted: false,
+        })
+    })
+
+    it('requests the conversations type', async () => {
+        const program = createProgram()
+        captureConsole('log')
+
+        await program.parseAsync(['node', 'tdc', 'search', 'Outcasts', '--type', 'conversations'])
+
+        expect(searchApiMocks.extendedSearch).toHaveBeenCalledWith(
+            expect.objectContaining({ query: 'Outcasts', type: 'conversations' }),
+        )
+    })
+})

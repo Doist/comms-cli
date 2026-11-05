@@ -64,6 +64,8 @@ interface SearchRunResult {
 type SharedSearchOptionConfig = {
     addUniqueFilters?: (command: Command) => void
     limitDescription?: string
+    typeChoices?: SearchType[]
+    typeDescription?: string
 }
 
 export function addSharedSearchOptions<T extends Command>(
@@ -71,6 +73,8 @@ export function addSharedSearchOptions<T extends Command>(
     config: SharedSearchOptionConfig = {},
 ): T {
     const limitDescription = config.limitDescription ?? 'Max results (default: 50)'
+    const typeChoices = config.typeChoices ?? ['threads', 'messages', 'all']
+    const typeDescription = config.typeDescription ?? 'Filter: threads, messages, or all'
 
     command
         .option('--workspace <ref>', 'Workspace ID or name')
@@ -78,10 +82,7 @@ export function addSharedSearchOptions<T extends Command>(
         .option('--author <user-refs>', 'Filter by author (comma-separated refs)')
         .option('--to <user-refs>', 'Messages sent to user (comma-separated refs)')
         .addOption(
-            withCaseInsensitiveChoices(
-                new Option('--type <type>', 'Filter: threads, messages, or all'),
-                ['threads', 'messages', 'all'],
-            ),
+            withCaseInsensitiveChoices(new Option('--type <type>', typeDescription), typeChoices),
         )
 
     config.addUniqueFilters?.(command)

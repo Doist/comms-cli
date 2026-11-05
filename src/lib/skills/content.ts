@@ -233,7 +233,8 @@ tdc mentions                      # Show content mentioning current user
 tdc mentions --since 2026-04-01 --all # Fetch every mention since a date
 tdc mentions --type threads --json # Limit mentions to threads
 tdc search "query"                # Search content
-tdc search "query" --type threads # Filter: threads, messages, or all
+tdc search "query" --type threads # Filter: threads, messages, conversations, or all
+tdc search "name" --type conversations # Find a group chat by title
 tdc search "query" --author <ref> # Filter by author
 tdc search "query" --to <ref>     # Messages sent to user
 tdc search "query" --title-only   # Search thread titles only
@@ -248,6 +249,8 @@ tdc search "query" --all          # Fetch all result pages
 \`\`\`
 
 \`--since\` and \`--until\` filter by when the matching content was posted, not when a thread was last active, so a thread found by its title (\`--title-only\`) counts from when it was created.
+
+To find a group chat by name, use \`tdc search "name" --type conversations\` first. It matches whole words in group chat titles. Use \`tdc conversation list --name\` for partial words, or to combine with \`--participant\`, \`--kind\`, or \`--state\`.
 
 ## Users, Channels & Groups
 
@@ -513,7 +516,8 @@ tdc thread view <thread-id>
 **Check DMs:**
 \`\`\`bash
 tdc conversation unread --json
-tdc conversation list --kind group --json     # find a group DM by participants/name
+tdc search "Release team" --type conversations --json # find a group chat by name
+tdc conversation list --kind group --json     # find a group DM by participants
 tdc conversation view <conversation-id>
 tdc conversation with "Alice Example"
 tdc conversation reply <conversation-ref> "Got it, thanks!"

@@ -145,6 +145,8 @@ tdc conversation undone <ref> --yes # unarchive it
 tdc msg view <ref>                  # view a conversation message
 tdc search "keyword"                # search across workspace
 tdc search "keyword" --all          # fetch all result pages
+tdc search "name" --type conversations  # find a group chat by title (whole words)
+tdc conversation list --name "part" # match part of a title; combine with --participant, --kind, --state
 tdc react thread <ref> 👍          # add reaction
 tdc status                          # show your status
 tdc status set "Deep work" --emoji 🎯 --for 2h --pause-notifications  # set it (--until <iso> for a date)

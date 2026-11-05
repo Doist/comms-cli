@@ -16,7 +16,7 @@ function getBaseUrl(authResource?: string): string {
     return `https://api.comms.todoist.com/api/${DEFAULT_API_VERSION}`
 }
 
-export type SearchType = 'threads' | 'messages' | 'all'
+export type SearchType = 'threads' | 'messages' | 'conversations' | 'all'
 
 export interface ExtendedSearchParams {
     workspaceId: number

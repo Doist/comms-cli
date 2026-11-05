@@ -31,6 +31,9 @@ export function registerSearchCommand(program: Command): void {
             .command('search <query> [workspace-ref]')
             .description('Search content across a workspace'),
         {
+            typeChoices: ['threads', 'messages', 'conversations', 'all'],
+            typeDescription:
+                'Filter: threads, messages, conversations (group chats by title), or all',
             addUniqueFilters: (command) => {
                 command
                     .option('--title-only', 'Search in thread titles only')
@@ -47,7 +50,12 @@ Examples:
   tdc search "deployment issue"
   tdc search "bug report" --type threads --channel id:CbC8n2Kp4Qx6Rz9Lm3Va
   tdc search "API" --author id:5678 --since 2025-01-01 --json
-  tdc search "incident" --all --json`,
+  tdc search "incident" --all --json
+  tdc search "Release team" --type conversations --json
+
+To find a group chat by name, use --type conversations first. It matches whole
+words in group chat titles. Use tdc conversation list --name for partial words,
+or to combine with --participant, --kind, or --state.`,
         )
         .action(search)
 }

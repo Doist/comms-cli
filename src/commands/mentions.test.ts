@@ -105,6 +105,15 @@ describe('mentions', () => {
         )
     })
 
+    it('rejects the conversations type', async () => {
+        const program = createProgram()
+
+        await expect(
+            program.parseAsync(['node', 'tdc', 'mentions', '--type', 'conversations']),
+        ).rejects.toThrow('Allowed choices are threads, messages, all')
+        expect(searchApiMocks.extendedSearch).not.toHaveBeenCalled()
+    })
+
     it('emits an empty JSON payload when no mentions match', async () => {
         const program = createProgram()
         const logSpy = captureConsole('log')
