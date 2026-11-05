@@ -189,6 +189,45 @@ describe('search --type conversations', () => {
         )
     })
 
+    it.each([
+        ['--to', ['--to', 'id:1']],
+        ['--channel', ['--channel', 'id:1']],
+        ['--mention-me', ['--mention-me']],
+    ])('rejects %s', async (_flag, flagArgs) => {
+        const program = createProgram()
+
+        await expect(
+            program.parseAsync([
+                'node',
+                'tdc',
+                'search',
+                'Outcasts',
+                '--type',
+                'conversations',
+                ...flagArgs,
+            ]),
+        ).rejects.toThrow(
+            '--to, --channel and --mention-me cannot be used with --type conversations',
+        )
+        expect(searchApiMocks.extendedSearch).not.toHaveBeenCalled()
+    })
+
+    it('ignores case when rejecting a flag', async () => {
+        const program = createProgram()
+
+        await expect(
+            program.parseAsync([
+                'node',
+                'tdc',
+                'search',
+                'Outcasts',
+                '--type',
+                'CONVERSATIONS',
+                '--mention-me',
+            ]),
+        ).rejects.toThrow('cannot be used with --type conversations')
+    })
+
     it('skips the channel lookup when no result has a channel', async () => {
         vi.mocked(includePrivateChannels).mockReturnValue(false)
         searchApiMocks.extendedSearch.mockResolvedValue({

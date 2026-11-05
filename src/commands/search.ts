@@ -1,4 +1,5 @@
 import { Command } from 'commander'
+import { CliError } from '../lib/errors.js'
 import {
     addSharedSearchOptions,
     printSearchResults,
@@ -16,6 +17,13 @@ async function search(
     workspaceRef: string | undefined,
     options: SearchOptions,
 ): Promise<void> {
+    if (options.type === 'conversations' && (options.to || options.channel || options.mentionMe)) {
+        throw new CliError(
+            'CONFLICTING_OPTIONS',
+            '--to, --channel and --mention-me cannot be used with --type conversations',
+        )
+    }
+
     const { workspaceId, response } = await runSearch(workspaceRef, {
         ...options,
         query: options.titleOnly ? undefined : query,
