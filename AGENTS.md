@@ -109,6 +109,7 @@ throw new CliError('ERROR_CODE', 'User-facing message', ['Optional hint'])
 ## Git hooks and agent tooling
 
 - Lefthook refuses commits and pushes to `main`, runs oxlint, oxfmt and the type check on pre-commit, and the tests on pre-push. Work on a branch.
+- When a turn changes code that `npm run verify` has not passed, the end-of-turn hook (Claude Code, Codex, Cursor) sends you back once. Run verify, or stop on purpose and say what is unverified.
 - Agent tooling lives in `.agents/scripts/`, never in `scripts/` (which ships in the npm package).
 - How it all fits together: [`docs/agents.md`](docs/agents.md).
 

@@ -34,8 +34,10 @@ come from `@doist/cli-core`.
 │  │                      # review-changes)
 │  ├─ checks/             # Review checks reviewers and Doistbot apply (AGENTS.md links them)
 │  └─ scripts/            # Agent tooling (verify, git hook branch guard, review
-│                         # worktree) and its tests. Not published, unlike scripts/
+│                         # worktree, end-of-turn gate) and its tests. Not
+│                         # published, unlike scripts/
 ├─ .claude/skills/        # Links to .agents/skills/, where Claude Code finds them
+├─ .claude/settings.json  # End-of-turn gate hooks (.codex/hooks.json for Codex)
 ├─ docs/agents.md         # How the agent tooling fits together
 ├─ AGENTS.md              # Prescriptive rules (definition of done, build cmds, JSON flag,
 │                         # skill-sync, errors)
