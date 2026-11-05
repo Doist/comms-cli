@@ -1,3 +1,9 @@
+## [3.10.0](https://github.com/Doist/comms-cli/compare/v3.9.1...v3.10.0) (2026-11-05)
+
+### Features
+
+- **search:** Find group chats by title with --type conversations ([#104](https://github.com/Doist/comms-cli/issues/104)) ([6d47024](https://github.com/Doist/comms-cli/commit/6d470240b41873383fba39659c0b74e19425a2c7))
+
 ## [3.9.1](https://github.com/Doist/comms-cli/compare/v3.9.0...v3.9.1) (2026-11-02)
 
 ### Bug Fixes
