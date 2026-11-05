@@ -30,12 +30,13 @@ come from `@doist/cli-core`.
 │                         # update-comms-sdk
 ├─ .agents/
 │  ├─ skills/             # Skills for agents working on this repo (add-command)
-│  └─ scripts/            # Agent tooling (git hook branch guard) and its tests.
-│                         # Not published, unlike scripts/
+│  └─ scripts/            # Agent tooling (verify, git hook branch guard) and its
+│                         # tests. Not published, unlike scripts/
 ├─ docs/agents.md         # How the agent tooling fits together
-├─ AGENTS.md              # Prescriptive rules (build cmds, JSON flag, skill-sync, errors)
+├─ AGENTS.md              # Prescriptive rules (definition of done, build cmds, JSON flag,
+│                         # skill-sync, errors)
 ├─ CODEBASE.md            # This file — descriptive map
-├─ CLAUDE.md              # One-liner forward to AGENTS.md
+├─ CLAUDE.md              # Imports AGENTS.md for Claude Code; nothing else
 ├─ README.md / CONTRIBUTING.md
 ├─ tsconfig.json          # Includes src + tests (type-check, IDE)
 ├─ tsconfig.build.json    # Excludes *.test.ts/.spec.ts, __mocks__, __fixtures__
@@ -255,6 +256,9 @@ see a per-command `--user`).
 - **Build:** `tsc -p tsconfig.build.json` → `dist/` (then `chmod +x`). Two-tsconfig
   setup: `tsconfig.json` includes tests (type-check/IDE); `tsconfig.build.json`
   excludes `*.test.ts`/`.spec.ts` and `__mocks__`.
+- **Verify:** `npm run verify` — every check the pull-request workflows run,
+  with one shared build, in about fifteen seconds (`.agents/scripts/verify.ts`).
+  Records a pass in `.tmp/agents/`.
 - **Type-check:** `npm run type-check` (`src/`, then `.agents/scripts/tsconfig.json`
   for the agent tooling). **Lint/format:** `npm run lint`
   (oxlint --fix + oxfmt), `npm run lint:check` (CI). **No ESLint, no Prettier.**

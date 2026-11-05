@@ -9,3 +9,4 @@ dist/
 .claude/scheduled_tasks.lock
 
 .review/
+.tmp/
