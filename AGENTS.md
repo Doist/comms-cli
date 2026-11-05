@@ -9,6 +9,18 @@ This file provides guidance to AI coding agents when working with code in this r
 - **Never weaken a check to pass it.** Don't skip, delete or loosen tests, edit lint, type or test config to get green, or use `--no-verify`. If a check looks wrong, say so and stop.
 - **Report honestly:** what ran, what it showed, and what you did not verify.
 
+## Skills
+
+Use the matching skill without being asked. They live in `.agents/skills/` (Claude Code reads them through `.claude/skills/`).
+
+- `verify`: before saying a change is done, fixed or ready.
+- `fix-bug`: something is broken or wrong.
+- `build-feature`: a new command, flag or behaviour.
+- `add-command`: the checklist of files to touch for a new command or subcommand.
+- `refactor`: changing structure without changing behaviour. Other tasks send restructuring here, as a separate change.
+- `write-tests`: writing or changing tests; `.agents/skills/write-tests/references/test-rules.md` is the quality bar.
+- `learn`: after a correction, to turn it into a check.
+
 ## Commands
 
 ```bash
@@ -48,7 +60,7 @@ This is a TypeScript CLI (`tdc`) for Comms messaging, built with Commander.js.
 
 **Entry point**: `src/index.ts` registers all commands with Commander.
 
-**Commands** (`src/commands/`): Commands with multiple subcommands use a folder-based structure (`src/commands/<entity>/index.ts`) where the index file exports a `register*Command(program)` function and wires Commander subcommands to handler functions in sibling files. Single-command files remain as flat files (`src/commands/<entity>.ts`). Each subcommand handler file exports one async action function and imports from `../../lib/`. An optional `helpers.ts` holds shared constants/utilities used by multiple subcommands. Commands support `--json`, `--ndjson`, and `--full` flags for machine-readable output.
+**Commands** (`src/commands/`): Commands with multiple subcommands use a folder-based structure (`src/commands/<entity>/index.ts`) where the index file exports a `register*Command(program)` function and wires Commander subcommands to handler functions in sibling files. Single-command files remain as flat files (`src/commands/<entity>.ts`). Each subcommand handler file exports one async action function and imports from `../../lib/`. An optional `src/commands/<entity>/helpers.ts` holds shared constants/utilities used by multiple subcommands. Commands support `--json`, `--ndjson`, and `--full` flags for machine-readable output.
 
 **Lib** (`src/lib/`):
 
@@ -68,13 +80,6 @@ This is a TypeScript CLI (`tdc`) for Comms messaging, built with Commander.js.
 - **Named flag aliases**: Where commands accept positional `[workspace-ref]`, the `--workspace` flag is also accepted. Error if both positional and flag are provided
 - **JSON output on mutating commands**: Mutating commands (create, update, delete, archive) should support `--json` output where it provides scripting value. Commands that return an object from the API (create/update) should also support `--full`. Commands where the API returns void should output a minimal status object (e.g. `{ id, deleted: true }` or `{ id, isArchived: true }`). Extend `MutationOptions` in `src/lib/options.ts` (which already includes `json` and `full`) rather than adding these fields ad hoc. Use `formatJson()` from `src/lib/output.ts` for the output. See `src/commands/status/set.ts` as the reference implementation.
 - **Spinner messages**: When adding new SDK method calls, add a corresponding entry in the `API_SPINNER_MESSAGES` map in `src/lib/api.ts`. Every user-facing API call should have a spinner message so the CLI shows progress feedback.
-- **Batch API responses**: When calling `client.batch(...)`, never access `.data` directly on a batch result. Use these helpers from `src/lib/api.ts`:
-    - `assertBatchData(response, label)` — single result; throws `CliError` on any failure (including `data: null`). Use for primary data the command can't render without (e.g. the thread itself).
-    - `getOptionalBatchData(response, label)` — tolerant single result; returns `data` (or `null`) on success, throws only on real API errors (`code >= 400`). Use when `data: null` with a success code is a valid empty state (e.g. `getUnread` returning null for "no unread threads"). Callers typically chain `?? []` / `?? defaultValue`.
-    - `buildBatchNameMap(ids, responses, label)` — strict parallel lookup; use when every id must resolve (e.g. channels).
-    - `buildOptionalBatchNameMap(ids, responses, label)` — tolerant parallel lookup; skips entries with `data: null` and a success code (e.g. deleted users) but still throws on real API errors. Callers must fall back via `userMap.get(id) ?? \`user:${id}\``. Use for user lookups so a single missing user doesn't abort the whole command.
-
-    See `src/commands/inbox.ts` and `src/commands/channel/threads.ts` (mix of strict primary + tolerant unread) and `src/commands/thread/view.ts` (tolerant user map) for reference.
 
 ## Error Handling
 

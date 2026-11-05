@@ -29,9 +29,11 @@ come from `@doist/cli-core`.
 │                         # check-semantic-pull-request, issue-automation,
 │                         # update-comms-sdk
 ├─ .agents/
-│  ├─ skills/             # Skills for agents working on this repo (add-command)
+│  ├─ skills/             # Skills for agents working on this repo (verify, fix-bug,
+│  │                      # build-feature, add-command, refactor, write-tests, learn)
 │  └─ scripts/            # Agent tooling (verify, git hook branch guard) and its
 │                         # tests. Not published, unlike scripts/
+├─ .claude/skills/        # Links to .agents/skills/, where Claude Code finds them
 ├─ docs/agents.md         # How the agent tooling fits together
 ├─ AGENTS.md              # Prescriptive rules (definition of done, build cmds, JSON flag,
 │                         # skill-sync, errors)
@@ -255,7 +257,7 @@ see a per-command `--user`).
 
 - **Build:** `tsc -p tsconfig.build.json` → `dist/` (then `chmod +x`). Two-tsconfig
   setup: `tsconfig.json` includes tests (type-check/IDE); `tsconfig.build.json`
-  excludes `*.test.ts`/`.spec.ts` and `__mocks__`.
+  excludes `*.test.ts`/`*.spec.ts` and `__mocks__`.
 - **Verify:** `npm run verify` — every check the pull-request workflows run,
   with one shared build, in about fifteen seconds (`.agents/scripts/verify.ts`).
   Records a pass in `.tmp/agents/`.
@@ -280,7 +282,7 @@ agent command reference. When commands/flags change:
 2. `npm run build && npm run sync:skill` → writes `skills/comms-cli/SKILL.md`.
 3. `tdc skill update claude-code` (and other installed agents) propagates it.
 4. `check-skill-sync.yml` runs `npm run check:skill-sync` on PRs — fails if
-   `SKILL.md` is out of sync with `content.ts`.
+   `skills/comms-cli/SKILL.md` is out of sync with `content.ts`.
 
 ## Running the CLI directly (no install)
 
