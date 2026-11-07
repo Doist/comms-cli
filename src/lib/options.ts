@@ -18,6 +18,11 @@ export type MutationOptions = {
     yes?: boolean
 }
 
+/** Commands that read their input from piped stdin only when `--stdin` is passed. */
+export type StdinOptions = {
+    stdin?: boolean
+}
+
 /** Converts an optional Commander date argument without applying boundary semantics. */
 export function toDate(value?: string): Date | undefined {
     return value ? new Date(value) : undefined

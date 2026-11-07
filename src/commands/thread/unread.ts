@@ -1,10 +1,10 @@
 import type { CommsApi } from '@doist/comms-sdk'
 import { CliError } from '../../lib/errors.js'
-import type { MutationOptions } from '../../lib/options.js'
+import type { MutationOptions, StdinOptions } from '../../lib/options.js'
 import { resolveCommentId } from '../../lib/refs.js'
 import { runThreadReadStateMutation } from './helpers.js'
 
-export type MarkThreadUnreadOptions = MutationOptions & { from?: string }
+export type MarkThreadUnreadOptions = MutationOptions & StdinOptions & { from?: string }
 
 type MarkUnreadStatus = {
     id: string

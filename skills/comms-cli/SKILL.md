@@ -123,10 +123,10 @@ tdc thread undone <ref> --yes         # Unarchive thread (move it back to your i
 tdc thread undone <ref> --yes --json  # Unarchive and return status as JSON
 tdc thread mark-read <ref>        # Mark a thread read
 tdc thread mark-read <ref> <ref> --yes # Mark multiple threads read
-printf "id:CbT8n2Kp4Qx6Rz9Lm3Va\nid:CbT9m4Qr7Vz2Nx8Lp5Sa\n" | tdc thread mark-read --dry-run # Preview bulk mark-read from stdin
+printf "id:CbT8n2Kp4Qx6Rz9Lm3Va\nid:CbT9m4Qr7Vz2Nx8Lp5Sa\n" | tdc thread mark-read --stdin --dry-run # Preview bulk mark-read from stdin
 tdc thread mark-unread <ref>      # Mark a whole thread unread; inverse of mark-read
 tdc thread mark-unread <ref> --from <comment-ref> # Mark unread from that comment onward (single thread only)
-tdc thread mark-unread <ref> <ref> --yes # Mark multiple threads unread (also accepts refs on stdin)
+tdc thread mark-unread <ref> <ref> --yes # Mark multiple threads unread (also accepts refs on stdin with --stdin)
 tdc thread mute <ref>             # Mute thread for 60 minutes (default)
 tdc thread mute <ref> --minutes 480  # Mute for custom duration
 tdc thread mute <ref> --json      # Mute and return { id, mutedUntil } as JSON
@@ -140,7 +140,7 @@ tdc thread rename <ref> "New title"  # Rename a thread (change its title)
 tdc thread rename <ref> "New title" --json  # Rename and return { id, title } as JSON
 tdc thread rename <ref> "New title" --json --full  # Rename and return full thread as JSON
 tdc thread update <ref> "New body"   # Update a thread's body (the first post)
-echo "New body" | tdc thread update <ref>  # Update body from stdin
+echo "New body" | tdc thread update <ref> --stdin  # Update body from stdin
 tdc thread update <ref> "New body" --dry-run  # Preview without updating
 tdc thread update <ref> "New body" --json  # Update and return { id, content } as JSON
 tdc thread update <ref> "New body" --json --full  # Update and return full thread as JSON
@@ -412,8 +412,8 @@ Translate old `twist.com` URLs to their Comms equivalents (e.g. for rewriting bo
 # Comma-separated list as an argument (token from the environment)
 TWIST_AUTH_TOKEN="$(tw auth token view)" tdc migrate urls "https://twist.com/a/1/ch/2/t/3,https://twist.com/a/1/ch/2/t/4"
 
-# Or pipe URLs via stdin (comma- or newline-separated)
-cat old-urls.txt | TWIST_AUTH_TOKEN="$(tw auth token view)" tdc migrate urls
+# Or pipe URLs in with --stdin (comma- or newline-separated)
+cat old-urls.txt | TWIST_AUTH_TOKEN="$(tw auth token view)" tdc migrate urls --stdin
 
 # --twist-token overrides the env var (visible in process lists — prefer the env var)
 tdc migrate urls "https://twist.com/a/1/ch/2/t/3" --twist-token <token>
@@ -467,20 +467,20 @@ Commands accept flexible references:
 
 ## Piping Input
 
-Commands that accept content (`thread create`, `thread reply`, `comment update`, `conversation reply`, `msg update`) auto-detect piped stdin:
+Commands that accept content (`thread create`, `thread reply`, `thread update`, `comment update`, `conversation reply`, `msg update`) read it from stdin only with `--stdin`; without the flag, piped input is ignored. `--stdin` can't be combined with a content argument, and with nothing piped in (stdin is a terminal) it fails with `STDIN_IS_TTY` instead of waiting:
 
 ```bash
-cat notes.md | tdc thread reply <ref>
-tdc thread create <channel-ref> "Title" < body.md
-echo "Quick reply" | tdc conversation reply <ref>
+cat notes.md | tdc thread reply <ref> --stdin
+tdc thread create <channel-ref> "Title" --stdin < body.md
+echo "Quick reply" | tdc conversation reply <ref> --stdin
 ```
 
-If no content argument is provided and no stdin is piped, the CLI opens `$EDITOR` for interactive input. In non-TTY environments (e.g. when called by an agent or in a pipeline), the editor is automatically skipped and the command fails fast with an actionable error message. Use `--non-interactive` to force this behavior even in a TTY, or `--interactive` to override auto-detection.
+If neither a content argument nor `--stdin` is given, the CLI opens `$EDITOR` for interactive input. In non-TTY environments (e.g. when called by an agent or in a pipeline), the editor is automatically skipped and the command fails fast with an actionable error message. Use `--non-interactive` to force this behavior even in a TTY, or `--interactive` to override auto-detection.
 
-`tdc thread mark-read` and `tdc thread mark-unread` also accept thread refs from stdin, one per line:
+`tdc thread mark-read` and `tdc thread mark-unread` read thread refs from stdin with `--stdin`, one per line (`#` lines are skipped), added to any refs passed as arguments:
 
 ```bash
-printf "id:CbT8n2Kp4Qx6Rz9Lm3Va\nid:CbT9m4Qr7Vz2Nx8Lp5Sa\n" | tdc thread mark-read --yes
+printf "id:CbT8n2Kp4Qx6Rz9Lm3Va\nid:CbT9m4Qr7Vz2Nx8Lp5Sa\n" | tdc thread mark-read --stdin --yes
 ```
 
 ## Common Workflows

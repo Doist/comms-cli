@@ -33,6 +33,7 @@ Examples:
     comment
         .command('update <comment-ref> [content]')
         .description('Update a thread comment')
+        .option('--stdin', 'Read content from stdin')
         .option('--dry-run', 'Show what would be updated without updating')
         .option('--json', 'Output updated comment as JSON')
         .option('--full', 'Include all fields in JSON output')
@@ -41,7 +42,7 @@ Examples:
             `
 Examples:
   tdc comment update id:CbM8n2Kp4Qx6Rz9Lm3Va "Updated text"
-  echo "New content" | tdc comment update id:CbM8n2Kp4Qx6Rz9Lm3Va
+  echo "New content" | tdc comment update id:CbM8n2Kp4Qx6Rz9Lm3Va --stdin
   tdc comment update id:CbM8n2Kp4Qx6Rz9Lm3Va "Fixed" --json`,
         )
         .action(updateComment)

@@ -179,16 +179,17 @@ Post a comment to a thread.
 Arguments:
 
 - `thread-ref` - Thread ID or Comms URL
-- `content` - Comment content (optional if using stdin or editor)
+- `content` - Comment content (optional if using `--stdin` or the editor)
 
-Content input priority:
+Content input:
 
-1. Stdin (if piped: `echo "text" | tdc thread reply id:CbT8n2Kp4Qx6Rz9Lm3Va`)
-2. Argument (if provided)
-3. Opens `$EDITOR` (if neither stdin nor argument)
+1. Argument (if provided)
+2. Stdin, only with `--stdin` (`echo "text" | tdc thread reply id:CbT8n2Kp4Qx6Rz9Lm3Va --stdin`). Passing both an argument and `--stdin` is an error
+3. Opens `$EDITOR` (if neither an argument nor `--stdin`)
 
 Options:
 
+- `--stdin` - Read content from stdin
 - `--dry-run` - Show what would be posted without posting
 
 Output:
@@ -255,12 +256,13 @@ Send a message in a conversation.
 Arguments:
 
 - `conversation-ref` - Conversation ID or Comms URL
-- `content` - Message content (optional if using stdin or editor)
+- `content` - Message content (optional if using `--stdin` or the editor)
 
-Content input: Same as `tdc thread reply` (stdin → arg → $EDITOR)
+Content input: Same as `tdc thread reply` (arg or `--stdin`, else $EDITOR)
 
 Options:
 
+- `--stdin` - Read content from stdin
 - `--dry-run` - Show what would be sent without sending
 
 Output:
@@ -306,12 +308,13 @@ Edit a conversation message.
 Arguments:
 
 - `message-ref` - Message ID or Comms URL
-- `content` - New message content (optional if using stdin or editor)
+- `content` - New message content (optional if using `--stdin` or the editor)
 
-Content input: Same as `tdc thread reply` (stdin → arg → $EDITOR)
+Content input: Same as `tdc thread reply` (arg or `--stdin`, else $EDITOR)
 
 Options:
 
+- `--stdin` - Read content from stdin
 - `--dry-run` - Show what would be updated without updating
 
 #### `tdc msg delete <message-ref>`
@@ -499,7 +502,7 @@ tdc thread view https://comms.todoist.com/a/12345/ch/CbC8n2Kp4Qx6Rz9Lm3Va/t/CbT8
 
 # Reply to a thread
 tdc thread reply id:CbT8n2Kp4Qx6Rz9Lm3Va "Great idea!"
-echo "Multiline\nreply" | tdc thread reply id:CbT8n2Kp4Qx6Rz9Lm3Va
+echo "Multiline\nreply" | tdc thread reply id:CbT8n2Kp4Qx6Rz9Lm3Va --stdin
 tdc thread reply id:CbT8n2Kp4Qx6Rz9Lm3Va  # opens $EDITOR
 
 # Mark thread as done
@@ -557,6 +560,6 @@ tdc search "project" --ndjson
 
 4. **Batch Operations**: Use `client.batch()` for parallel API calls when fetching related data (channels, users for display)
 
-5. **Content Input**: For reply commands, check stdin first, then arg, then spawn $EDITOR
+5. **Content Input**: For reply commands, take the arg or, with `--stdin`, piped stdin (never both), else spawn $EDITOR
 
 6. **Markdown Rendering**: Defer library choice. Start with raw markdown, add terminal rendering later based on real usage

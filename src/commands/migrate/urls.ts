@@ -1,10 +1,11 @@
 import { type CommsRequestError, fetchNewCommsUrls } from '@doist/comms-sdk'
 import { CliError } from '../../lib/errors.js'
-import { readStdin } from '../../lib/input.js'
+import { readContent } from '../../lib/input.js'
+import type { StdinOptions } from '../../lib/options.js'
 import { colors, formatJson, formatNdjson } from '../../lib/output.js'
 import { withSpinner } from '../../lib/spinner.js'
 
-type MigrateUrlsOptions = {
+type MigrateUrlsOptions = StdinOptions & {
     twistToken?: string
     json?: boolean
     ndjson?: boolean
@@ -59,13 +60,11 @@ export async function migrateUrls(
         ])
     }
 
-    // readStdin() waits briefly for the first byte then reads to end, so an open
-    // but empty stdin (CI, spawned children) raises MISSING_CONTENT instead of hanging.
-    const rawInput = urlsArg ?? (await readStdin())
+    const rawInput = await readContent(urlsArg, options, 'URLs')
     const oldUrls = rawInput ? parseUrls(rawInput) : []
     if (oldUrls.length === 0) {
         throw new CliError('MISSING_CONTENT', 'No URLs provided.', [
-            'Pass a comma-separated list as an argument, or pipe URLs via stdin.',
+            'Pass a comma-separated list as an argument, or pipe URLs in with --stdin.',
         ])
     }
 

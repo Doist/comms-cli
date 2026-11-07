@@ -1,8 +1,8 @@
 import type { Thread } from '@doist/comms-sdk'
-import type { MutationOptions } from '../../lib/options.js'
+import type { MutationOptions, StdinOptions } from '../../lib/options.js'
 import { runThreadReadStateMutation } from './helpers.js'
 
-export type MarkThreadReadOptions = MutationOptions
+export type MarkThreadReadOptions = MutationOptions & StdinOptions
 
 type MarkReadStatus = {
     id: string

@@ -1,4 +1,4 @@
-import { captureConsole, createTestProgram } from '@doist/cli-core/testing'
+import { captureConsole, createTestProgram, mockStdin } from '@doist/cli-core/testing'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 const apiMocks = vi.hoisted(() => ({
@@ -14,8 +14,8 @@ vi.mock('../../lib/refs.js', () => ({
     resolveMessageId: vi.fn().mockReturnValue('200'),
 }))
 
-vi.mock('../../lib/input.js', () => ({
-    readStdin: vi.fn().mockResolvedValue(''),
+vi.mock('../../lib/input.js', async (importOriginal) => ({
+    ...(await importOriginal<typeof import('../../lib/input.js')>()),
     openEditor: vi.fn().mockResolvedValue(''),
 }))
 
@@ -153,5 +153,46 @@ describe('msg delete', () => {
         ).rejects.toHaveProperty('code', 'MISSING_YES_FLAG')
 
         expect(client.conversationMessages.deleteMessage).not.toHaveBeenCalled()
+    })
+})
+
+describe('msg update', () => {
+    beforeEach(() => {
+        vi.clearAllMocks()
+    })
+
+    it('reads content from stdin with --stdin', async () => {
+        const client = createClient()
+        apiMocks.getCommsClient.mockResolvedValue(client)
+        captureConsole('log')
+        mockStdin('Piped message\n')
+
+        await createProgram().parseAsync(['node', 'tdc', 'msg', 'update', '200', '--stdin'])
+
+        expect(client.conversationMessages.updateMessage).toHaveBeenCalledWith({
+            id: '200',
+            content: 'Piped message',
+        })
+    })
+
+    it('ignores piped stdin without --stdin and uses the argument', async () => {
+        const client = createClient()
+        apiMocks.getCommsClient.mockResolvedValue(client)
+        captureConsole('log')
+        mockStdin('Piped message\n')
+
+        await createProgram().parseAsync([
+            'node',
+            'tdc',
+            'msg',
+            'update',
+            '200',
+            'Argument message',
+        ])
+
+        expect(client.conversationMessages.updateMessage).toHaveBeenCalledWith({
+            id: '200',
+            content: 'Argument message',
+        })
     })
 })

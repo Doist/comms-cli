@@ -3,18 +3,19 @@ import { getCommsClient } from '../../lib/api.js'
 import { uploadAttachments, validateAttachmentFiles } from '../../lib/attachments.js'
 import { getConfig } from '../../lib/config.js'
 import { CliError } from '../../lib/errors.js'
-import { openEditor, readStdin } from '../../lib/input.js'
-import type { MutationOptions } from '../../lib/options.js'
+import { openEditor, readContent } from '../../lib/input.js'
+import type { MutationOptions, StdinOptions } from '../../lib/options.js'
 import { formatJson, printDryRun } from '../../lib/output.js'
 import { assertChannelIsPublic } from '../../lib/public-channels.js'
 import { parseNotifyIdRefs, resolveChannelId } from '../../lib/refs.js'
 import { type ResolvedNotify, formatNotifyLabel, resolveNotifyIds } from './helpers.js'
 
-type CreateOptions = MutationOptions & {
-    notify?: string
-    unarchive?: boolean
-    file?: string[]
-}
+type CreateOptions = MutationOptions &
+    StdinOptions & {
+        notify?: string
+        unarchive?: boolean
+        file?: string[]
+    }
 
 export async function createThread(
     channelRef: string,
@@ -27,10 +28,7 @@ export async function createThread(
     const files = options.file ?? []
     const hasFiles = files.length > 0
 
-    let threadContent = await readStdin()
-    if (!threadContent && content) {
-        threadContent = content
-    }
+    let threadContent = await readContent(content, options)
     // A file-only thread is allowed: skip the editor prompt and the empty-content guard.
     if (!threadContent && !hasFiles) {
         threadContent = await openEditor()
@@ -38,7 +36,7 @@ export async function createThread(
     if ((!threadContent || threadContent.trim() === '') && !hasFiles) {
         throw new CliError(
             'MISSING_CONTENT',
-            'No content provided. Pass content as an argument, pipe via stdin, or attach a file.',
+            'No content provided. Pass content as an argument, pipe it in with --stdin, or attach a file.',
         )
     }
     const messageContent = threadContent ?? ''

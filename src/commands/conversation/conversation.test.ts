@@ -5,6 +5,7 @@ import {
     captureConsole,
     createTestProgram,
     describeEmptyMachineOutput,
+    mockStdin,
 } from '@doist/cli-core/testing'
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
 import { clearWorkspaceUserCache } from '../../lib/api.js'
@@ -35,8 +36,8 @@ vi.mock('../../lib/markdown.js', () => ({
 
 vi.mock('chalk')
 
-vi.mock('../../lib/input.js', () => ({
-    readStdin: vi.fn().mockResolvedValue(''),
+vi.mock('../../lib/input.js', async (importOriginal) => ({
+    ...(await importOriginal<typeof import('../../lib/input.js')>()),
     openEditor: vi.fn().mockResolvedValue(''),
 }))
 
@@ -1366,6 +1367,24 @@ describe('conversation undone', () => {
             program.parseAsync(['node', 'tdc', 'conversation', 'undone', '42', '--dry-run']),
         ).rejects.toThrow('conversation not found')
         expect(client.conversations.unarchiveConversation).not.toHaveBeenCalled()
+    })
+})
+
+describe('conversation reply --stdin', () => {
+    beforeEach(() => {
+        vi.clearAllMocks()
+    })
+
+    it('reads the message from stdin with --stdin', async () => {
+        const { client, program } = setupFileTest()
+        captureConsole('log')
+        mockStdin('Piped message\n')
+
+        await program.parseAsync(['node', 'tdc', 'conversation', 'reply', '42', '--stdin'])
+
+        expect(client.conversationMessages.createMessage).toHaveBeenCalledWith(
+            expect.objectContaining({ conversationId: '42', content: 'Piped message' }),
+        )
     })
 })
 

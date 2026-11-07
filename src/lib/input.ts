@@ -2,84 +2,44 @@ import { spawn } from 'node:child_process'
 import { readFile, unlink, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
+import { readStdin } from '@doist/cli-core'
+import { CliError } from './errors.js'
 import { isNonInteractive } from './global-args.js'
+import type { StdinOptions } from './options.js'
 
-const STDIN_TIMEOUT_MS = 100
-
-export async function readStdin(): Promise<string | null> {
-    if (process.stdin.isTTY) {
-        return null
+/**
+ * Input for a command that takes it as a positional argument or, with
+ * `--stdin`, from piped stdin. Stdin is only read when `--stdin` is passed.
+ * Returns null when neither gave any input, so the caller can fall back to
+ * `$EDITOR` or report it missing. `label` names the input in the
+ * conflicting-options error (e.g. `'URLs'`).
+ */
+export async function readContent(
+    content: string | undefined,
+    options: StdinOptions,
+    label = 'content',
+): Promise<string | null> {
+    if (options.stdin) {
+        if (content !== undefined) {
+            throw new CliError(
+                'CONFLICTING_OPTIONS',
+                `Pass ${label} as an argument or with --stdin, not both.`,
+            )
+        }
+        return (await readStdin()).trim() || null
     }
-
-    return new Promise((resolve) => {
-        let data = ''
-        let settled = false
-        let timeout: ReturnType<typeof setTimeout> | undefined
-
-        const settle = (value: string | null) => {
-            if (settled) return
-            settled = true
-            if (timeout) clearTimeout(timeout)
-            process.stdin.removeListener('data', onData)
-            process.stdin.removeListener('end', onEnd)
-            process.stdin.removeListener('error', onError)
-            resolve(value)
-        }
-
-        const onData = (chunk: string) => {
-            data += chunk
-            // Data arrived — clear any non-interactive timeout and wait for end
-            if (timeout) {
-                clearTimeout(timeout)
-                timeout = undefined
-            }
-        }
-        const onEnd = () => settle(data.trim() || null)
-        const onError = () => settle(null)
-
-        process.stdin.setEncoding('utf8')
-        process.stdin.on('data', onData)
-        process.stdin.on('end', onEnd)
-        process.stdin.on('error', onError)
-
-        // In non-interactive mode, don't wait indefinitely for a pipe that may never close
-        if (isNonInteractive()) {
-            timeout = setTimeout(() => {
-                settle(data.trim() || null)
-            }, STDIN_TIMEOUT_MS)
-        }
-    })
+    return content || null
 }
 
-export async function readStdinToEnd(): Promise<string | null> {
-    if (process.stdin.isTTY) {
-        return null
-    }
-
-    return new Promise((resolve) => {
-        let data = ''
-        let settled = false
-
-        const settle = (value: string | null) => {
-            if (settled) return
-            settled = true
-            process.stdin.removeListener('data', onData)
-            process.stdin.removeListener('end', onEnd)
-            process.stdin.removeListener('error', onError)
-            resolve(value)
-        }
-
-        const onData = (chunk: string) => {
-            data += chunk
-        }
-        const onEnd = () => settle(data.trim() || null)
-        const onError = () => settle(null)
-
-        process.stdin.setEncoding('utf8')
-        process.stdin.on('data', onData)
-        process.stdin.on('end', onEnd)
-        process.stdin.on('error', onError)
-    })
+/**
+ * Non-empty lines piped to stdin for a `--stdin` flag, trimmed, skipping
+ * `#` comment lines.
+ */
+export async function readStdinLines(): Promise<string[]> {
+    return (await readStdin())
+        .split(/\r?\n/)
+        .map((line) => line.trim())
+        .filter((line) => line !== '' && !line.startsWith('#'))
 }
 
 export async function openEditor(): Promise<string | null> {

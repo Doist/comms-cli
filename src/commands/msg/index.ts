@@ -32,6 +32,7 @@ Examples:
 
     msg.command('update <message-ref> [content]')
         .description('Edit a conversation message')
+        .option('--stdin', 'Read content from stdin')
         .option('--dry-run', 'Show what would be updated without updating')
         .option('--json', 'Output updated message as JSON')
         .option('--full', 'Include all fields in JSON output')
@@ -40,7 +41,7 @@ Examples:
             `
 Examples:
   tdc msg update id:CbS8n2Kp4Qx6Rz9Lm3Va "Updated text"
-  echo "New content" | tdc msg update id:CbS8n2Kp4Qx6Rz9Lm3Va
+  echo "New content" | tdc msg update id:CbS8n2Kp4Qx6Rz9Lm3Va --stdin
   tdc msg update id:CbS8n2Kp4Qx6Rz9Lm3Va "Fixed typo" --json`,
         )
         .action(updateMessage)
