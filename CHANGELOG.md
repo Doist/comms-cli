@@ -1,3 +1,13 @@
+## [4.0.0](https://github.com/Doist/comms-cli/compare/v3.10.0...v4.0.0) (2026-11-07)
+
+### ⚠ BREAKING CHANGES
+
+- read piped input only with an explicit --stdin flag (#111)
+
+### Features
+
+- read piped input only with an explicit --stdin flag ([#111](https://github.com/Doist/comms-cli/issues/111)) ([e797a63](https://github.com/Doist/comms-cli/commit/e797a63e13423ff16e73ba80b1e421e99667ef0a))
+
 ## [3.10.0](https://github.com/Doist/comms-cli/compare/v3.9.1...v3.10.0) (2026-11-05)
 
 ### Features
