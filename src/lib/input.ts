@@ -8,20 +8,22 @@ import { isNonInteractive } from './global-args.js'
 import type { StdinOptions } from './options.js'
 
 /**
- * Content for a command that takes it as a `[content]` argument or, with
+ * Input for a command that takes it as a positional argument or, with
  * `--stdin`, from piped stdin. Stdin is only read when `--stdin` is passed.
- * Returns null when neither gave any content, so the caller can fall back to
- * `$EDITOR`.
+ * Returns null when neither gave any input, so the caller can fall back to
+ * `$EDITOR` or report it missing. `label` names the input in the
+ * conflicting-options error (e.g. `'URLs'`).
  */
 export async function readContent(
     content: string | undefined,
     options: StdinOptions,
+    label = 'content',
 ): Promise<string | null> {
     if (options.stdin) {
         if (content !== undefined) {
             throw new CliError(
                 'CONFLICTING_OPTIONS',
-                'Pass content as an argument or with --stdin, not both.',
+                `Pass ${label} as an argument or with --stdin, not both.`,
             )
         }
         return (await readStdin()).trim() || null

@@ -162,7 +162,10 @@ describe('migrate urls', () => {
                 '--twist-token',
                 'flag-token',
             ]),
-        ).rejects.toHaveProperty('code', 'CONFLICTING_OPTIONS')
+        ).rejects.toMatchObject({
+            code: 'CONFLICTING_OPTIONS',
+            message: 'Pass URLs as an argument or with --stdin, not both.',
+        })
         expect(sdkMocks.fetchNewCommsUrls).not.toHaveBeenCalled()
     })
 

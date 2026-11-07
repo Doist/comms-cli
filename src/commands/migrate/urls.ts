@@ -1,6 +1,6 @@
-import { readStdin } from '@doist/cli-core'
 import { type CommsRequestError, fetchNewCommsUrls } from '@doist/comms-sdk'
 import { CliError } from '../../lib/errors.js'
+import { readContent } from '../../lib/input.js'
 import type { StdinOptions } from '../../lib/options.js'
 import { colors, formatJson, formatNdjson } from '../../lib/output.js'
 import { withSpinner } from '../../lib/spinner.js'
@@ -50,13 +50,6 @@ export async function migrateUrls(
     urlsArg: string | undefined,
     options: MigrateUrlsOptions,
 ): Promise<void> {
-    if (urlsArg !== undefined && options.stdin) {
-        throw new CliError(
-            'CONFLICTING_OPTIONS',
-            'Pass URLs as an argument or with --stdin, not both.',
-        )
-    }
-
     // Flag wins over the environment variable, but the env var is the recommended
     // primary method (a CLI flag exposes the token in process listings).
     const twistToken = options.twistToken ?? process.env.TWIST_AUTH_TOKEN
@@ -67,7 +60,7 @@ export async function migrateUrls(
         ])
     }
 
-    const rawInput = options.stdin ? await readStdin() : urlsArg
+    const rawInput = await readContent(urlsArg, options, 'URLs')
     const oldUrls = rawInput ? parseUrls(rawInput) : []
     if (oldUrls.length === 0) {
         throw new CliError('MISSING_CONTENT', 'No URLs provided.', [
