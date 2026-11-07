@@ -1,10 +1,11 @@
+import { readStdin } from '@doist/cli-core'
 import { type CommsRequestError, fetchNewCommsUrls } from '@doist/comms-sdk'
 import { CliError } from '../../lib/errors.js'
-import { readStdin } from '../../lib/input.js'
+import type { StdinOptions } from '../../lib/options.js'
 import { colors, formatJson, formatNdjson } from '../../lib/output.js'
 import { withSpinner } from '../../lib/spinner.js'
 
-type MigrateUrlsOptions = {
+type MigrateUrlsOptions = StdinOptions & {
     twistToken?: string
     json?: boolean
     ndjson?: boolean
@@ -49,6 +50,13 @@ export async function migrateUrls(
     urlsArg: string | undefined,
     options: MigrateUrlsOptions,
 ): Promise<void> {
+    if (urlsArg !== undefined && options.stdin) {
+        throw new CliError(
+            'CONFLICTING_OPTIONS',
+            'Pass URLs as an argument or with --stdin, not both.',
+        )
+    }
+
     // Flag wins over the environment variable, but the env var is the recommended
     // primary method (a CLI flag exposes the token in process listings).
     const twistToken = options.twistToken ?? process.env.TWIST_AUTH_TOKEN
@@ -59,13 +67,11 @@ export async function migrateUrls(
         ])
     }
 
-    // readStdin() waits briefly for the first byte then reads to end, so an open
-    // but empty stdin (CI, spawned children) raises MISSING_CONTENT instead of hanging.
-    const rawInput = urlsArg ?? (await readStdin())
+    const rawInput = options.stdin ? await readStdin() : urlsArg
     const oldUrls = rawInput ? parseUrls(rawInput) : []
     if (oldUrls.length === 0) {
         throw new CliError('MISSING_CONTENT', 'No URLs provided.', [
-            'Pass a comma-separated list as an argument, or pipe URLs via stdin.',
+            'Pass a comma-separated list as an argument, or pipe URLs in with --stdin.',
         ])
     }
 

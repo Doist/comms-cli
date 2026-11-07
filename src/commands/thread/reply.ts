@@ -2,19 +2,20 @@ import chalk from 'chalk'
 import { getCommsClient } from '../../lib/api.js'
 import { uploadAttachments, validateAttachmentFiles } from '../../lib/attachments.js'
 import { CliError } from '../../lib/errors.js'
-import { openEditor, readStdin } from '../../lib/input.js'
-import type { MutationOptions } from '../../lib/options.js'
+import { openEditor, readContent } from '../../lib/input.js'
+import type { MutationOptions, StdinOptions } from '../../lib/options.js'
 import { formatJson, printDryRun } from '../../lib/output.js'
 import { assertChannelIsPublic } from '../../lib/public-channels.js'
 import { parseNotifyIdRefs, resolveThreadId } from '../../lib/refs.js'
 import { type ResolvedNotify, formatNotifyLabel, resolveNotifyIds } from './helpers.js'
 
-type ReplyOptions = MutationOptions & {
-    notify?: string
-    close?: boolean
-    reopen?: boolean
-    file?: string[]
-}
+type ReplyOptions = MutationOptions &
+    StdinOptions & {
+        notify?: string
+        close?: boolean
+        reopen?: boolean
+        file?: string[]
+    }
 
 export async function replyToThread(
     ref: string,
@@ -37,10 +38,7 @@ export async function replyToThread(
         )
     }
 
-    let replyContent = await readStdin()
-    if (!replyContent && content) {
-        replyContent = content
-    }
+    let replyContent = await readContent(content, options)
     // A file-only reply is allowed: skip the editor prompt and the empty-content guard.
     if (!replyContent && !hasFiles) {
         replyContent = await openEditor()
@@ -48,7 +46,7 @@ export async function replyToThread(
     if ((!replyContent || replyContent.trim() === '') && !hasFiles) {
         throw new CliError(
             'MISSING_CONTENT',
-            'No content provided. Pass content as an argument, pipe via stdin, or attach a file.',
+            'No content provided. Pass content as an argument, pipe it in with --stdin, or attach a file.',
         )
     }
     const messageContent = replyContent ?? ''

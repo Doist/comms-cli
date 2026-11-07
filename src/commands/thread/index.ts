@@ -59,6 +59,7 @@ Examples:
         .option('--close', 'Close the thread after replying')
         .option('--reopen', 'Reopen the thread after replying')
         .option('--file <path>', 'Attach a file (repeatable; content optional)', collect, [])
+        .option('--stdin', 'Read content from stdin')
         .option('--dry-run', 'Show what would be posted without posting')
         .option('--json', 'Output posted comment as JSON')
         .option('--full', 'Include all fields in JSON output')
@@ -69,7 +70,7 @@ Examples:
   tdc thread reply id:CbT8n2Kp4Qx6Rz9Lm3Va "Sounds good!"
   tdc thread reply id:CbT8n2Kp4Qx6Rz9Lm3Va "For the record" --notify NONE
   tdc thread reply id:CbT8n2Kp4Qx6Rz9Lm3Va "Done" --close --notify NONE --dry-run
-  echo "Long reply" | tdc thread reply id:CbT8n2Kp4Qx6Rz9Lm3Va
+  echo "Long reply" | tdc thread reply id:CbT8n2Kp4Qx6Rz9Lm3Va --stdin
   tdc thread reply id:CbT8n2Kp4Qx6Rz9Lm3Va "Done" --close --json
   tdc thread reply id:CbT8n2Kp4Qx6Rz9Lm3Va "Heads up" --notify 67890,Cbzzm11ZeYZoJYD4a6rti
   tdc thread reply id:CbT8n2Kp4Qx6Rz9Lm3Va "See attached" --file ./diagram.png
@@ -87,6 +88,7 @@ Examples:
         )
         .option('--no-unarchive', 'Skip unarchive even if userSettings.unarchiveNewThreads is true')
         .option('--file <path>', 'Attach a file (repeatable; content optional)', collect, [])
+        .option('--stdin', 'Read content from stdin')
         .option('--dry-run', 'Show what would be posted without posting')
         .option('--json', 'Output created thread as JSON')
         .option('--full', 'Include all fields in JSON output')
@@ -95,7 +97,7 @@ Examples:
             `
 Examples:
   tdc thread create id:CbC8n2Kp4Qx6Rz9Lm3Va "Weekly update" "Here's what happened..."
-  echo "Body from stdin" | tdc thread create id:CbC8n2Kp4Qx6Rz9Lm3Va "Title"
+  echo "Body from stdin" | tdc thread create id:CbC8n2Kp4Qx6Rz9Lm3Va "Title" --stdin
   tdc thread create id:CbC8n2Kp4Qx6Rz9Lm3Va "Title" "Body" --notify 67890,11111 --json
   tdc thread create id:CbC8n2Kp4Qx6Rz9Lm3Va "Title" "Body" --unarchive
   tdc thread create id:CbC8n2Kp4Qx6Rz9Lm3Va "Title" --file ./report.pdf`,
@@ -138,6 +140,7 @@ Examples:
         .command('mark-read [thread-refs...]')
         .description('Mark a thread read for the current user')
         .option('--yes', 'Skip confirmation for bulk operations')
+        .option('--stdin', 'Read thread refs from stdin, one per line')
         .option('--dry-run', 'Show what would happen without executing')
         .option('--json', 'Output result as JSON')
         .addHelpText(
@@ -146,10 +149,10 @@ Examples:
 Examples:
   tdc thread mark-read id:CbT8n2Kp4Qx6Rz9Lm3Va
   tdc thread mark-read id:CbT8n2Kp4Qx6Rz9Lm3Va id:CbT9m4Qr7Vz2Nx8Lp5Sa --yes
-  printf "id:CbT8n2Kp4Qx6Rz9Lm3Va\\nid:CbT9m4Qr7Vz2Nx8Lp5Sa\\n" | tdc thread mark-read --yes`,
+  printf "id:CbT8n2Kp4Qx6Rz9Lm3Va\\nid:CbT9m4Qr7Vz2Nx8Lp5Sa\\n" | tdc thread mark-read --stdin --yes`,
         )
         .action((refs, options) => {
-            if (refs.length === 0 && process.stdin.isTTY) {
+            if (refs.length === 0 && !options.stdin) {
                 markReadCmd.help()
                 return
             }
@@ -164,6 +167,7 @@ Examples:
             'Mark unread from this comment onward (single thread only; default: whole thread)',
         )
         .option('--yes', 'Skip confirmation for bulk operations')
+        .option('--stdin', 'Read thread refs from stdin, one per line')
         .option('--dry-run', 'Show what would happen without executing')
         .option('--json', 'Output result as JSON')
         .addHelpText(
@@ -173,10 +177,10 @@ Examples:
   tdc thread mark-unread id:CbT8n2Kp4Qx6Rz9Lm3Va
   tdc thread mark-unread id:CbT8n2Kp4Qx6Rz9Lm3Va --from id:CbM8n2Kp4Qx6Rz9Lm3Va
   tdc thread mark-unread id:CbT8n2Kp4Qx6Rz9Lm3Va id:CbT9m4Qr7Vz2Nx8Lp5Sa --yes
-  printf "id:CbT8n2Kp4Qx6Rz9Lm3Va\\nid:CbT9m4Qr7Vz2Nx8Lp5Sa\\n" | tdc thread mark-unread --yes`,
+  printf "id:CbT8n2Kp4Qx6Rz9Lm3Va\\nid:CbT9m4Qr7Vz2Nx8Lp5Sa\\n" | tdc thread mark-unread --stdin --yes`,
         )
         .action((refs, options) => {
-            if (refs.length === 0 && process.stdin.isTTY) {
+            if (refs.length === 0 && !options.stdin) {
                 markUnreadCmd.help()
                 return
             }
@@ -226,6 +230,7 @@ Examples:
     thread
         .command('update <thread-ref> [content]')
         .description("Update a thread's body (the first post)")
+        .option('--stdin', 'Read content from stdin')
         .option('--dry-run', 'Show what would be updated without updating')
         .option('--json', 'Output updated thread as JSON')
         .option('--full', 'Include all fields in JSON output')
@@ -234,7 +239,7 @@ Examples:
             `
 Examples:
   tdc thread update id:CbT8n2Kp4Qx6Rz9Lm3Va "Updated body text"
-  echo "New body" | tdc thread update id:CbT8n2Kp4Qx6Rz9Lm3Va
+  echo "New body" | tdc thread update id:CbT8n2Kp4Qx6Rz9Lm3Va --stdin
   tdc thread update id:CbT8n2Kp4Qx6Rz9Lm3Va "Fixed" --json`,
         )
         .action(updateThread)

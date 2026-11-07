@@ -4,9 +4,9 @@ import { getCommsClient, getWorkspaceGroups, getWorkspaceUsers } from '../../lib
 import { formatRelativeDate } from '../../lib/dates.js'
 import { CliError } from '../../lib/errors.js'
 import { isAccessible } from '../../lib/global-args.js'
-import { readStdinToEnd } from '../../lib/input.js'
+import { readStdinLines } from '../../lib/input.js'
 import { renderMarkdown } from '../../lib/markdown.js'
-import type { MutationOptions } from '../../lib/options.js'
+import type { MutationOptions, StdinOptions } from '../../lib/options.js'
 import { colors, formatJson, pluralize } from '../../lib/output.js'
 import { assertChannelIsPublic } from '../../lib/public-channels.js'
 import { partitionNotifyIds, resolveThreadId } from '../../lib/refs.js'
@@ -108,7 +108,7 @@ export type ReadStatePlan<Status> = {
 
 export type ReadStateMutation<Status> = {
     verb: 'read' | 'unread'
-    /** Runs on the full ref list (positional plus stdin) before anything is loaded. */
+    /** Runs on the full ref list (positional plus `--stdin`) before anything is loaded. */
     validateRefs?(rawRefs: string[]): void
     /**
      * Builds the per-thread plan. Runs before the unread lookup so an invalid
@@ -119,14 +119,14 @@ export type ReadStateMutation<Status> = {
 
 export async function runThreadReadStateMutation<Status extends { id: string }>(
     refs: string[],
-    options: MutationOptions,
+    options: MutationOptions & StdinOptions,
     mutation: ReadStateMutation<Status>,
 ): Promise<void> {
-    const rawRefs = await collectThreadRefs(refs)
+    const rawRefs = await collectThreadRefs(refs, options)
     if (rawRefs.length === 0) {
         throw new CliError(
             'INVALID_REF',
-            'No thread references provided. Pass refs as arguments or pipe them via stdin.',
+            'No thread references provided. Pass refs as arguments, or pipe them in with --stdin.',
         )
     }
     mutation.validateRefs?.(rawRefs)
@@ -204,18 +204,10 @@ export async function runThreadReadStateMutation<Status extends { id: string }>(
     }
 }
 
-async function collectThreadRefs(refs: string[]): Promise<string[]> {
+async function collectThreadRefs(refs: string[], options: StdinOptions): Promise<string[]> {
     const inlineRefs = refs.map((ref) => ref.trim()).filter(Boolean)
-
-    const stdinContent = await readStdinToEnd()
-    if (!stdinContent) return inlineRefs
-
-    const stdinRefs = stdinContent
-        .split(/\r?\n/)
-        .map((line) => line.trim())
-        .filter((line) => line !== '' && !line.startsWith('#'))
-
-    return [...inlineRefs, ...stdinRefs]
+    if (!options.stdin) return inlineRefs
+    return [...inlineRefs, ...(await readStdinLines())]
 }
 
 /**

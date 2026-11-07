@@ -2,7 +2,7 @@ import chalk from 'chalk'
 import { getCommsClient } from '../../lib/api.js'
 import { uploadAttachments, validateAttachmentFiles } from '../../lib/attachments.js'
 import { CliError } from '../../lib/errors.js'
-import { openEditor, readStdin } from '../../lib/input.js'
+import { openEditor, readContent } from '../../lib/input.js'
 import { formatJson, printDryRun } from '../../lib/output.js'
 import { resolveConversationId } from '../../lib/refs.js'
 import type { ReplyOptions } from './helpers.js'
@@ -17,10 +17,7 @@ export async function replyToConversation(
     const files = options.file ?? []
     const hasFiles = files.length > 0
 
-    let replyContent = await readStdin()
-    if (!replyContent && content) {
-        replyContent = content
-    }
+    let replyContent = await readContent(content, options)
     // A file-only message is allowed: skip the editor prompt and the empty-content guard.
     if (!replyContent && !hasFiles) {
         replyContent = await openEditor()
@@ -28,7 +25,7 @@ export async function replyToConversation(
     if ((!replyContent || replyContent.trim() === '') && !hasFiles) {
         throw new CliError(
             'MISSING_CONTENT',
-            'No content provided. Pass content as an argument, pipe via stdin, or attach a file.',
+            'No content provided. Pass content as an argument, pipe it in with --stdin, or attach a file.',
         )
     }
     const messageContent = replyContent ?? ''

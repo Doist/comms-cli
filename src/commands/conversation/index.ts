@@ -131,6 +131,7 @@ Examples:
         .command('reply <conversation-ref> [content]')
         .description('Send a message in a conversation')
         .option('--file <path>', 'Attach a file (repeatable; content optional)', collect, [])
+        .option('--stdin', 'Read content from stdin')
         .option('--dry-run', 'Show what would be sent without sending')
         .option('--json', 'Output sent message as JSON')
         .option('--full', 'Include all fields in JSON output')
@@ -139,7 +140,7 @@ Examples:
             `
 Examples:
   tdc conversation reply id:CbV8n2Kp4Qx6Rz9Lm3Va "Hello!"
-  echo "Message body" | tdc conversation reply id:CbV8n2Kp4Qx6Rz9Lm3Va
+  echo "Message body" | tdc conversation reply id:CbV8n2Kp4Qx6Rz9Lm3Va --stdin
   tdc conversation reply id:CbV8n2Kp4Qx6Rz9Lm3Va "Update" --json
   tdc conversation reply id:CbV8n2Kp4Qx6Rz9Lm3Va "See attached" --file ./photo.jpg`,
         )

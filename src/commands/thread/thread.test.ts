@@ -1,7 +1,12 @@
 import { mkdtemp, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
-import { captureConsole, createTestProgram } from '@doist/cli-core/testing'
+import {
+    captureConsole,
+    captureStream,
+    createTestProgram,
+    mockStdin,
+} from '@doist/cli-core/testing'
 import { CommsApi, type CustomFetch, generateId } from '@doist/comms-sdk'
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
 
@@ -38,16 +43,15 @@ vi.mock('../../lib/markdown.js', () => ({
     renderMarkdown: vi.fn((text: string) => Promise.resolve(text)),
 }))
 
-vi.mock('../../lib/input.js', () => ({
-    readStdin: vi.fn().mockResolvedValue(''),
-    readStdinToEnd: vi.fn().mockResolvedValue(''),
+vi.mock('../../lib/input.js', async (importOriginal) => ({
+    ...(await importOriginal<typeof import('../../lib/input.js')>()),
     openEditor: vi.fn().mockResolvedValue(''),
 }))
 
 vi.mock('chalk')
 
 import { clearWorkspaceUserCache } from '../../lib/api.js'
-import { openEditor, readStdin, readStdinToEnd } from '../../lib/input.js'
+import { openEditor } from '../../lib/input.js'
 import { registerThreadCommand } from './index.js'
 
 function createThreadFixture(id: number | string) {
@@ -308,8 +312,8 @@ describe('thread implicit view', () => {
         const program = createProgram()
         captureConsole('log')
 
-        vi.mocked(readStdin).mockResolvedValueOnce('closing comment')
-        await program.parseAsync(['node', 'tdc', 'thread', 'reply', '500', '--close'])
+        mockStdin('closing comment')
+        await program.parseAsync(['node', 'tdc', 'thread', 'reply', '500', '--close', '--stdin'])
 
         expect(client.threads.closeThread).toHaveBeenCalledWith(
             expect.objectContaining({ id: '500', content: 'closing comment' }),
@@ -324,8 +328,8 @@ describe('thread implicit view', () => {
         const program = createProgram()
         captureConsole('log')
 
-        vi.mocked(readStdin).mockResolvedValueOnce('reopening comment')
-        await program.parseAsync(['node', 'tdc', 'thread', 'reply', '500', '--reopen'])
+        mockStdin('reopening comment')
+        await program.parseAsync(['node', 'tdc', 'thread', 'reply', '500', '--reopen', '--stdin'])
 
         expect(client.threads.reopenThread).toHaveBeenCalledWith(
             expect.objectContaining({ id: '500', content: 'reopening comment' }),
@@ -931,14 +935,14 @@ describe('thread create', () => {
     })
 
     it('reads content from stdin', async () => {
-        vi.mocked(readStdin).mockResolvedValueOnce('Content from stdin')
+        mockStdin('Content from stdin')
         const client = createClient()
         apiMocks.getCommsClient.mockResolvedValue(client)
 
         const program = createProgram()
         captureConsole('log')
 
-        await program.parseAsync(['node', 'tdc', 'thread', 'create', '100', 'My Title'])
+        await program.parseAsync(['node', 'tdc', 'thread', 'create', '100', 'My Title', '--stdin'])
 
         expect(client.threads.createThread).toHaveBeenCalledWith(
             expect.objectContaining({
@@ -1256,7 +1260,6 @@ describe('thread read', () => {
     beforeEach(() => {
         clearWorkspaceUserCache()
         vi.clearAllMocks()
-        vi.mocked(readStdinToEnd).mockResolvedValue('')
     })
 
     it('marks a single unread thread read without requiring --yes', async () => {
@@ -1461,101 +1464,71 @@ describe('thread read', () => {
     })
 
     it('reads thread refs from stdin', async () => {
-        vi.mocked(readStdinToEnd).mockResolvedValueOnce('# comment\n500\n\n')
-        const originalIsTTY = process.stdin.isTTY
-        Object.defineProperty(process.stdin, 'isTTY', { value: false, configurable: true })
+        const stdin = mockStdin('# comment\n500\n\n')
+        const client = createClient({
+            unreadThreads: [
+                { threadId: '500', channelId: 'CH100', objIndex: 1, directMention: false },
+            ],
+        })
+        apiMocks.getCommsClient.mockResolvedValue(client)
 
-        try {
-            const client = createClient({
-                unreadThreads: [
-                    { threadId: '500', channelId: 'CH100', objIndex: 1, directMention: false },
-                ],
-            })
-            apiMocks.getCommsClient.mockResolvedValue(client)
+        const program = createProgram()
+        captureConsole('log')
 
-            const program = createProgram()
-            captureConsole('log')
+        await program.parseAsync(['node', 'tdc', 'thread', 'mark-read', '--stdin'])
 
-            await program.parseAsync(['node', 'tdc', 'thread', 'mark-read'])
-
-            expect(readStdinToEnd).toHaveBeenCalled()
-            expect(client.threads.markRead).toHaveBeenCalledWith({ id: '500', objIndex: 3 })
-        } finally {
-            Object.defineProperty(process.stdin, 'isTTY', {
-                value: originalIsTTY,
-                configurable: true,
-            })
-        }
+        expect(stdin).toHaveBeenCalled()
+        expect(client.threads.markRead).toHaveBeenCalledWith({ id: '500', objIndex: 3 })
     })
 
     it('reads multiple thread refs from stdin', async () => {
-        vi.mocked(readStdinToEnd).mockResolvedValueOnce('# comment\n500\n501\n')
-        const originalIsTTY = process.stdin.isTTY
-        Object.defineProperty(process.stdin, 'isTTY', { value: false, configurable: true })
+        mockStdin('# comment\n500\n501\n')
+        const thread500 = createThreadFixture(500)
+        const thread501 = { ...createThreadFixture(501), title: 'Second Thread' }
+        const client = createClient({
+            unreadThreads: [
+                { threadId: '500', channelId: 'CH100', objIndex: 1, directMention: false },
+                { threadId: '501', channelId: 'CH100', objIndex: 1, directMention: false },
+            ],
+        })
+        client.threads.getThread.mockImplementation(async (id: string) =>
+            id === '501' ? thread501 : thread500,
+        )
+        apiMocks.getCommsClient.mockResolvedValue(client)
 
-        try {
-            const thread500 = createThreadFixture(500)
-            const thread501 = { ...createThreadFixture(501), title: 'Second Thread' }
-            const client = createClient({
-                unreadThreads: [
-                    { threadId: '500', channelId: 'CH100', objIndex: 1, directMention: false },
-                    { threadId: '501', channelId: 'CH100', objIndex: 1, directMention: false },
-                ],
-            })
-            client.threads.getThread.mockImplementation(async (id: string) =>
-                id === '501' ? thread501 : thread500,
-            )
-            apiMocks.getCommsClient.mockResolvedValue(client)
+        const program = createProgram()
+        captureConsole('log')
 
-            const program = createProgram()
-            captureConsole('log')
+        await program.parseAsync(['node', 'tdc', 'thread', 'mark-read', '--yes', '--stdin'])
 
-            await program.parseAsync(['node', 'tdc', 'thread', 'mark-read', '--yes'])
-
-            expect(client.threads.markRead).toHaveBeenCalledWith({ id: '500', objIndex: 3 })
-            expect(client.threads.markRead).toHaveBeenCalledWith({ id: '501', objIndex: 3 })
-            expect(client.threads.markRead).toHaveBeenCalledTimes(2)
-        } finally {
-            Object.defineProperty(process.stdin, 'isTTY', {
-                value: originalIsTTY,
-                configurable: true,
-            })
-        }
+        expect(client.threads.markRead).toHaveBeenCalledWith({ id: '500', objIndex: 3 })
+        expect(client.threads.markRead).toHaveBeenCalledWith({ id: '501', objIndex: 3 })
+        expect(client.threads.markRead).toHaveBeenCalledTimes(2)
     })
 
     it('combines positional and stdin thread refs', async () => {
-        vi.mocked(readStdinToEnd).mockResolvedValueOnce('501\n')
-        const originalIsTTY = process.stdin.isTTY
-        Object.defineProperty(process.stdin, 'isTTY', { value: false, configurable: true })
+        mockStdin('501\n')
+        const thread500 = createThreadFixture(500)
+        const thread501 = { ...createThreadFixture(501), title: 'Second Thread' }
+        const client = createClient({
+            unreadThreads: [
+                { threadId: '500', channelId: 'CH100', objIndex: 1, directMention: false },
+                { threadId: '501', channelId: 'CH100', objIndex: 1, directMention: false },
+            ],
+        })
+        client.threads.getThread.mockImplementation(async (id: string) =>
+            id === '501' ? thread501 : thread500,
+        )
+        apiMocks.getCommsClient.mockResolvedValue(client)
 
-        try {
-            const thread500 = createThreadFixture(500)
-            const thread501 = { ...createThreadFixture(501), title: 'Second Thread' }
-            const client = createClient({
-                unreadThreads: [
-                    { threadId: '500', channelId: 'CH100', objIndex: 1, directMention: false },
-                    { threadId: '501', channelId: 'CH100', objIndex: 1, directMention: false },
-                ],
-            })
-            client.threads.getThread.mockImplementation(async (id: string) =>
-                id === '501' ? thread501 : thread500,
-            )
-            apiMocks.getCommsClient.mockResolvedValue(client)
+        const program = createProgram()
+        captureConsole('log')
 
-            const program = createProgram()
-            captureConsole('log')
+        await program.parseAsync(['node', 'tdc', 'thread', 'mark-read', '500', '--yes', '--stdin'])
 
-            await program.parseAsync(['node', 'tdc', 'thread', 'mark-read', '500', '--yes'])
-
-            expect(client.threads.markRead).toHaveBeenCalledWith({ id: '500', objIndex: 3 })
-            expect(client.threads.markRead).toHaveBeenCalledWith({ id: '501', objIndex: 3 })
-            expect(client.threads.markRead).toHaveBeenCalledTimes(2)
-        } finally {
-            Object.defineProperty(process.stdin, 'isTTY', {
-                value: originalIsTTY,
-                configurable: true,
-            })
-        }
+        expect(client.threads.markRead).toHaveBeenCalledWith({ id: '500', objIndex: 3 })
+        expect(client.threads.markRead).toHaveBeenCalledWith({ id: '501', objIndex: 3 })
+        expect(client.threads.markRead).toHaveBeenCalledTimes(2)
     })
 })
 
@@ -1790,14 +1763,14 @@ describe('thread update', () => {
     })
 
     it('reads content from stdin', async () => {
-        vi.mocked(readStdin).mockResolvedValueOnce('Body from stdin')
+        mockStdin('Body from stdin')
         const client = createClient()
         apiMocks.getCommsClient.mockResolvedValue(client)
 
         const program = createProgram()
         captureConsole('log')
 
-        await program.parseAsync(['node', 'tdc', 'thread', 'update', '500'])
+        await program.parseAsync(['node', 'tdc', 'thread', 'update', '500', '--stdin'])
 
         expect(client.threads.updateThread).toHaveBeenCalledWith({
             id: '500',
@@ -2063,7 +2036,6 @@ describe('thread mark-unread', () => {
     beforeEach(() => {
         clearWorkspaceUserCache()
         vi.clearAllMocks()
-        vi.mocked(readStdinToEnd).mockResolvedValue('')
     })
 
     it('marks a read thread unread from the start without requiring --yes', async () => {
@@ -2147,7 +2119,7 @@ describe('thread mark-unread', () => {
     })
 
     it('rejects --from when stdin adds a second thread ref', async () => {
-        vi.mocked(readStdinToEnd).mockResolvedValueOnce('501\n')
+        mockStdin('501\n')
         const client = createClient({ comments: [createComment(11, 1)] })
         apiMocks.getCommsClient.mockResolvedValue(client)
 
@@ -2163,6 +2135,7 @@ describe('thread mark-unread', () => {
                 '--from',
                 '11',
                 '--yes',
+                '--stdin',
             ]),
         ).rejects.toHaveProperty('code', 'CONFLICTING_OPTIONS')
         expect(client.threads.markUnread).not.toHaveBeenCalled()
@@ -2269,34 +2242,22 @@ describe('thread mark-unread', () => {
     })
 
     it('previews bulk refs from stdin and asks for --yes', async () => {
-        vi.mocked(readStdinToEnd).mockResolvedValueOnce('# refs\n500\n501\n')
-        const originalIsTTY = process.stdin.isTTY
-        Object.defineProperty(process.stdin, 'isTTY', { value: false, configurable: true })
+        const stdin = mockStdin('# refs\n500\n501\n')
+        const client = createClient()
+        client.threads.getThread.mockImplementation(async (id: string) => createThreadFixture(id))
+        apiMocks.getCommsClient.mockResolvedValue(client)
 
-        try {
-            const client = createClient()
-            client.threads.getThread.mockImplementation(async (id: string) =>
-                createThreadFixture(id),
-            )
-            apiMocks.getCommsClient.mockResolvedValue(client)
+        const program = createProgram()
+        const consoleSpy = captureConsole('log')
 
-            const program = createProgram()
-            const consoleSpy = captureConsole('log')
+        await program.parseAsync(['node', 'tdc', 'thread', 'mark-unread', '--stdin'])
 
-            await program.parseAsync(['node', 'tdc', 'thread', 'mark-unread'])
-
-            expect(readStdinToEnd).toHaveBeenCalled()
-            expect(client.threads.markUnread).not.toHaveBeenCalled()
-            expect(consoleSpy).toHaveBeenCalledWith('Would mark unread thread Test Thread (500).')
-            expect(consoleSpy).toHaveBeenCalledWith('Would mark unread thread Test Thread (501).')
-            expect(consoleSpy).toHaveBeenCalledWith('Summary: 2 previews')
-            expect(consoleSpy).toHaveBeenCalledWith('Use --yes to confirm.')
-        } finally {
-            Object.defineProperty(process.stdin, 'isTTY', {
-                value: originalIsTTY,
-                configurable: true,
-            })
-        }
+        expect(stdin).toHaveBeenCalled()
+        expect(client.threads.markUnread).not.toHaveBeenCalled()
+        expect(consoleSpy).toHaveBeenCalledWith('Would mark unread thread Test Thread (500).')
+        expect(consoleSpy).toHaveBeenCalledWith('Would mark unread thread Test Thread (501).')
+        expect(consoleSpy).toHaveBeenCalledWith('Summary: 2 previews')
+        expect(consoleSpy).toHaveBeenCalledWith('Use --yes to confirm.')
     })
 
     it('marks bulk refs unread with --yes', async () => {
@@ -2605,5 +2566,111 @@ describe('thread create --file', () => {
         expect(client.attachments.upload).not.toHaveBeenCalled()
         expect(client.threads.createThread).not.toHaveBeenCalled()
         expect(consoleSpy).toHaveBeenCalledWith(expect.stringContaining(files.png))
+    })
+})
+
+describe('thread --stdin', () => {
+    beforeEach(() => {
+        clearWorkspaceUserCache()
+        vi.clearAllMocks()
+        configMocks.getConfig.mockResolvedValue({})
+    })
+
+    it('reply ignores piped stdin without --stdin and posts the argument', async () => {
+        const client = createClient()
+        apiMocks.getCommsClient.mockResolvedValue(client)
+        captureConsole('log')
+        mockStdin('Piped reply')
+
+        await createProgram().parseAsync([
+            'node',
+            'tdc',
+            'thread',
+            'reply',
+            '500',
+            'Argument reply',
+        ])
+
+        expect(client.comments.createComment).toHaveBeenCalledWith(
+            expect.objectContaining({ threadId: '500', content: 'Argument reply' }),
+        )
+    })
+
+    it('reply with no content and no --stdin leaves piped input unread', async () => {
+        const client = createClient()
+        apiMocks.getCommsClient.mockResolvedValue(client)
+        mockStdin('Piped reply')
+
+        await expect(
+            createProgram().parseAsync(['node', 'tdc', 'thread', 'reply', '500']),
+        ).rejects.toHaveProperty('code', 'MISSING_CONTENT')
+        expect(openEditor).toHaveBeenCalled()
+        expect(client.comments.createComment).not.toHaveBeenCalled()
+    })
+
+    it('reply --stdin trims the piped content', async () => {
+        const client = createClient()
+        apiMocks.getCommsClient.mockResolvedValue(client)
+        captureConsole('log')
+        mockStdin('\n  Piped reply\n\n')
+
+        await createProgram().parseAsync(['node', 'tdc', 'thread', 'reply', '500', '--stdin'])
+
+        expect(client.comments.createComment).toHaveBeenCalledWith(
+            expect.objectContaining({ threadId: '500', content: 'Piped reply' }),
+        )
+    })
+
+    it('reply --stdin with a content argument fails with CONFLICTING_OPTIONS', async () => {
+        const client = createClient()
+        apiMocks.getCommsClient.mockResolvedValue(client)
+        mockStdin('Piped reply')
+
+        await expect(
+            createProgram().parseAsync([
+                'node',
+                'tdc',
+                'thread',
+                'reply',
+                '500',
+                'Argument reply',
+                '--stdin',
+            ]),
+        ).rejects.toMatchObject({
+            code: 'CONFLICTING_OPTIONS',
+            message: 'Pass content as an argument or with --stdin, not both.',
+        })
+        expect(client.comments.createComment).not.toHaveBeenCalled()
+    })
+
+    it('reply --stdin on a terminal fails with STDIN_IS_TTY', async () => {
+        const client = createClient()
+        apiMocks.getCommsClient.mockResolvedValue(client)
+        mockStdin('', { isTTY: true })
+
+        await expect(
+            createProgram().parseAsync(['node', 'tdc', 'thread', 'reply', '500', '--stdin']),
+        ).rejects.toHaveProperty('code', 'STDIN_IS_TTY')
+        expect(client.comments.createComment).not.toHaveBeenCalled()
+    })
+
+    it('mark-read with no refs shows help instead of reading piped refs', async () => {
+        const client = createClient({
+            unreadThreads: [
+                { threadId: '500', channelId: 'CH100', objIndex: 1, directMention: false },
+            ],
+        })
+        apiMocks.getCommsClient.mockResolvedValue(client)
+        const stdout = captureStream('stdout')
+        mockStdin('500\n')
+
+        await createProgram()
+            .parseAsync(['node', 'tdc', 'thread', 'mark-read'])
+            .catch(() => {})
+
+        expect(stdout.mock.calls.map((args) => String(args[0])).join('')).toContain(
+            'Usage: tdc thread mark-read',
+        )
+        expect(client.threads.markRead).not.toHaveBeenCalled()
     })
 })

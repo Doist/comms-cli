@@ -8,6 +8,7 @@ export function registerMigrateCommand(program: Command): void {
         .command('urls [urls]')
         .description('Translate twist.com URLs to their Comms equivalents')
         .option('--twist-token <token>', 'Twist auth token (overrides $TWIST_AUTH_TOKEN)')
+        .option('--stdin', 'Read URLs from stdin (comma- or newline-separated)')
         .option('--json', 'Output as JSON')
         .option('--ndjson', 'Output as newline-delimited JSON')
         .addHelpText(
@@ -19,7 +20,7 @@ Twist CLI (tw) is installed, you can populate it inline:
 
 Examples:
   TWIST_AUTH_TOKEN="$(tw auth token view)" tdc migrate urls "https://twist.com/a/1/ch/2/t/3,https://twist.com/a/1/ch/2/t/4"
-  cat old-urls.txt | TWIST_AUTH_TOKEN="$(tw auth token view)" tdc migrate urls
+  cat old-urls.txt | TWIST_AUTH_TOKEN="$(tw auth token view)" tdc migrate urls --stdin
   tdc migrate urls "https://twist.com/a/1/ch/2/t/3" --json   # token from $TWIST_AUTH_TOKEN`,
         )
         .action(migrateUrls)

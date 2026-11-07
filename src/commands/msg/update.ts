@@ -1,11 +1,11 @@
 import { getCommsClient } from '../../lib/api.js'
 import { CliError } from '../../lib/errors.js'
-import { openEditor, readStdin } from '../../lib/input.js'
-import type { MutationOptions } from '../../lib/options.js'
+import { openEditor, readContent } from '../../lib/input.js'
+import type { MutationOptions, StdinOptions } from '../../lib/options.js'
 import { formatJson, printDryRun } from '../../lib/output.js'
 import { resolveMessageId } from '../../lib/refs.js'
 
-type UpdateOptions = MutationOptions
+type UpdateOptions = MutationOptions & StdinOptions
 
 export async function updateMessage(
     ref: string,
@@ -14,17 +14,14 @@ export async function updateMessage(
 ): Promise<void> {
     const messageId = resolveMessageId(ref)
 
-    let newContent = await readStdin()
-    if (!newContent && content) {
-        newContent = content
-    }
+    let newContent = await readContent(content, options)
     if (!newContent) {
         newContent = await openEditor()
     }
     if (!newContent || newContent.trim() === '') {
         throw new CliError(
             'MISSING_CONTENT',
-            'No content provided. Pass content as an argument or pipe via stdin.',
+            'No content provided. Pass content as an argument, or pipe it in with --stdin.',
         )
     }
 

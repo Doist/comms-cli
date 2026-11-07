@@ -181,7 +181,8 @@ don't duplicate it here.
   `withCaseInsensitiveChoices`, `withUnvalidatedChoices`.
 - **`progress.ts`** — `ProgressTracker` JSONL event writer (`--progress-jsonl`).
 - **`dates.ts`** — `formatRelativeDate`, `parseDate`; **`input.ts`** —
-  `readStdin`, `openEditor`; **`validation.ts`** — `validateNonEmptyName`;
+  `readContent` / `readStdinLines` (explicit `--stdin`, via cli-core's
+  `readStdin`), `openEditor`; **`validation.ts`** — `validateNonEmptyName`;
   **`update.ts`** — `fetchLatestVersion`, `getConfiguredUpdateChannel`;
   **`errors.ts`** — `CliError(code, message, hints?)`, `ErrorCode` union,
   `isInsufficientScope`.

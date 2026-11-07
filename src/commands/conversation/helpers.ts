@@ -6,7 +6,12 @@ import { formatRelativeDate } from '../../lib/dates.js'
 import { CliError } from '../../lib/errors.js'
 import { isAccessible } from '../../lib/global-args.js'
 import { renderMarkdown } from '../../lib/markdown.js'
-import type { MutationOptions, PaginatedViewOptions, ViewOptions } from '../../lib/options.js'
+import type {
+    MutationOptions,
+    PaginatedViewOptions,
+    StdinOptions,
+    ViewOptions,
+} from '../../lib/options.js'
 import { colors, formatJson, formatNdjson } from '../../lib/output.js'
 
 export type UnreadOptions = ViewOptions & { workspace?: string }
@@ -40,7 +45,7 @@ export type ConversationRenderOptions = {
 
 export type ConversationState = 'active' | 'all' | 'archived'
 
-export type ReplyOptions = MutationOptions & { file?: string[] }
+export type ReplyOptions = MutationOptions & StdinOptions & { file?: string[] }
 
 export type MuteOptions = MutationOptions & { minutes?: string }
 

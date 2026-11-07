@@ -1,4 +1,4 @@
-import { captureConsole, createTestProgram } from '@doist/cli-core/testing'
+import { captureConsole, createTestProgram, mockStdin } from '@doist/cli-core/testing'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 const sdkMocks = vi.hoisted(() => ({
@@ -11,17 +11,8 @@ vi.mock('@doist/comms-sdk', async (importActual) => ({
     fetchNewCommsUrls: sdkMocks.fetchNewCommsUrls,
 }))
 
-const inputMocks = vi.hoisted(() => ({
-    readStdin: vi.fn().mockResolvedValue(null),
-}))
-
-vi.mock('../../lib/input.js', () => ({
-    readStdin: inputMocks.readStdin,
-}))
-
 vi.mock('chalk')
 
-import { readStdin } from '../../lib/input.js'
 import { registerMigrateCommand } from './index.js'
 
 const createProgram = () => createTestProgram(registerMigrateCommand)
@@ -43,7 +34,6 @@ describe('migrate urls', () => {
 
     beforeEach(() => {
         vi.clearAllMocks()
-        inputMocks.readStdin.mockResolvedValue(null)
         delete process.env.TWIST_AUTH_TOKEN
         delete process.env.TWIST_BASE_URL
         process.exitCode = undefined
@@ -84,8 +74,8 @@ describe('migrate urls', () => {
         expect(consoleSpy).toHaveBeenCalledWith(`${OLD_URL} -> ${NEW_URL}`)
     })
 
-    it('reads URLs from stdin when no argument is given', async () => {
-        inputMocks.readStdin.mockResolvedValue(`${OLD_URL}\nhttps://twist.com/a/1/ch/2/t/4\n`)
+    it('reads URLs from stdin with --stdin', async () => {
+        const stdin = mockStdin(`${OLD_URL}\nhttps://twist.com/a/1/ch/2/t/4\n`)
         sdkMocks.fetchNewCommsUrls.mockResolvedValue([success(OLD_URL, NEW_URL)])
         captureConsole('log')
 
@@ -96,9 +86,10 @@ describe('migrate urls', () => {
             'urls',
             '--twist-token',
             'flag-token',
+            '--stdin',
         ])
 
-        expect(readStdin).toHaveBeenCalled()
+        expect(stdin).toHaveBeenCalled()
         expect(sdkMocks.fetchNewCommsUrls).toHaveBeenCalledWith(
             expect.objectContaining({
                 oldUrls: [OLD_URL, 'https://twist.com/a/1/ch/2/t/4'],
@@ -138,6 +129,40 @@ describe('migrate urls', () => {
                 'flag-token',
             ]),
         ).rejects.toHaveProperty('code', 'MISSING_CONTENT')
+        expect(sdkMocks.fetchNewCommsUrls).not.toHaveBeenCalled()
+    })
+
+    it('ignores piped URLs without --stdin', async () => {
+        mockStdin(`${OLD_URL}\n`)
+
+        await expect(
+            createProgram().parseAsync([
+                'node',
+                'tdc',
+                'migrate',
+                'urls',
+                '--twist-token',
+                'flag-token',
+            ]),
+        ).rejects.toHaveProperty('code', 'MISSING_CONTENT')
+        expect(sdkMocks.fetchNewCommsUrls).not.toHaveBeenCalled()
+    })
+
+    it('errors with CONFLICTING_OPTIONS for a URL argument plus --stdin', async () => {
+        mockStdin(`${OLD_URL}\n`)
+
+        await expect(
+            createProgram().parseAsync([
+                'node',
+                'tdc',
+                'migrate',
+                'urls',
+                OLD_URL,
+                '--stdin',
+                '--twist-token',
+                'flag-token',
+            ]),
+        ).rejects.toHaveProperty('code', 'CONFLICTING_OPTIONS')
         expect(sdkMocks.fetchNewCommsUrls).not.toHaveBeenCalled()
     })
 

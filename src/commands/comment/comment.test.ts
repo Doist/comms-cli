@@ -1,4 +1,4 @@
-import { captureConsole, createTestProgram } from '@doist/cli-core/testing'
+import { captureConsole, createTestProgram, mockStdin } from '@doist/cli-core/testing'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 const apiMocks = vi.hoisted(() => ({
@@ -14,8 +14,8 @@ vi.mock('../../lib/api.js', async (importOriginal) => ({
     getCommsClient: apiMocks.getCommsClient,
 }))
 
-vi.mock('../../lib/input.js', () => ({
-    readStdin: vi.fn().mockResolvedValue(''),
+vi.mock('../../lib/input.js', async (importOriginal) => ({
+    ...(await importOriginal<typeof import('../../lib/input.js')>()),
     openEditor: vi.fn().mockResolvedValue(''),
 }))
 
@@ -25,7 +25,6 @@ vi.mock('../../lib/markdown.js', () => ({
 
 vi.mock('chalk')
 
-import { readStdin } from '../../lib/input.js'
 import { registerCommentCommand } from './index.js'
 
 function createCommentFixture(id: string, creator = 1) {
@@ -191,13 +190,13 @@ describe('comment update', () => {
     })
 
     it('reads content from stdin', async () => {
-        vi.mocked(readStdin).mockResolvedValueOnce('Content from stdin')
+        mockStdin('Content from stdin')
         const client = createClient()
         apiMocks.getCommsClient.mockResolvedValue(client)
         const program = createProgram()
         captureConsole('log')
 
-        await program.parseAsync(['node', 'tdc', 'comment', 'update', '300'])
+        await program.parseAsync(['node', 'tdc', 'comment', 'update', '300', '--stdin'])
 
         expect(client.comments.updateComment).toHaveBeenCalledWith({
             id: '300',
