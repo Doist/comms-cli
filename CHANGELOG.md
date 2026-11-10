@@ -1,3 +1,9 @@
+## [4.1.0](https://github.com/Doist/comms-cli/compare/v4.0.0...v4.1.0) (2026-11-10)
+
+### Features
+
+- send the shared Doist CLI usage headers on every request ([#114](https://github.com/Doist/comms-cli/issues/114)) ([c09e909](https://github.com/Doist/comms-cli/commit/c09e909ddec921e2e993745bfa2ac4caca1a5ffb))
+
 ## [4.0.0](https://github.com/Doist/comms-cli/compare/v3.10.0...v4.0.0) (2026-11-07)
 
 ### ⚠ BREAKING CHANGES
