@@ -11,6 +11,7 @@ vi.mock('./auth.js', () => ({
 }))
 
 import { extendedSearch } from './search-api.js'
+import { usageTracking } from './usage-tracking.js'
 
 const fetchMock = vi.fn()
 
@@ -57,11 +58,21 @@ describe('extendedSearch', () => {
         expect(requestUrl.searchParams.get('type')).toBe('conversations')
     })
 
-    it('attributes the request to the CLI via Doist-Platform', async () => {
+    it('sends the CLI usage headers alongside its own', async () => {
+        usageTracking.setCommand('search')
+
         await extendedSearch({ workspaceId: 69, query: 'roadmap' })
 
-        const headers = fetchMock.mock.calls[0][1].headers as Record<string, string>
-        expect(headers['Doist-Platform']).toBe('cli')
-        expect(headers['Doist-Version']).toBe(packageJson.version)
+        expect(fetchMock.mock.calls[0][1].headers).toEqual({
+            authorization: 'Bearer oauth-token',
+            'content-type': 'application/json',
+            'user-agent': `comms-cli/${packageJson.version}`,
+            'doist-platform': 'cli',
+            'doist-version': packageJson.version,
+            'doist-os': expect.stringMatching(/^(macos|linux|windows|unknown)$/),
+            'request-id': expect.any(String),
+            'session-id': expect.any(String),
+            'cli-command': 'search',
+        })
     })
 })

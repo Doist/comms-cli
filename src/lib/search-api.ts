@@ -1,7 +1,7 @@
 import { DEFAULT_API_VERSION, type SearchResult } from '@doist/comms-sdk'
-import { DOIST_ATTRIBUTION_HEADERS } from './attribution.js'
 import { getApiTokenSnapshot } from './auth.js'
 import { CliError } from './errors.js'
+import { usageTracking } from './usage-tracking.js'
 
 function getBaseUrl(authResource?: string): string {
     const override = process.env.COMMS_BASE_URL
@@ -103,11 +103,10 @@ export async function extendedSearch(
 
     const response = await fetch(url, {
         method: 'GET',
-        headers: {
+        headers: usageTracking.mergeHeaders({
             Authorization: `Bearer ${token}`,
             'Content-Type': 'application/json',
-            ...DOIST_ATTRIBUTION_HEADERS,
-        },
+        }),
     })
 
     if (!response.ok) {
