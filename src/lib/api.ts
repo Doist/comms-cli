@@ -9,7 +9,6 @@ import {
     type Workspace,
     type WorkspaceUser,
 } from '@doist/comms-sdk'
-import { DOIST_ATTRIBUTION_HEADERS } from './attribution.js'
 import { getApiTokenSnapshot } from './auth.js'
 import { getConfig, updateConfig } from './config.js'
 import {
@@ -25,6 +24,7 @@ import {
 import { ensureMutationAllowed, isMutatingMethod } from './permissions.js'
 import { getProgressTracker } from './progress.js'
 import { withSpinner } from './spinner.js'
+import { usageTracking } from './usage-tracking.js'
 
 // Mapping of API method paths to user-friendly spinner messages
 const API_SPINNER_MESSAGES: Record<string, { text: string; color?: 'blue' | 'green' | 'yellow' }> =
@@ -328,7 +328,7 @@ export function createWrappedCommsClient(
     const baseUrl = process.env.COMMS_BASE_URL ?? options.baseUrl
     const rawApi = new CommsApi(token, {
         ...(baseUrl ? { baseUrl } : {}),
-        headers: DOIST_ATTRIBUTION_HEADERS,
+        headers: () => usageTracking.headers(),
     })
     return createSpinnerWrappedApi(rawApi)
 }

@@ -170,6 +170,12 @@ don't duplicate it here.
   `shouldDisableSpinner`, progress-jsonl getters (layered on cli-core's parser).
 - **`permissions.ts`** — `ensureWriteAllowed`, `isMutatingMethod` (read-only-scope guard).
 - **`markdown.ts`** — `preloadMarkdown` / `renderMarkdown` (cli-core renderer).
+- **`usage-tracking.ts`** — `usageTracking` (cli-core's `createUsageTracking`:
+  the `User-Agent` / `doist-*` / `request-id` / `session-id` / `cli-command` headers on every
+  request), `trackCommandUsage(program)` (the `preAction` hook that sets
+  `cli-command`; `tdc view` adds it to its routing program too), and
+  `withUsageHeaders(fetch)` for requests that bypass the SDK. Any new raw
+  `fetch` to Comms or the OAuth server goes through `usageTracking.mergeHeaders`.
 - **`search-api.ts` / `search-helpers.ts`** — extended search params/response
   (`extendedSearch`) + shared `--search`/options wiring (`addSharedSearchOptions`,
   `runSearch`, `printSearchResults`). See `docs/comms-search.md`.

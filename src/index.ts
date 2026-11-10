@@ -9,6 +9,7 @@ import { getRequestedUserRef, isIdsOnlyMode, isJsonMode, isNdjsonMode } from './
 import { preloadMarkdown } from './lib/markdown.js'
 import { formatError, formatErrorJson } from './lib/output.js'
 import { startEarlySpinner, stopEarlySpinner } from './lib/spinner.js'
+import { trackCommandUsage } from './lib/usage-tracking.js'
 
 const loadWorkspaceCommand = async () =>
     (await import('./commands/workspace.js')).registerWorkspaceCommand
@@ -113,6 +114,7 @@ Note for AI/LLM agents:
     )
 
 configureCommandOutput(program)
+trackCommandUsage(program)
 
 // Register lightweight placeholders so --help lists all commands
 for (const [name, [description]] of Object.entries(commands)) {

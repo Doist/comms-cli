@@ -3,6 +3,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 import packageJson from '../../package.json' with { type: 'json' }
 
 import { CliError } from './errors.js'
+import { usageTracking } from './usage-tracking.js'
 
 // Hoisted mocks — shared across both describe blocks.
 const getWorkspaceUsersMock = vi.hoisted(() => vi.fn().mockResolvedValue([]))
@@ -134,11 +135,30 @@ describe('wrapResult — central 403 translation', () => {
 
         expect(sdkMocks.createClient).toHaveBeenCalledWith('test-token', {
             baseUrl: 'https://comms.staging.todoist.com',
-            headers: {
-                'Doist-Platform': 'cli',
-                'Doist-Version': packageJson.version,
-            },
+            headers: expect.any(Function),
         })
+    })
+
+    it('computes the CLI usage headers afresh for each SDK request', () => {
+        createWrappedCommsClient('test-token')
+        const [, options] = sdkMocks.createClient.mock.calls[0] as [
+            string,
+            { headers: () => Record<string, string> },
+        ]
+
+        usageTracking.setCommand('channel:list')
+        const first = options.headers()
+        usageTracking.setCommand('thread:view')
+        const second = options.headers()
+
+        expect(first).toMatchObject({
+            'User-Agent': `comms-cli/${packageJson.version}`,
+            'doist-platform': 'cli',
+            'doist-version': packageJson.version,
+            'cli-command': 'channel:list',
+        })
+        expect(second['cli-command']).toBe('thread:view')
+        expect(second['session-id']).toBe(first['session-id'])
     })
 
     it('uses the active OAuth account resource when creating the shared SDK client', async () => {
@@ -146,10 +166,7 @@ describe('wrapResult — central 403 translation', () => {
 
         expect(sdkMocks.createClient).toHaveBeenCalledWith('test-token', {
             baseUrl: 'https://comms.staging.todoist.com',
-            headers: {
-                'Doist-Platform': 'cli',
-                'Doist-Version': packageJson.version,
-            },
+            headers: expect.any(Function),
         })
     })
 

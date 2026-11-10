@@ -19,6 +19,7 @@ import { type AuthMode, getConfig, getConfigPath } from './config.js'
 import { CliError } from './errors.js'
 import { parseRef } from './refs.js'
 import { splitScopeString } from './scopes.js'
+import { withUsageHeaders } from './usage-tracking.js'
 import { createCommsUserRecordStore, getDefaultUserRecord } from './user-records.js'
 
 const DEFAULT_TODOIST_AUTH_BASE_URL = 'https://todoist.com'
@@ -155,7 +156,7 @@ export function createCommsAuthProvider(
         clientId: ({ handshake }) => resolveClientId(handshake),
         validate: validateCommsToken,
         errorHints: AUTH_HINTS,
-        fetchImpl,
+        fetchImpl: withUsageHeaders(fetchImpl),
     })
 
     return {

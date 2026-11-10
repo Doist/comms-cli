@@ -1,4 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import packageJson from '../../package.json' with { type: 'json' }
 
 vi.mock('./api.js', () => ({ createWrappedCommsClient: vi.fn() }))
 
@@ -50,6 +51,7 @@ import {
     matchCommsAccount,
     READ_WRITE_SCOPES,
 } from './auth-provider.js'
+import { usageTracking } from './usage-tracking.js'
 
 const mockCreateClient = vi.mocked(createWrappedCommsClient)
 const TOKEN_ENV_VAR = 'COMMS_API_TOKEN'
@@ -220,6 +222,57 @@ describe('createCommsAuthProvider', () => {
             expect(exchange.refreshToken).toBe('refresh_rotated')
         },
     )
+
+    it.each([
+        [
+            'the code exchange',
+            (provider: ReturnType<typeof createCommsAuthProvider>) =>
+                provider.exchangeCode({
+                    code: 'code_123',
+                    state: 'state_123',
+                    redirectUri: 'http://localhost:8766/callback',
+                    handshake: {
+                        clientId: OAUTH_CLIENT_ID,
+                        codeVerifier: 'verifier_123',
+                        authBaseUrl: 'https://todoist.com',
+                        resource: 'https://comms.todoist.com',
+                    },
+                }),
+        ],
+        [
+            'a refresh',
+            (provider: ReturnType<typeof createCommsAuthProvider>) =>
+                provider.refreshToken!({
+                    refreshToken: 'refresh_old',
+                    handshake: {
+                        clientId: OAUTH_CLIENT_ID,
+                        authBaseUrl: 'https://todoist.com',
+                        resource: 'https://comms.todoist.com',
+                        authScope: READ_WRITE_SCOPES.join(' '),
+                    },
+                }),
+        ],
+    ])('sends the CLI usage headers with %s token request', async (_, request) => {
+        const fetchImpl = vi.fn().mockResolvedValue(
+            jsonResponse({
+                token_type: 'bearer',
+                access_token: 'tdc_access',
+                expires_in: 3600,
+            }),
+        )
+        usageTracking.setCommand('auth:login')
+
+        await request(createCommsAuthProvider(fetchImpl))
+
+        const headers = (fetchImpl.mock.calls[0][1] as RequestInit).headers
+        expect(headers).toMatchObject({
+            'content-type': expect.stringContaining('application/x-www-form-urlencoded'),
+            'user-agent': `comms-cli/${packageJson.version}`,
+            'doist-platform': 'cli',
+            'doist-version': packageJson.version,
+            'cli-command': 'auth:login',
+        })
+    })
 
     it('keeps stored account scope metadata when a refresh response omits scope', async () => {
         const fetchImpl = vi.fn().mockResolvedValue(

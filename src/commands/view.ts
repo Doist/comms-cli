@@ -2,6 +2,7 @@ import { Command } from 'commander'
 import { configureCommandOutput } from '../lib/command-output.js'
 import { CliError } from '../lib/errors.js'
 import { classifyCommsUrl } from '../lib/refs.js'
+import { trackCommandUsage } from '../lib/usage-tracking.js'
 
 function extractViewInvocation(parsedUrl: string): {
     url: string
@@ -18,7 +19,9 @@ async function runRoutedCommand(
     loadRegister: () => Promise<(p: Command) => void>,
     argv: string[],
 ): Promise<void> {
-    const proxy = configureCommandOutput(new Command())
+    // Its own hook relabels the requests from `view` to the routed command
+    // (`thread:view`, `msg:view`, ...), which is what actually runs.
+    const proxy = trackCommandUsage(configureCommandOutput(new Command()))
     const register = await loadRegister()
     register(proxy)
     await proxy.parseAsync(['node', 'tdc', ...argv])
