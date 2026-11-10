@@ -118,14 +118,14 @@ describe('CLI usage headers on API requests', () => {
         expect(headers?.['cli-command']).toBe(label)
     })
 
-    it('keeps one session ID but a new request ID across the requests of a run', async () => {
-        const [first] = await headersSentBy('user')
-        clearApiClientCache()
-        const [, second] = await headersSentBy('thread', `id:${THREAD_ID}`)
+    it('keeps one session ID but gives each request of a run its own request ID', async () => {
+        const [getThread, getComments] = await headersSentBy('thread', `id:${THREAD_ID}`)
 
-        expect(first?.['session-id']).toMatch(UUID)
-        expect(second?.['session-id']).toBe(first?.['session-id'])
-        expect(second?.['request-id']).toMatch(UUID)
-        expect(second?.['request-id']).not.toBe(first?.['request-id'])
+        expect(sdk.requests).toHaveLength(2)
+        expect(getThread?.['session-id']).toMatch(UUID)
+        expect(getComments?.['session-id']).toBe(getThread?.['session-id'])
+        expect(getThread?.['request-id']).toMatch(UUID)
+        expect(getComments?.['request-id']).toMatch(UUID)
+        expect(getComments?.['request-id']).not.toBe(getThread?.['request-id'])
     })
 })
