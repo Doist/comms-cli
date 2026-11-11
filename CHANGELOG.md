@@ -1,3 +1,9 @@
+## [4.1.2](https://github.com/todoist/comms-cli/compare/v4.1.1...v4.1.2) (2026-11-11)
+
+### Bug Fixes
+
+- **ci:** use the todoist GitHub org after the rename ([#118](https://github.com/todoist/comms-cli/issues/118)) ([700e176](https://github.com/todoist/comms-cli/commit/700e176d1a346ab9d40eff9599a071d4918f3c4d))
+
 ## [4.1.1](https://github.com/Doist/comms-cli/compare/v4.1.0...v4.1.1) (2026-11-11)
 
 ### Bug Fixes
