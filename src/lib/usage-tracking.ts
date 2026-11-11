@@ -26,6 +26,10 @@ export function trackCommandUsage(program: Command): Command {
 
 /** Wraps a `fetch` so requests that bypass the SDK carry the usage headers too. */
 export function withUsageHeaders(fetchImpl: typeof fetch): typeof fetch {
-    return (input, init) =>
-        fetchImpl(input, { ...init, headers: usageTracking.mergeHeaders(init?.headers) })
+    return (input, init) => {
+        // `fetch(request, { headers })` replaces the Request's own headers, so
+        // start from them unless `init` brings headers, which win as with `fetch`.
+        const headers = init?.headers ?? (input instanceof Request ? input.headers : undefined)
+        return fetchImpl(input, { ...init, headers: usageTracking.mergeHeaders(headers) })
+    }
 }

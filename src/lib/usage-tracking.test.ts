@@ -65,7 +65,7 @@ vi.mock('./spinner.js', () => ({
 }))
 
 const { clearApiClientCache, clearWorkspaceUserCache } = await import('./api.js')
-const { trackCommandUsage } = await import('./usage-tracking.js')
+const { trackCommandUsage, withUsageHeaders } = await import('./usage-tracking.js')
 const { registerUserCommand } = await import('../commands/user.js')
 const { registerThreadCommand } = await import('../commands/thread/index.js')
 const { registerViewCommand } = await import('../commands/view.js')
@@ -134,5 +134,80 @@ describe('CLI usage headers on API requests', () => {
         expect(getThread?.['request-id']).toMatch(UUID)
         expect(getComments?.['request-id']).toMatch(UUID)
         expect(getComments?.['request-id']).not.toBe(getThread?.['request-id'])
+    })
+})
+
+/**
+ * Calls `fetch` through `withUsageHeaders` and returns the headers the request
+ * would go out with: the fake `fetch` builds the request from its arguments the
+ * same way the real one does, so `init.headers` replaces a Request's own.
+ */
+async function headersFetchedWith(
+    input: RequestInfo | URL,
+    init?: RequestInit,
+): Promise<Record<string, string>> {
+    const sent: Headers[] = []
+    const fetchImpl = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+        sent.push(new Request(input, init).headers)
+        return new Response()
+    })
+
+    await withUsageHeaders(fetchImpl)(input, init)
+
+    expect(sent).toHaveLength(1)
+    return Object.fromEntries(sent[0]?.entries() ?? [])
+}
+
+describe('withUsageHeaders', () => {
+    const TOKEN_URL = 'https://auth.example.com/oauth/access_token'
+
+    it('adds the usage headers to the headers passed in `init`', async () => {
+        const headers = await headersFetchedWith(TOKEN_URL, {
+            headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+        })
+
+        expect(headers).toMatchObject({
+            'content-type': 'application/x-www-form-urlencoded',
+            'user-agent': `comms-cli/${packageJson.version}`,
+            'doist-platform': 'cli',
+        })
+    })
+
+    it("keeps a Request's own headers when `init` has none", async () => {
+        const request = new Request(TOKEN_URL, {
+            headers: { Authorization: 'Bearer request-token' },
+        })
+
+        const headers = await headersFetchedWith(request)
+
+        expect(headers).toMatchObject({
+            authorization: 'Bearer request-token',
+            'user-agent': `comms-cli/${packageJson.version}`,
+            'doist-platform': 'cli',
+        })
+    })
+
+    it("uses `init.headers` over a Request's own headers, as fetch does", async () => {
+        const request = new Request(TOKEN_URL, {
+            headers: { Authorization: 'Bearer request-token', 'X-Request-Only': 'dropped' },
+        })
+
+        const headers = await headersFetchedWith(request, {
+            headers: { Authorization: 'Bearer init-token' },
+        })
+
+        expect(headers).toMatchObject({
+            authorization: 'Bearer init-token',
+            'doist-platform': 'cli',
+        })
+        expect(headers).not.toHaveProperty('x-request-only')
+    })
+
+    it("sends the usage headers over a Request's header of the same name", async () => {
+        const request = new Request(TOKEN_URL, { headers: { 'User-Agent': 'other-client/1.0' } })
+
+        const headers = await headersFetchedWith(request)
+
+        expect(headers['user-agent']).toBe(`comms-cli/${packageJson.version}`)
     })
 })
