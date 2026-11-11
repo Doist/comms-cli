@@ -1,4 +1,4 @@
-import type { User } from '@doist/comms-sdk'
+import type { User } from '@todoist/comms-sdk'
 import { formatJson } from '../../lib/output.js'
 
 /** The `{ status }` payload, or the whole user with `--full`, as every status command prints it. */

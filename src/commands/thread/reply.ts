@@ -100,7 +100,7 @@ export async function replyToThread(
         return
     }
 
-    const attachments = hasFiles ? await uploadAttachments(files) : undefined
+    const attachments = hasFiles ? await uploadAttachments(files, thread.workspaceId) : undefined
     const notificationFields = notifyNone
         ? { groups: [], directMentions: [], directGroupMentions: [] }
         : resolved?.groups

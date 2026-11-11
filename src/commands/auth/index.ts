@@ -1,4 +1,4 @@
-import { attachRefreshTokenViewCommand, attachTokenViewCommand } from '@doist/cli-core/auth'
+import { attachRefreshTokenViewCommand, attachTokenViewCommand } from '@todoist/cli-core/auth'
 import { Command, Option } from 'commander'
 import {
     CREDENTIAL_STORES,

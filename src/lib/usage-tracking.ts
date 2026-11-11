@@ -1,4 +1,4 @@
-import { createUsageTracking } from '@doist/cli-core'
+import { createUsageTracking } from '@todoist/cli-core'
 import type { Command } from 'commander'
 import packageJson from '../../package.json' with { type: 'json' }
 

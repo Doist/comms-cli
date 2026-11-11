@@ -17,7 +17,7 @@ describe('update wrapper', () => {
     })
 
     afterEach(() => {
-        vi.doUnmock('@doist/cli-core/commands')
+        vi.doUnmock('@todoist/cli-core/commands')
         vi.doUnmock('../../lib/config.js')
         vi.resetModules()
         vi.restoreAllMocks()
@@ -26,7 +26,7 @@ describe('update wrapper', () => {
 
     it('forwards comms-cli wiring (packageName, version, configPath, changelog hint, spinner) to cli-core', async () => {
         const registerCoreSpy = vi.fn()
-        vi.doMock('@doist/cli-core/commands', () => ({
+        vi.doMock('@todoist/cli-core/commands', () => ({
             registerUpdateCommand: registerCoreSpy,
             // Re-exported by src/lib/update.ts — must still resolve when the
             // mocked module is loaded transitively via the wrapper.
@@ -74,7 +74,7 @@ describe('update wrapper', () => {
         // Stable channel must resolve to the `latest` dist-tag — but we don't
         // pin cli-core's exact registry URL shape; just assert the package
         // name + channel-appropriate tag are present.
-        expect(url).toContain(packageJson.name)
+        expect(url).toContain('@todoist/comms-cli')
         expect(url).toContain('latest')
     })
 

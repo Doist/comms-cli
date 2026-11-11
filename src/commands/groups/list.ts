@@ -1,4 +1,4 @@
-import { outputIds, printEmpty, resolveOutputMode } from '@doist/cli-core'
+import { outputIds, printEmpty, resolveOutputMode } from '@todoist/cli-core'
 import { getCurrentWorkspaceId, getWorkspaceGroups } from '../../lib/api.js'
 import { CliError } from '../../lib/errors.js'
 import type { ViewOptions } from '../../lib/options.js'

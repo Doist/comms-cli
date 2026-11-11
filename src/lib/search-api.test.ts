@@ -1,6 +1,10 @@
-import { DEFAULT_API_VERSION } from '@doist/comms-sdk'
+import { DEFAULT_API_VERSION } from '@todoist/comms-sdk'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import packageJson from '../../package.json' with { type: 'json' }
+
+vi.hoisted(() => {
+    vi.stubEnv('AI_AGENT', 'codex')
+})
 
 const authMocks = vi.hoisted(() => ({
     getApiTokenSnapshot: vi.fn(),
@@ -73,6 +77,7 @@ describe('extendedSearch', () => {
             'request-id': expect.any(String),
             'session-id': expect.any(String),
             'cli-command': 'search',
+            'cli-agent': 'codex',
         })
     })
 })

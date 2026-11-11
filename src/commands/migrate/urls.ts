@@ -1,4 +1,4 @@
-import { type CommsRequestError, fetchNewCommsUrls } from '@doist/comms-sdk'
+import { type CommsRequestError, fetchNewCommsUrls } from '@todoist/comms-sdk'
 import { CliError } from '../../lib/errors.js'
 import { readContent } from '../../lib/input.js'
 import type { StdinOptions } from '../../lib/options.js'

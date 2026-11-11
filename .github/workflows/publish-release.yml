@@ -1,0 +1,140 @@
+name: Publish retained release
+
+on:
+    workflow_dispatch:
+        inputs:
+            artifact_run_id:
+                description: Successful Release artifact run ID
+                required: true
+            artifact_run_attempt:
+                description: Original successful build attempt (never a later rerun)
+                required: true
+            source_sha:
+                description: Full reviewed build commit SHA
+                required: true
+            destination:
+                type: choice
+                options: [both, github, npmjs]
+                default: both
+            tag:
+                type: choice
+                options: [normal, migration-recovery]
+                default: normal
+    workflow_run:
+        workflows: [Release artifact]
+        types: [completed]
+        branches: [main, next]
+
+permissions:
+    contents: read
+    actions: read
+    packages: write
+    id-token: write
+
+# Serialize both channels and all mirror retries; do not cancel an in-flight publish.
+concurrency:
+    group: comms-cli-publication
+    cancel-in-progress: false
+
+jobs:
+    publish:
+        if: >-
+            (github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main') ||
+            (github.event_name == 'workflow_run' && github.event.workflow_run.conclusion == 'success' &&
+            github.event.workflow_run.event == 'push' && vars.COMMS_CLI_AUTOMATIC_RELEASES == 'true')
+        environment: npm-release
+        runs-on: ubuntu-latest
+        timeout-minutes: 30
+        env:
+            ARTIFACT_RUN_ID: ${{ inputs.artifact_run_id || github.event.workflow_run.id }}
+            ARTIFACT_RUN_ATTEMPT: ${{ inputs.artifact_run_attempt || github.event.workflow_run.run_attempt }}
+            RELEASE_SHA: ${{ inputs.source_sha || github.event.workflow_run.head_sha }}
+        steps:
+            # Validation/publishing code always comes from the publisher's reviewed default branch.
+            - uses: actions/checkout@v6
+              with:
+                  ref: ${{ github.sha }}
+                  fetch-depth: 0
+            - uses: actions/setup-node@v6
+              with:
+                  node-version-file: .nvmrc
+            - name: Validate successful source run
+              id: source
+              env:
+                  GH_TOKEN: ${{ github.token }}
+              run: |
+                  mkdir -p .tmp
+                  node scripts/validate-source-run.mjs
+            - uses: actions/download-artifact@v4
+              if: steps.source.outputs.available == 'true'
+              with:
+                  name: ${{ steps.source.outputs.artifact }}
+                  path: .tmp/release
+                  run-id: ${{ env.ARTIFACT_RUN_ID }}
+                  github-token: ${{ github.token }}
+            - name: Verify retained bytes and select channel
+              id: artifact
+              if: steps.source.outputs.available == 'true'
+              env:
+                  GH_TOKEN: ${{ github.token }}
+                  REQUESTED_TAG: ${{ inputs.tag || 'normal' }}
+              run: |
+                  node scripts/release.mjs verify .tmp/release
+                  node --input-type=module <<'JS'
+                  import fs from 'node:fs'
+                  const release = JSON.parse(fs.readFileSync('.tmp/release/release.json'))
+                  const tag = process.env.REQUESTED_TAG === 'migration-recovery' ? 'migration-recovery' : release.branch === 'next' ? 'next' : 'latest'
+                  fs.appendFileSync(process.env.GITHUB_ENV, `RELEASE_TAG=${tag}\n`)
+                  fs.appendFileSync(process.env.GITHUB_OUTPUT, `version=${release.version}\n`)
+                  JS
+            - name: Publish missing npm mirror using configured trust
+              if: steps.source.outputs.available == 'true' && inputs.destination != 'github'
+              env:
+                  GH_TOKEN: ${{ github.token }}
+                  GH_PACKAGES_TOKEN: ${{ github.token }}
+              run: node scripts/release.mjs publish .tmp/release npmjs
+            - name: Publish missing GitHub mirror
+              if: steps.source.outputs.available == 'true' && inputs.destination != 'npmjs'
+              env:
+                  GH_TOKEN: ${{ github.token }}
+                  GH_PACKAGES_TOKEN: ${{ github.token }}
+              run: node scripts/release.mjs publish .tmp/release github
+            - name: Require identical bytes in both registries
+              if: steps.source.outputs.available == 'true'
+              env:
+                  GH_TOKEN: ${{ github.token }}
+                  GH_PACKAGES_TOKEN: ${{ github.token }}
+              run: |
+                  node scripts/release.mjs check-registry .tmp/release npmjs
+                  node scripts/release.mjs check-registry .tmp/release github
+            - name: Generate release-record token
+              if: steps.source.outputs.available == 'true' && env.RELEASE_TAG != 'migration-recovery'
+              id: generate_token
+              uses: actions/create-github-app-token@v3
+              with:
+                  app-id: ${{ secrets.DOIST_RELEASE_BOT_ID }}
+                  private-key: ${{ secrets.DOIST_RELEASE_BOT_PRIVATE_KEY }}
+                  permission-contents: write
+            - name: Record release without rebuilding or recalculating
+              if: steps.source.outputs.available == 'true' && env.RELEASE_TAG != 'migration-recovery'
+              id: record
+              run: node scripts/record-release.mjs .tmp/release
+              env:
+                  GH_TOKEN: ${{ steps.generate_token.outputs.token }}
+                  SOURCE_GH_TOKEN: ${{ github.token }}
+                  GH_PACKAGES_TOKEN: ${{ github.token }}
+            - name: Announce stable release in Comms
+              if: steps.record.outputs.created == 'true' && steps.source.outputs.branch == 'main'
+              uses: todoist/comms-actions/post-comment-action@aeeefe3270ad30d0c4cdd7dbf94b2fac1dcb8ceb
+              with:
+                  comms-client-id: ${{ secrets.COMMS_DOISTBOT_CLIENT_ID }}
+                  comms-client-secret: ${{ secrets.COMMS_DOISTBOT_CLIENT_SECRET }}
+                  comms-username: ${{ secrets.COMMS_DOISTBOT_USER }}
+                  comms-password: ${{ secrets.COMMS_DOISTBOT_PASSWORD }}
+                  workspace-id: 69
+                  thread-id: CZECS4Yebwx7c1c8hDRmB
+                  content: >-
+                      Comms CLI v${{ steps.artifact.outputs.version }} published.
+                      https://github.com/todoist/comms-cli/releases/tag/v${{ steps.artifact.outputs.version }}
+                  audience: thread
+              continue-on-error: true

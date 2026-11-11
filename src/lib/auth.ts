@@ -2,7 +2,7 @@ import {
     refreshAccessToken,
     SecureStoreUnavailableError,
     type TokenRefreshOptions,
-} from '@doist/cli-core/auth'
+} from '@todoist/cli-core/auth'
 import type { CommsAccount } from './auth-provider.js'
 import {
     createCommsAuthProvider,

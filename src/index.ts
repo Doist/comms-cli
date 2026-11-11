@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 
-import { stripUserFlag } from '@doist/cli-core'
+import { stripUserFlag } from '@todoist/cli-core'
 import { CommanderError, type Command, program } from 'commander'
 import pkg from '../package.json' with { type: 'json' }
 import { configureCommandOutput } from './lib/command-output.js'

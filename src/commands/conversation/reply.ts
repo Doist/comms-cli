@@ -50,11 +50,12 @@ export async function replyToConversation(
 
     // Preflight the target before uploading so an invalid or forbidden
     // conversation fails fast instead of leaving an orphaned upload behind.
-    if (hasFiles) {
-        await client.conversations.getConversation(conversationId)
-    }
-
-    const attachments = hasFiles ? await uploadAttachments(files) : undefined
+    const attachments = hasFiles
+        ? await uploadAttachments(
+              files,
+              (await client.conversations.getConversation(conversationId)).workspaceId,
+          )
+        : undefined
     const message = await client.conversationMessages.createMessage({
         conversationId,
         content: messageContent,

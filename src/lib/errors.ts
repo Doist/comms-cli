@@ -1,8 +1,8 @@
-import { CliError as BaseCliError, type CliErrorCode, type ErrorType } from '@doist/cli-core'
-import { CommsRequestError, getCommsErrorString } from '@doist/comms-sdk'
+import { CliError as BaseCliError, type CliErrorCode, type ErrorType } from '@todoist/cli-core'
+import { CommsRequestError, getCommsErrorString } from '@todoist/comms-sdk'
 
 export { BaseCliError }
-export type { ErrorType } from '@doist/cli-core'
+export type { ErrorType } from '@todoist/cli-core'
 
 /**
  * Known error codes used across the CLI.

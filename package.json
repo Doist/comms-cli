@@ -1,5 +1,5 @@
 {
-    "name": "@doist/comms-cli",
+    "name": "@todoist/comms-cli",
     "version": "4.1.0",
     "description": "TypeScript CLI for Comms",
     "type": "module",
@@ -38,24 +38,24 @@
     },
     "repository": {
         "type": "git",
-        "url": "https://github.com/Doist/comms-cli.git"
+        "url": "https://github.com/todoist/comms-cli.git"
     },
     "publishConfig": {
         "access": "public",
-        "provenance": true
+        "provenance": false
     },
-    "homepage": "https://github.com/Doist/comms-cli#readme",
+    "homepage": "https://github.com/todoist/comms-cli#readme",
     "bugs": {
-        "url": "https://github.com/Doist/comms-cli/issues"
+        "url": "https://github.com/todoist/comms-cli/issues"
     },
     "files": [
         "dist",
-        "scripts",
+        "scripts/postinstall.js",
         "CHANGELOG.md"
     ],
     "dependencies": {
-        "@doist/cli-core": "1.9.0",
-        "@doist/comms-sdk": "3.11.0",
+        "@todoist/cli-core": "~1.10.0",
+        "@todoist/comms-sdk": "4.0.1",
         "@pnpm/tabtab": "0.5.4",
         "chalk": "5.6.2",
         "commander": "14.0.3",

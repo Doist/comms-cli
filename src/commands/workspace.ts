@@ -1,4 +1,4 @@
-import { outputIds, printEmpty, resolveOutputMode } from '@doist/cli-core'
+import { outputIds, printEmpty, resolveOutputMode } from '@todoist/cli-core'
 import chalk from 'chalk'
 import { Command } from 'commander'
 import { fetchWorkspaces, getCurrentWorkspaceId } from '../lib/api.js'

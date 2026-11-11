@@ -9,7 +9,7 @@ A command-line interface for Comms.
 ## Installation
 
 > ```bash
-> npm install -g @doist/comms-cli
+> npm install -g @todoist/comms-cli
 > ```
 
 ### Agent Skills
@@ -32,6 +32,9 @@ tdc skill list
 tdc skill uninstall <agent>
 ```
 
+For release prerequisites, the one-time old-scope installation transition, and
+registry access, see [the release runbook](docs/releasing.md).
+
 ## Uninstallation
 
 First, remove any installed agent skills:
@@ -43,13 +46,13 @@ tdc skill uninstall <agent>
 Then uninstall the CLI:
 
 ```bash
-npm uninstall -g @doist/comms-cli
+npm uninstall -g @todoist/comms-cli
 ```
 
 ## Local Setup
 
 ```bash
-git clone https://github.com/Doist/comms-cli.git
+git clone https://github.com/todoist/comms-cli.git
 cd comms-cli
 npm install
 npm run build

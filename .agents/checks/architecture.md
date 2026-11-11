@@ -10,7 +10,7 @@ Rules lint and types can't express. Most are written in `AGENTS.md` and `CODEBAS
 - Reference parsing (ids, URLs, fuzzy names) written again instead of using `src/lib/refs.ts`.
 - A positional `[workspace-ref]` without the `--workspace` alias, or one that accepts both without an error.
 - A new top-level command not wired into the lazy registry in `src/index.ts`.
-- A barrel file, or a helper that duplicates one in `src/lib/` or `@doist/cli-core`. Where cli-core has a convention, the CLI follows it.
+- A barrel file, or a helper that duplicates one in `src/lib/` or `@todoist/cli-core`. Where cli-core has a convention, the CLI follows it.
 
 ## Fine
 

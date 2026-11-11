@@ -1,13 +1,13 @@
-import { captureConsole, createTestProgram, mockStdin } from '@doist/cli-core/testing'
+import { captureConsole, createTestProgram, mockStdin } from '@todoist/cli-core/testing'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 const sdkMocks = vi.hoisted(() => ({
     fetchNewCommsUrls: vi.fn(),
 }))
 
-vi.mock('@doist/comms-sdk', async (importActual) => ({
+vi.mock('@todoist/comms-sdk', async (importActual) => ({
     // errors.ts reads helpers from the SDK, so only the network call is faked.
-    ...(await importActual<typeof import('@doist/comms-sdk')>()),
+    ...(await importActual<typeof import('@todoist/comms-sdk')>()),
     fetchNewCommsUrls: sdkMocks.fetchNewCommsUrls,
 }))
 

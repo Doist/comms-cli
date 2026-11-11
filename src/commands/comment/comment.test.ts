@@ -1,4 +1,4 @@
-import { captureConsole, createTestProgram, mockStdin } from '@doist/cli-core/testing'
+import { captureConsole, createTestProgram, mockStdin } from '@todoist/cli-core/testing'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 const apiMocks = vi.hoisted(() => ({

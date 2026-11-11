@@ -4,7 +4,7 @@ The following is a set of guidelines for contributing to Comms CLI. Please read 
 
 ## Open Development
 
-All work on Comms CLI happens directly on [GitHub](https://github.com/Doist/comms-cli). Both core team members and external contributors send pull requests that go through the same review process.
+All work on Comms CLI happens directly on [GitHub](https://github.com/todoist/comms-cli). Both core team members and external contributors send pull requests that go through the same review process.
 
 ## Semantic Versioning
 
@@ -14,7 +14,7 @@ Every significant change is documented in the [CHANGELOG.md](CHANGELOG.md) file.
 
 ## Branch Organization
 
-Submit all changes to the [main](https://github.com/Doist/comms-cli/tree/main) branch (via PR) by default. For pre-release work, target the `next` branch instead — see [Release Process](#release-process-core-team-only) for details.
+Submit all changes to the [main](https://github.com/todoist/comms-cli/tree/main) branch (via PR) by default. For pre-release work, target the `next` branch instead — see [Release Process](#release-process-core-team-only) for details.
 
 We do our best to keep `main` in good shape, with all tests passing.
 
@@ -67,7 +67,7 @@ PR titles are validated against the Conventional Commits format by CI. When squa
 
 ## Release Process (core team only)
 
-The release process is fully automated with [semantic-release](https://github.com/semantic-release/semantic-release). Pushing to `main` (after CI passes) triggers a stable release automatically.
+The release process uses [semantic-release](https://github.com/semantic-release/semantic-release) for version analysis. Main/next pushes build and retain one verified artifact; the protected publisher delivers identical bytes to npmjs and GitHub Packages. During Migration 001, automatic publication stays disabled until the first real package and registry access are ready. See [the release runbook](docs/releasing.md) for setup, bootstrap, channels and retries.
 
 ### Pre-releases
 
@@ -83,7 +83,7 @@ To test features before publishing a stable release:
 
 2. **Develop on a feature branch** based off `next` and open a PR targeting `next`.
 
-3. **Automatic pre-release:** Each PR merge into `next` triggers CI and publishes a pre-release version (e.g., `1.0.0-next.1`) to the `next` dist-tag on npm.
+3. **Automatic pre-release:** Each PR merge into `next` triggers CI and prepares a pre-release artifact (e.g., `1.0.0-next.1`) for the `next` dist-tag in both registries; the configured publisher completes it.
 
 4. **Promote to stable:** When ready, open a PR to merge `next` into `main`. Use a regular merge commit (not squash), as this preserves the individual commit history and allows semantic-release to correctly generate a comprehensive changelog and determine the version bump automatically.
 
@@ -92,7 +92,7 @@ To test features before publishing a stable release:
 ### Installing a pre-release
 
 ```sh
-npm install @doist/comms-cli@next
+npm install @todoist/comms-cli@next
 ```
 
 ## License

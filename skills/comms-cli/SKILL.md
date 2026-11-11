@@ -13,6 +13,8 @@ Access Comms messaging via the `tdc` CLI. Use when the user asks about their Com
 
 ## Setup
 
+Install with `npm install -g @todoist/comms-cli`. The executable remains `tdc`; `tdc update` follows the configured stable or next channel.
+
 ```bash
 tdc auth login                    # OAuth login (standard write scopes)
 tdc auth login --read-only        # OAuth login with read-only scope

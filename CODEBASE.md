@@ -6,14 +6,14 @@
 
 ## What this project is
 
-`@doist/comms-cli` is a **TypeScript CLI** for Comms messaging. Binary name:
-`tdc`. It wraps `@doist/comms-sdk` and publishes a single executable
+`@todoist/comms-cli` is a **TypeScript CLI** for Comms messaging. Binary name:
+`tdc`. It wraps `@todoist/comms-sdk` and publishes a single executable
 (`dist/index.js`).
 
 ESM-only · Node `^20.19 || >=22.12` · Commander 14 · vitest · oxlint + oxfmt (no
 eslint/prettier) · semantic-release on merge to `main`. Shared building blocks
 (config I/O, output formatters, spinner, OAuth/keyring auth, command attachers)
-come from `@doist/cli-core`.
+come from `@todoist/cli-core`.
 
 ## Top-level layout
 
@@ -46,7 +46,7 @@ come from `@doist/cli-core`.
 ├─ README.md / CONTRIBUTING.md
 ├─ tsconfig.json          # Includes src + tests (type-check, IDE)
 ├─ tsconfig.build.json    # Excludes *.test.ts/.spec.ts, __mocks__, __fixtures__
-├─ vitest.config.ts       # { globals, root: 'src', inlines @doist/cli-core }
+├─ vitest.config.ts       # { globals, root: 'src', inlines @todoist/cli-core }
 ├─ .oxlintrc.json / .oxfmtrc.json
 ├─ lefthook.yml           # Git hooks: branch guard; pre-commit lint, format, types;
 │                         # pre-push tests
@@ -217,7 +217,7 @@ is tried as an id vs a name.
 
 ## Auth & token storage
 
-`@doist/cli-core/auth` owns the keyring, multi-user `TokenStore`, OAuth flow,
+`@todoist/cli-core/auth` owns the keyring, multi-user `TokenStore`, OAuth flow,
 and the `login` / `logout` / `status` / `token view` and `account
 list/use/current/remove` attachers. comms supplies (a) a
 `UserRecordStore<CommsAccount>` adapter (`user-records.ts`) over its config file
@@ -259,8 +259,8 @@ see a per-command `--user`).
 - **Fixtures:** `src/lib/__fixtures__/accounts.ts` (`ACCOUNT_ALAN` /
   `ACCOUNT_ELLIE`) — don't hand-build account objects. Manual npm-package mocks
   in `src/__mocks__/` (`chalk.ts`).
-- **`@doist/cli-core` inlining:** `vitest.config.ts` lists it in
-  `server.deps.inline` so `vi.mock('@doist/cli-core', …)` /
+- **`@todoist/cli-core` inlining:** `vitest.config.ts` lists it in
+  `server.deps.inline` so `vi.mock('@todoist/cli-core', …)` /
   `vi.doMock('node:fs/promises', …)` reach its compiled imports — without it the
   auth/config/spinner suites break.
 
@@ -280,9 +280,11 @@ see a per-command `--user`).
   formats staged files and runs the type check; `commit-msg` repeats the
   branch rule for empty commits; `pre-push` refuses pushes to `main`, then
   runs the tests. See `docs/agents.md`.
-- **Release:** semantic-release on merge to `main`; Conventional Commits required
+- **Release:** semantic-release analyzes main/next and retains an artifact; the protected
+  publisher completes both registries and stable source/skill bookkeeping. See
+  [the release runbook](docs/releasing.md). Conventional Commits required
   (enforced by `check-semantic-pull-request.yml`). `update-comms-sdk.yml` keeps
-  `@doist/comms-sdk` current.
+  `@todoist/comms-sdk` current.
 
 ## Skill content flow
 

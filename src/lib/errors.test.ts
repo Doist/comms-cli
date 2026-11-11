@@ -1,4 +1,4 @@
-import { CommsRequestError } from '@doist/comms-sdk'
+import { CommsRequestError } from '@todoist/comms-sdk'
 import { describe, expect, it } from 'vitest'
 
 import {

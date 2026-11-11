@@ -1,4 +1,4 @@
-import type { CommsApi, Thread } from '@doist/comms-sdk'
+import type { CommsApi, Thread } from '@todoist/comms-sdk'
 import chalk from 'chalk'
 import { getCommsClient, getWorkspaceGroups, getWorkspaceUsers } from '../../lib/api.js'
 import { formatRelativeDate } from '../../lib/dates.js'
