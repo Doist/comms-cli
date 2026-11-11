@@ -171,7 +171,7 @@ don't duplicate it here.
 - **`permissions.ts`** — `ensureWriteAllowed`, `isMutatingMethod` (read-only-scope guard).
 - **`markdown.ts`** — `preloadMarkdown` / `renderMarkdown` (cli-core renderer).
 - **`usage-tracking.ts`** — `usageTracking` (cli-core's `createUsageTracking`:
-  the `User-Agent` / `doist-*` / `request-id` / `session-id` / `cli-command` headers on every
+  the `User-Agent` / `doist-*` / `request-id` / `session-id` / `cli-command` / `cli-agent` headers on every
   request), `trackCommandUsage(program)` (the `preAction` hook that sets
   `cli-command`; `tdc view` adds it to its routing program too), and
   `withUsageHeaders(fetch)` for requests that bypass the SDK. Any new raw
