@@ -7,7 +7,7 @@
 ## What this project is
 
 `@todoist/comms-cli` is a **TypeScript CLI** for Comms messaging. Binary name:
-`tdc`. It wraps `@doist/comms-sdk` and publishes a single executable
+`tdc`. It wraps `@todoist/comms-sdk` and publishes a single executable
 (`dist/index.js`).
 
 ESM-only · Node `^20.19 || >=22.12` · Commander 14 · vitest · oxlint + oxfmt (no
@@ -282,7 +282,7 @@ see a per-command `--user`).
   runs the tests. See `docs/agents.md`.
 - **Release:** semantic-release on merge to `main`; Conventional Commits required
   (enforced by `check-semantic-pull-request.yml`). `update-comms-sdk.yml` keeps
-  `@doist/comms-sdk` current.
+  `@todoist/comms-sdk` current.
 
 ## Skill content flow
 

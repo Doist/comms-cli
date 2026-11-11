@@ -13,8 +13,8 @@ type RecordedRequest = { method: string; headers: Record<string, string> }
 
 const sdk = vi.hoisted(() => ({ requests: [] as RecordedRequest[] }))
 
-vi.mock('@doist/comms-sdk', async (importActual) => {
-    const actual = await importActual<typeof import('@doist/comms-sdk')>()
+vi.mock('@todoist/comms-sdk', async (importActual) => {
+    const actual = await importActual<typeof import('@todoist/comms-sdk')>()
     type HeadersOption = Record<string, string> | (() => Record<string, string>)
     // Every method records the headers the real SDK would send with that one
     // request (it calls a `headers` function once per request), then fails, so

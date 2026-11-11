@@ -1,4 +1,4 @@
-import type { Attachment } from '@doist/comms-sdk'
+import type { Attachment } from '@todoist/comms-sdk'
 import { getCommsClient } from './api.js'
 import { openLocalFileAsBlob } from './local-file.js'
 
@@ -36,22 +36,28 @@ export async function validateAttachmentFiles(files: string[]): Promise<void> {
 }
 
 /**
- * Upload one or more local files and return the created {@link Attachment}s,
- * ready to splice into the `attachments` array of `comments.createComment`,
- * `conversationMessages.createMessage`, or `threads.createThread`.
+ * Upload one or more local files to `workspaceId` and return the created
+ * {@link Attachment}s, ready to splice into the `attachments` array of
+ * `comments.createComment`, `conversationMessages.createMessage`, or
+ * `threads.createThread`. Pass the workspace of the thread, channel or
+ * conversation the files will be attached to: the API requires it, and its
+ * plan sets the largest file it accepts.
  *
  * All paths are validated (existence + readability) up front, before any
  * upload starts, so a bad path fails fast without leaving a partial set of
  * uploaded-but-unreferenced attachments behind. Uploads then run with bounded
  * concurrency while the returned array preserves the input order.
  */
-export async function uploadAttachments(files: string[]): Promise<Attachment[]> {
+export async function uploadAttachments(
+    files: string[],
+    workspaceId: number,
+): Promise<Attachment[]> {
     // Validate every path first so a bad one fails before we upload anything.
     const opened = await Promise.all(files.map((file) => openLocalFileAsBlob({ file })))
 
     const client = await getCommsClient()
     return mapWithConcurrency(opened, MAX_UPLOAD_CONCURRENCY, ({ blob, fileName }) =>
-        client.attachments.upload({ file: blob, fileName }),
+        client.attachments.upload({ file: blob, fileName, workspaceId }),
     )
 }
 

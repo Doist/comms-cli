@@ -1,4 +1,4 @@
-import { isRestrictedWorkspaceUser, type VisibleWorkspaceUser } from '@doist/comms-sdk'
+import { isRestrictedWorkspaceUser, type VisibleWorkspaceUser } from '@todoist/comms-sdk'
 import { getCommsClient, getCurrentWorkspaceId } from '../../lib/api.js'
 import type { ViewOptions } from '../../lib/options.js'
 import { colors, formatJson, formatNdjson, pluralize } from '../../lib/output.js'

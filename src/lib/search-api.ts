@@ -1,4 +1,4 @@
-import { DEFAULT_API_VERSION, type SearchResult } from '@doist/comms-sdk'
+import { DEFAULT_API_VERSION, type SearchResult } from '@todoist/comms-sdk'
 import { getApiTokenSnapshot } from './auth.js'
 import { CliError } from './errors.js'
 import { usageTracking } from './usage-tracking.js'

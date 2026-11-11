@@ -1,4 +1,4 @@
-import type { Channel } from '@doist/comms-sdk'
+import type { Channel } from '@todoist/comms-sdk'
 import { getCommsClient, getCurrentWorkspaceId } from '../../lib/api.js'
 import { CliError } from '../../lib/errors.js'
 import {

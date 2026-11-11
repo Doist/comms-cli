@@ -1,4 +1,4 @@
-import { getFullCommsURL, type SearchResult } from '@doist/comms-sdk'
+import { getFullCommsURL, type SearchResult } from '@todoist/comms-sdk'
 import { Command, Option } from 'commander'
 import { getCurrentWorkspaceId } from './api.js'
 import { withCaseInsensitiveChoices } from './completion.js'

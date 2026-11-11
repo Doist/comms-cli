@@ -173,7 +173,9 @@ const createProgram = () => createTestProgram(registerConversationCommand)
 // Shared setup for the --file suite: a fresh mock client wired into getCommsClient
 // plus a program. Tests asserting on output call captureConsole('log') themselves.
 function setupFileTest() {
-    const client = createClient({})
+    const client = createClient({
+        activeConversations: [createConversation(42, [1, 2], '2026-03-08T10:00:00.000Z')],
+    })
     apiMocks.getCommsClient.mockResolvedValue(client)
     return { client, program: createProgram() }
 }
@@ -1412,7 +1414,7 @@ describe('conversation reply --file', () => {
 
         expect(client.attachments.upload).toHaveBeenCalledTimes(1)
         expect(client.attachments.upload).toHaveBeenCalledWith(
-            expect.objectContaining({ fileName: 'photo.png' }),
+            expect.objectContaining({ fileName: 'photo.png', workspaceId: 1 }),
         )
         expect(client.conversationMessages.createMessage).toHaveBeenCalledWith(
             expect.objectContaining({

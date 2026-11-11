@@ -8,7 +8,7 @@ import {
     type User,
     type Workspace,
     type WorkspaceUser,
-} from '@doist/comms-sdk'
+} from '@todoist/comms-sdk'
 import { getApiTokenSnapshot } from './auth.js'
 import { getConfig, updateConfig } from './config.js'
 import {

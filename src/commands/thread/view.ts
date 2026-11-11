@@ -1,4 +1,4 @@
-import type { CommsApi } from '@doist/comms-sdk'
+import type { CommsApi } from '@todoist/comms-sdk'
 import chalk from 'chalk'
 import { buildUserNameMap, getCommsClient } from '../../lib/api.js'
 import { formatRelativeDate } from '../../lib/dates.js'

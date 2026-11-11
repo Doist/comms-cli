@@ -1,4 +1,4 @@
-import { DEFAULT_API_VERSION } from '@doist/comms-sdk'
+import { DEFAULT_API_VERSION } from '@todoist/comms-sdk'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import packageJson from '../../package.json' with { type: 'json' }
 

@@ -1,4 +1,4 @@
-import type { User } from '@doist/comms-sdk'
+import type { User } from '@todoist/comms-sdk'
 import {
     addUsersToChannel,
     getCommsClient,

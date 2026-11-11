@@ -1,6 +1,6 @@
 import { createHash } from 'node:crypto'
-import type { ArchiveFilter, CommsApi, GetThreadsArgs, Thread } from '@doist/comms-sdk'
 import { outputIds, resolveOutputMode } from '@todoist/cli-core'
+import type { ArchiveFilter, CommsApi, GetThreadsArgs, Thread } from '@todoist/comms-sdk'
 import chalk from 'chalk'
 import { getCommsClient, getCurrentWorkspaceId } from '../../lib/api.js'
 import { formatRelativeDate } from '../../lib/dates.js'

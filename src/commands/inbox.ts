@@ -1,5 +1,5 @@
-import type { ArchiveFilter } from '@doist/comms-sdk'
 import { outputIds, printEmpty, resolveOutputMode } from '@todoist/cli-core'
+import type { ArchiveFilter } from '@todoist/comms-sdk'
 import chalk from 'chalk'
 import { Command, Option } from 'commander'
 import { getCommsClient, getCurrentWorkspaceId } from '../lib/api.js'

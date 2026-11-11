@@ -81,7 +81,7 @@ export async function createThread(
         return
     }
 
-    const attachments = hasFiles ? await uploadAttachments(files) : undefined
+    const attachments = hasFiles ? await uploadAttachments(files, channel.workspaceId) : undefined
 
     const thread = await client.threads.createThread({
         channelId,
