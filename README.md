@@ -49,7 +49,7 @@ npm uninstall -g @doist/comms-cli
 ## Local Setup
 
 ```bash
-git clone https://github.com/Doist/comms-cli.git
+git clone https://github.com/todoist/comms-cli.git
 cd comms-cli
 npm install
 npm run build

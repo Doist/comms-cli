@@ -7,7 +7,7 @@ The icon shows in four places.
 | OAuth consent screen (`tdc auth login`) | `logo_uri` in `oauth/client-metadata.json`, or an older URL (see below) |
 | Sign-in result pages in the browser     | The URL in `LOGO_URI`                                                   |
 | README (GitHub and npm)                 | `icons/comms-cli.png`                                                   |
-| Comms web, Settings → Integrations      | Its own copies in `Doist/comms-web`                                     |
+| Comms web, Settings → Integrations      | Its own copies in `todoist/comms-web`                                   |
 
 ## 1. Export the artwork
 
@@ -26,7 +26,7 @@ The consent screen picks up a replaced file as soon as it's on `main` (allow abo
 
 ## 3. Update Comms web
 
-`Doist/comms-web` keeps its own copies for the CLI card in Settings → Integrations:
+`todoist/comms-web` keeps its own copies for the CLI card in Settings → Integrations:
 
 - `src/settings/integrations/comms-cli-icon.png` (32×32)
 - `src/settings/integrations/comms-cli-icon@2x.png` (64×64)
