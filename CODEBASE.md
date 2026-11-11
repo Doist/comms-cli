@@ -248,7 +248,7 @@ commander has no root `--user` option, `index.ts` strips it from argv
 see a per-command `--user`).
 
 > Follow-up: once cli-core ships `getRequestedUserRef` on the auth attachers
-> (Doist/cli-core#30), `store-wrap.ts`/`withUserRefAware` can be deleted.
+> (todoist/cli-core#30), `store-wrap.ts`/`withUserRefAware` can be deleted.
 
 ## Testing
 
