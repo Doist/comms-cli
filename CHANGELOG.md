@@ -1,3 +1,9 @@
+## [4.1.3](https://github.com/todoist/comms-cli/compare/v4.1.2...v4.1.3) (2026-11-11)
+
+### Bug Fixes
+
+- keep a Request's own headers in withUsageHeaders ([#117](https://github.com/todoist/comms-cli/issues/117)) ([d3eeac0](https://github.com/todoist/comms-cli/commit/d3eeac0253145c28b1914af33e6289f367d7b003))
+
 ## [4.1.2](https://github.com/todoist/comms-cli/compare/v4.1.1...v4.1.2) (2026-11-11)
 
 ### Bug Fixes
