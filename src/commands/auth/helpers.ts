@@ -1,4 +1,4 @@
-import type { TokenStorageResult } from '@doist/cli-core/auth'
+import type { TokenStorageResult } from '@todoist/cli-core/auth'
 import chalk from 'chalk'
 import { createWrappedCommsClient } from '../../lib/api.js'
 import type { CommsAccount, CommsTokenStore } from '../../lib/auth-provider.js'

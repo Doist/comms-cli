@@ -9,8 +9,10 @@ A command-line interface for Comms.
 ## Installation
 
 > ```bash
-> npm install -g @doist/comms-cli
+> npm install -g @todoist/comms-cli
 > ```
+
+Previously published as `@doist/comms-cli`. Both packages install the `tdc` binary, so uninstall the old one first: `npm uninstall -g @doist/comms-cli`.
 
 ### Agent Skills
 
@@ -43,7 +45,7 @@ tdc skill uninstall <agent>
 Then uninstall the CLI:
 
 ```bash
-npm uninstall -g @doist/comms-cli
+npm uninstall -g @todoist/comms-cli
 ```
 
 ## Local Setup

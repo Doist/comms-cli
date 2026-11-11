@@ -1,5 +1,5 @@
-import { outputIds, printEmpty, resolveOutputMode } from '@doist/cli-core'
 import type { Channel } from '@doist/comms-sdk'
+import { outputIds, printEmpty, resolveOutputMode } from '@todoist/cli-core'
 import { getCommsClient } from '../../lib/api.js'
 import { CliError } from '../../lib/errors.js'
 import { includePrivateChannels } from '../../lib/global-args.js'

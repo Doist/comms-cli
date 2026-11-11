@@ -1,4 +1,4 @@
-import { captureConsole, createTestProgram } from '@doist/cli-core/testing'
+import { captureConsole, createTestProgram } from '@todoist/cli-core/testing'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 vi.mock('node:fs/promises')
@@ -24,7 +24,7 @@ const SAMPLE_CHANGELOG = `# Changelog
 # [9.8.5](https://example.com) (2026-05-08)
 
 ### Bug Fixes
-* **deps:** bump @doist/cli-core from 0.8.0 to 0.9.0
+* **deps:** bump @todoist/cli-core from 0.8.0 to 0.9.0
 
 ## [9.8.0](https://example.com) (2026-05-07)
 
@@ -88,7 +88,7 @@ describe('changelog wrapper', () => {
 
         const all = logSpy.mock.calls.map((c: unknown[]) => c[0]).join('\n')
         expect(all).not.toContain('9.8.5')
-        expect(all).not.toContain('@doist/cli-core from 0.8.0 to 0.9.0')
+        expect(all).not.toContain('@todoist/cli-core from 0.8.0 to 0.9.0')
     })
 
     it('indents continuation lines under bullets (continuationIndent: true)', async () => {

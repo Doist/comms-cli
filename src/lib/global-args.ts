@@ -1,5 +1,5 @@
 /**
- * Per-CLI extension of `@doist/cli-core`'s global-args parser.
+ * Per-CLI extension of `@todoist/cli-core`'s global-args parser.
  *
  * Layers comms's `--include-private-channels`, `--non-interactive`,
  * `--interactive`, and the `--progress-jsonl <path>` space form on top of
@@ -19,7 +19,7 @@ import {
     createSpinnerGate,
     type GlobalArgs as CoreGlobalArgs,
     parseGlobalArgs as parseCoreGlobalArgs,
-} from '@doist/cli-core'
+} from '@todoist/cli-core'
 
 type CommsSpecificFlags = {
     /** Bare/string/false — see `CommsLocalFlags.progressJsonl` for semantics. */

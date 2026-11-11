@@ -1,4 +1,4 @@
-import type { TokenStore } from '@doist/cli-core/auth'
+import type { TokenStore } from '@todoist/cli-core/auth'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import type { Config } from './config.js'
 
@@ -10,8 +10,8 @@ const mocks = vi.hoisted(() => ({
     refreshAccessTokenMock: vi.fn(),
 }))
 
-vi.mock('@doist/cli-core/auth', async (importOriginal) => {
-    const actual = await importOriginal<typeof import('@doist/cli-core/auth')>()
+vi.mock('@todoist/cli-core/auth', async (importOriginal) => {
+    const actual = await importOriginal<typeof import('@todoist/cli-core/auth')>()
     return {
         ...actual,
         refreshAccessToken: mocks.refreshAccessTokenMock,
