@@ -1,3 +1,13 @@
+## [5.0.0](https://github.com/todoist/comms-cli/compare/v4.1.3...v5.0.0) (2026-11-11)
+
+### ⚠ BREAKING CHANGES
+
+- publish as @todoist/comms-cli (#119)
+
+### Features
+
+- publish as @todoist/comms-cli ([#119](https://github.com/todoist/comms-cli/issues/119)) ([2b0c277](https://github.com/todoist/comms-cli/commit/2b0c277e0bc87e73f91c5a3f9911f094a4995289))
+
 ## [4.1.3](https://github.com/todoist/comms-cli/compare/v4.1.2...v4.1.3) (2026-11-11)
 
 ### Bug Fixes
