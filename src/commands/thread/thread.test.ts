@@ -1,13 +1,13 @@
 import { mkdtemp, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
+import { CommsApi, type CustomFetch, generateId } from '@doist/comms-sdk'
 import {
     captureConsole,
     captureStream,
     createTestProgram,
     mockStdin,
-} from '@doist/cli-core/testing'
-import { CommsApi, type CustomFetch, generateId } from '@doist/comms-sdk'
+} from '@todoist/cli-core/testing'
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
 
 const apiMocks = vi.hoisted(() => ({

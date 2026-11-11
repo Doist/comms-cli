@@ -1,4 +1,4 @@
-import { captureConsole, createTestProgram } from '@doist/cli-core/testing'
+import { captureConsole, createTestProgram } from '@todoist/cli-core/testing'
 import { Command } from 'commander'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
@@ -74,8 +74,8 @@ vi.mock('../../lib/config.js', async (importOriginal) => {
 // src/lib/auth-provider.test.ts. attachLogoutCommand + attachStatusCommand
 // fall through to the real cli-core implementations so the integration is
 // exercised end-to-end.
-vi.mock('@doist/cli-core/auth', async (importOriginal) => {
-    const actual = await importOriginal<typeof import('@doist/cli-core/auth')>()
+vi.mock('@todoist/cli-core/auth', async (importOriginal) => {
+    const actual = await importOriginal<typeof import('@todoist/cli-core/auth')>()
     return {
         ...actual,
         attachLoginCommand: vi.fn((parent, _options) => {
@@ -104,8 +104,8 @@ import { mkdtemp, rm } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { createInterface, type Interface } from 'node:readline'
-import { attachLoginCommand, type AuthProvider } from '@doist/cli-core/auth'
 import { CommsRequestError, type User } from '@doist/comms-sdk'
+import { attachLoginCommand, type AuthProvider } from '@todoist/cli-core/auth'
 import { createWrappedCommsClient } from '../../lib/api.js'
 import { type CommsAccount, type CommsTokenStore } from '../../lib/auth-provider.js'
 import { getTokenRefreshOptions, TOKEN_ENV_VAR } from '../../lib/auth.js'

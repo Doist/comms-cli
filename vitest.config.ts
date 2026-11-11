@@ -7,13 +7,13 @@ export default defineConfig({
         // The agent tooling's tests live outside `root`, next to the tooling.
         include: ['**/*.{test,spec}.{js,ts}', '../.agents/scripts/**/*.test.ts'],
         exclude: ['dist/**/*', 'node_modules/**/*'],
-        // Inline @doist/cli-core so vitest's module mocks (e.g. vi.doMock for
-        // 'node:fs/promises' or vi.mock('@doist/cli-core', …)) reach its
+        // Inline @todoist/cli-core so vitest's module mocks (e.g. vi.doMock for
+        // 'node:fs/promises' or vi.mock('@todoist/cli-core', …)) reach its
         // compiled imports. Without this, vitest treats it as external and
         // Node's native resolver bypasses the mock substitution.
         server: {
             deps: {
-                inline: ['@doist/cli-core'],
+                inline: ['@todoist/cli-core'],
             },
         },
     },

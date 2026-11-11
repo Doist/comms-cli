@@ -1,4 +1,4 @@
-import { resolveOutputMode } from '@doist/cli-core'
+import { resolveOutputMode } from '@todoist/cli-core'
 import { getCurrentWorkspaceId, getSessionUser, getCommsClient } from '../../lib/api.js'
 import { CliError } from '../../lib/errors.js'
 import { resolveUserRefs, resolveWorkspaceRef } from '../../lib/refs.js'

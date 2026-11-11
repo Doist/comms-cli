@@ -11,7 +11,7 @@ import {
     type RefreshInput,
     type TokenBundle,
     type ValidateInput,
-} from '@doist/cli-core/auth'
+} from '@todoist/cli-core/auth'
 import { createWrappedCommsClient } from './api.js'
 import { OAUTH_CLIENT_ID, SECURE_STORE_SERVICE } from './auth-constants.js'
 import { makeCommsAccount, toCommsAccount } from './comms-account.js'

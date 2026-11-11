@@ -92,7 +92,7 @@ To test features before publishing a stable release:
 ### Installing a pre-release
 
 ```sh
-npm install @doist/comms-cli@next
+npm install @todoist/comms-cli@next
 ```
 
 ## License

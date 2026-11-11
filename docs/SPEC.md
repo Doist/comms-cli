@@ -42,7 +42,7 @@ __tests__/                   # Test suite
 
 ## Package & Binary
 
-- **Package name**: `@doist/comms-cli`
+- **Package name**: `@todoist/comms-cli`
 - **Binary**: `tdc`
 
 ## Authentication

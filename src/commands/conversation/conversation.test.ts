@@ -6,7 +6,7 @@ import {
     createTestProgram,
     describeEmptyMachineOutput,
     mockStdin,
-} from '@doist/cli-core/testing'
+} from '@todoist/cli-core/testing'
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
 import { clearWorkspaceUserCache } from '../../lib/api.js'
 import { CliError } from '../../lib/errors.js'
