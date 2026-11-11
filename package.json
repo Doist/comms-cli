@@ -1,6 +1,6 @@
 {
     "name": "@todoist/comms-cli",
-    "version": "5.0.1",
+    "version": "5.0.2",
     "description": "TypeScript CLI for Comms",
     "type": "module",
     "main": "dist/index.js",
