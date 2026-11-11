@@ -19,8 +19,8 @@ const keyringMocks = vi.hoisted(() => ({
     },
 }))
 
-vi.mock('@doist/cli-core/auth', async (importOriginal) => {
-    const actual = await importOriginal<typeof import('@doist/cli-core/auth')>()
+vi.mock('@todoist/cli-core/auth', async (importOriginal) => {
+    const actual = await importOriginal<typeof import('@todoist/cli-core/auth')>()
     keyringMocks.createKeyringTokenStore.mockImplementation(() => keyringMocks.inner)
     return {
         ...actual,

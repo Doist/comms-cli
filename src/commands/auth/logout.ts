@@ -1,4 +1,4 @@
-import { attachLogoutCommand } from '@doist/cli-core/auth'
+import { attachLogoutCommand } from '@todoist/cli-core/auth'
 import type { Command } from 'commander'
 import type { CommsAccount, CommsTokenStore } from '../../lib/auth-provider.js'
 import { logStoredTokenRemoval } from './helpers.js'

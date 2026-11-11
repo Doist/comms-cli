@@ -1,4 +1,4 @@
-import type { CommsApi } from '@doist/comms-sdk'
+import type { CommsApi } from '@todoist/comms-sdk'
 import { CliError } from '../../lib/errors.js'
 import type { MutationOptions, StdinOptions } from '../../lib/options.js'
 import { resolveCommentId } from '../../lib/refs.js'

@@ -1,4 +1,4 @@
-import { captureConsole, createTestProgram } from '@doist/cli-core/testing'
+import { captureConsole, createTestProgram } from '@todoist/cli-core/testing'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 vi.mock('node:fs/promises')
@@ -63,7 +63,7 @@ describe('changelog wrapper', () => {
 
         const all = logSpy.mock.calls.map((c: unknown[]) => c[0]).join('\n')
         expect(all).toContain(
-            `View full changelog: https://github.com/Doist/comms-cli/blob/v${packageJson.version}/CHANGELOG.md`,
+            `View full changelog: https://github.com/todoist/comms-cli/blob/v${packageJson.version}/CHANGELOG.md`,
         )
     })
 

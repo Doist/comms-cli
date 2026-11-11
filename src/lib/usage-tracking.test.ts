@@ -1,14 +1,18 @@
-import { createTestProgram } from '@doist/cli-core/testing'
+import { createTestProgram } from '@todoist/cli-core/testing'
 import type { Command } from 'commander'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import packageJson from '../../package.json' with { type: 'json' }
 
 type RecordedRequest = { method: string; headers: Record<string, string> }
 
+vi.hoisted(() => {
+    vi.stubEnv('AI_AGENT', 'codex')
+})
+
 const sdk = vi.hoisted(() => ({ requests: [] as RecordedRequest[] }))
 
-vi.mock('@doist/comms-sdk', async (importActual) => {
-    const actual = await importActual<typeof import('@doist/comms-sdk')>()
+vi.mock('@todoist/comms-sdk', async (importActual) => {
+    const actual = await importActual<typeof import('@todoist/comms-sdk')>()
     type HeadersOption = Record<string, string> | (() => Record<string, string>)
     // Every method records the headers the real SDK would send with that one
     // request (it calls a `headers` function once per request), then fails, so
@@ -105,6 +109,7 @@ describe('CLI usage headers on API requests', () => {
             'request-id': expect.stringMatching(UUID),
             'session-id': expect.stringMatching(UUID),
             'cli-command': 'user',
+            'cli-agent': 'codex',
         })
     })
 

@@ -15,7 +15,7 @@ description: Writes or changes tests in this repository to its quality bar, with
 
 ## Helpers
 
-From `src/lib/__fixtures__/accounts.ts`: `STORED_ALAN`, `STORED_ELLIE`, `ACCOUNT_ALAN`, `ACCOUNT_ELLIE`. From `@doist/cli-core/testing`: `createTestProgram`, `captureConsole`, `captureStream`, `describeEmptyMachineOutput` (the shared check that `--json` and `--ndjson` print nothing extra for an empty result). Reset global flag state between tests with `resetGlobalArgs` from `src/lib/global-args.ts`.
+From `src/lib/__fixtures__/accounts.ts`: `STORED_ALAN`, `STORED_ELLIE`, `ACCOUNT_ALAN`, `ACCOUNT_ELLIE`. From `@todoist/cli-core/testing`: `createTestProgram`, `captureConsole`, `captureStream`, `describeEmptyMachineOutput` (the shared check that `--json` and `--ndjson` print nothing extra for an empty result). Reset global flag state between tests with `resetGlobalArgs` from `src/lib/global-args.ts`.
 
 ## The quality bar
 

@@ -1,10 +1,10 @@
-import { emitView } from '@doist/cli-core'
+import { emitView } from '@todoist/cli-core'
 import {
     attachAccountCurrentCommand,
     attachAccountListCommand,
     attachAccountRemoveCommand,
     attachAccountUseCommand,
-} from '@doist/cli-core/auth'
+} from '@todoist/cli-core/auth'
 import chalk from 'chalk'
 import { Command } from 'commander'
 import {

@@ -4,7 +4,7 @@ import {
     isValidUuidV7Base58,
     parseCommsURL,
     type Workspace,
-} from '@doist/comms-sdk'
+} from '@todoist/comms-sdk'
 import { fetchWorkspaces, getGroup, getWorkspaceGroups, getCommsClient } from './api.js'
 import { CliError, type ErrorCode, isCliErrorCode } from './errors.js'
 

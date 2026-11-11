@@ -1,5 +1,5 @@
-import { outputIds, printEmpty, resolveOutputMode } from '@doist/cli-core'
-import type { Conversation } from '@doist/comms-sdk'
+import { outputIds, printEmpty, resolveOutputMode } from '@todoist/cli-core'
+import type { Conversation } from '@todoist/comms-sdk'
 import chalk from 'chalk'
 import { buildUserNameMap, getCommsClient } from '../../lib/api.js'
 import { formatRelativeDate } from '../../lib/dates.js'

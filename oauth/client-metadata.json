@@ -1,7 +1,7 @@
 {
     "client_id": "https://raw.githubusercontent.com/Doist/comms-cli/main/oauth/client-metadata.json",
     "client_name": "Comms CLI",
-    "client_uri": "https://github.com/doist/comms-cli",
+    "client_uri": "https://github.com/todoist/comms-cli",
     "logo_uri": "https://raw.githubusercontent.com/doist/comms-cli/main/icons/comms-cli.png",
     "redirect_uris": ["http://127.0.0.1/callback", "http://localhost/callback"],
     "grant_types": ["authorization_code", "refresh_token"],

@@ -51,9 +51,19 @@ describe('uploadAttachments', () => {
         const client = createClient()
         apiMocks.getCommsClient.mockResolvedValue(client)
 
-        const result = await uploadAttachments([fileA, fileB])
+        const result = await uploadAttachments([fileA, fileB], 42)
 
         expect(client.attachments.upload).toHaveBeenCalledTimes(2)
+        expect(client.attachments.upload).toHaveBeenNthCalledWith(1, {
+            file: expect.any(Blob),
+            fileName: 'a.png',
+            workspaceId: 42,
+        })
+        expect(client.attachments.upload).toHaveBeenNthCalledWith(2, {
+            file: expect.any(Blob),
+            fileName: 'b.pdf',
+            workspaceId: 42,
+        })
         expect(result.map((a) => a.fileName)).toEqual(['a.png', 'b.pdf'])
     })
 
@@ -62,7 +72,7 @@ describe('uploadAttachments', () => {
         apiMocks.getCommsClient.mockResolvedValue(client)
 
         await expect(
-            uploadAttachments([fileA, join(tmpDir, 'missing.png'), fileB]),
+            uploadAttachments([fileA, join(tmpDir, 'missing.png'), fileB], 42),
         ).rejects.toMatchObject({ code: 'FILE_NOT_FOUND' })
 
         expect(client.attachments.upload).not.toHaveBeenCalled()

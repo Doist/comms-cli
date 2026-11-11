@@ -1,4 +1,4 @@
-import { CommsRequestError } from '@doist/comms-sdk'
+import { CommsRequestError } from '@todoist/comms-sdk'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import packageJson from '../../package.json' with { type: 'json' }
 
@@ -14,10 +14,10 @@ const sdkMocks = vi.hoisted(() => ({
     addGroupUsers: vi.fn(),
 }))
 
-vi.mock('@doist/comms-sdk', async (importActual) => {
+vi.mock('@todoist/comms-sdk', async (importActual) => {
     // Only the client is faked. The error class and the helpers that inspect it
     // stay real, because the status mapping under test depends on them agreeing.
-    const actual = await importActual<typeof import('@doist/comms-sdk')>()
+    const actual = await importActual<typeof import('@todoist/comms-sdk')>()
     class CommsApi {
         channels = { deleteChannel: sdkMocks.deleteChannel }
         attachments = { upload: sdkMocks.uploadAttachment }
@@ -214,7 +214,11 @@ describe('wrapResult — central 403 translation', () => {
         const client = createWrappedCommsClient('test-token')
 
         await expect(
-            client.attachments.upload({ file: new Blob(['x']), fileName: 'x.png' }),
+            client.attachments.upload({
+                file: new Blob(['x']),
+                fileName: 'x.png',
+                workspaceId: 42,
+            }),
         ).rejects.toMatchObject({
             code: 'INSUFFICIENT_SCOPE',
             message: 'This action requires permissions your current token does not have.',
@@ -232,7 +236,11 @@ describe('wrapResult — central 403 translation', () => {
         const client = createWrappedCommsClient('test-token')
 
         await expect(
-            client.attachments.upload({ file: new Blob(['x']), fileName: 'x.png' }),
+            client.attachments.upload({
+                file: new Blob(['x']),
+                fileName: 'x.png',
+                workspaceId: 42,
+            }),
         ).rejects.toThrow('READ_ONLY')
         // The SDK upload must never fire when the write-guard rejects.
         expect(sdkMocks.uploadAttachment).not.toHaveBeenCalled()

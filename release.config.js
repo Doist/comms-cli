@@ -1,42 +1,18 @@
-/**
- * @type {import('semantic-release').GlobalConfig}
- */
+// The former stable-only changelog/git prepare hooks are completed by record-release.mjs
+// AFTER exact-artifact dual publication. Build analysis must never commit these files.
+export const stableSourceRecordAssets = [
+    'CHANGELOG.md',
+    'package.json',
+    'package-lock.json',
+    'skills/comms-cli/SKILL.md',
+]
 
-const prereleaseBranches = [{ name: 'next', prerelease: true }]
-
-const isPrerelease = prereleaseBranches.some((b) => b.name === process.env.GITHUB_REF_NAME)
-
+/** @type {import('semantic-release').GlobalConfig} */
 export default {
-    branches: ['main', ...prereleaseBranches],
-    plugins: [
-        ['@semantic-release/commit-analyzer', { preset: 'conventionalcommits' }],
-        ['@semantic-release/release-notes-generator', { preset: 'conventionalcommits' }],
-        // Only update CHANGELOG.md and commit back on stable releases
-        ...(isPrerelease
-            ? []
-            : [
-                  '@semantic-release/changelog',
-                  ['@semantic-release/exec', { prepareCmd: 'npx oxfmt CHANGELOG.md' }],
-              ]),
-        '@semantic-release/npm',
-        ...(isPrerelease
-            ? []
-            : [
-                  ['@semantic-release/exec', { prepareCmd: 'npm run sync:skill' }],
-                  [
-                      '@semantic-release/git',
-                      {
-                          assets: [
-                              'CHANGELOG.md',
-                              'package.json',
-                              'package-lock.json',
-                              'skills/comms-cli/SKILL.md',
-                          ],
-                          message:
-                              'chore(release): ${nextRelease.version} [skip ci]\n\n${nextRelease.notes}',
-                      },
-                  ],
-              ]),
-        '@semantic-release/github',
-    ],
+    branches: ['main', { name: 'next', prerelease: true }],
+    // Scope-independent history: v4.1.0 remains the baseline for the first new-scope 4.1.1.
+    tagFormat: 'v${version}',
+    // Analysis only. The separate publisher records tags/releases after BOTH registries match.
+    dryRun: true,
+    plugins: ['./scripts/release-analysis.mjs'],
 }

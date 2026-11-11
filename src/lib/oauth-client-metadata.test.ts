@@ -48,7 +48,7 @@ describe('OAuth client ID metadata document', () => {
 
     it('presents the CLI the same way as the sign-in pages', () => {
         expect(document.client_name).toBe('Comms CLI')
-        expect(document.client_uri).toBe('https://github.com/doist/comms-cli')
+        expect(document.client_uri).toBe('https://github.com/todoist/comms-cli')
         expect(document.logo_uri).toBe(LOGO_URI)
     })
 })

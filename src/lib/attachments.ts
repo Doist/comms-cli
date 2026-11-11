@@ -1,4 +1,4 @@
-import type { Attachment } from '@doist/comms-sdk'
+import type { Attachment } from '@todoist/comms-sdk'
 import { getCommsClient } from './api.js'
 import { openLocalFileAsBlob } from './local-file.js'
 
@@ -45,13 +45,16 @@ export async function validateAttachmentFiles(files: string[]): Promise<void> {
  * uploaded-but-unreferenced attachments behind. Uploads then run with bounded
  * concurrency while the returned array preserves the input order.
  */
-export async function uploadAttachments(files: string[]): Promise<Attachment[]> {
+export async function uploadAttachments(
+    files: string[],
+    workspaceId: number,
+): Promise<Attachment[]> {
     // Validate every path first so a bad one fails before we upload anything.
     const opened = await Promise.all(files.map((file) => openLocalFileAsBlob({ file })))
 
     const client = await getCommsClient()
     return mapWithConcurrency(opened, MAX_UPLOAD_CONCURRENCY, ({ blob, fileName }) =>
-        client.attachments.upload({ file: blob, fileName }),
+        client.attachments.upload({ file: blob, fileName, workspaceId }),
     )
 }
 
