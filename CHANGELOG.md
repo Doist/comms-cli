@@ -1,3 +1,9 @@
+## [4.1.1](https://github.com/Doist/comms-cli/compare/v4.1.0...v4.1.1) (2026-11-11)
+
+### Bug Fixes
+
+- **deps:** update @doist/cli-core to 1.10.0 ([#115](https://github.com/Doist/comms-cli/issues/115)) ([9d8d6f6](https://github.com/Doist/comms-cli/commit/9d8d6f663c537faf0213ac7811900533988dc147))
+
 ## [4.1.0](https://github.com/Doist/comms-cli/compare/v4.0.0...v4.1.0) (2026-11-10)
 
 ### Features
