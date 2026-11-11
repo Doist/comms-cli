@@ -2,6 +2,12 @@ import { DEFAULT_API_VERSION } from '@doist/comms-sdk'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import packageJson from '../../package.json' with { type: 'json' }
 
+// `usageTracking` reads the agent once, when its module loads, so the stub runs before the
+// import. Without it, `cli-agent` would depend on whichever agent (if any) runs the tests.
+vi.hoisted(() => {
+    vi.stubEnv('AI_AGENT', 'claude-code_1.0.0_agent')
+})
+
 const authMocks = vi.hoisted(() => ({
     getApiTokenSnapshot: vi.fn(),
 }))
@@ -73,6 +79,7 @@ describe('extendedSearch', () => {
             'request-id': expect.any(String),
             'session-id': expect.any(String),
             'cli-command': 'search',
+            'cli-agent': 'claude-code',
         })
     })
 })
