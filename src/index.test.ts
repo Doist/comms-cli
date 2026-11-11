@@ -79,6 +79,74 @@ describe('CLI entrypoint', () => {
         ])
     })
 
+    describe('moved-package notice', () => {
+        const originalIsTTY = process.stderr.isTTY
+
+        afterEach(() => {
+            Object.defineProperty(process.stderr, 'isTTY', {
+                value: originalIsTTY,
+                configurable: true,
+            })
+        })
+
+        async function runEntrypoint(argv: string[], stderrIsTTY: boolean): Promise<string[]> {
+            Object.defineProperty(process.stderr, 'isTTY', {
+                value: stderrIsTTY,
+                configurable: true,
+            })
+            const stderrWriteSpy = vi
+                .spyOn(process.stderr, 'write')
+                .mockImplementation((() => true) as typeof process.stderr.write)
+            vi.doMock('commander', async (importOriginal) => {
+                const actual = await importOriginal<typeof import('commander')>()
+                return { ...actual, program: new actual.Command() }
+            })
+            vi.doMock('./lib/spinner.js', () => ({
+                startEarlySpinner: vi.fn(),
+                stopEarlySpinner: vi.fn(),
+            }))
+            vi.doMock('./lib/markdown.js', () => ({
+                preloadMarkdown: vi.fn().mockResolvedValue(undefined),
+            }))
+            const registerNoop = (name: string) => (program: Command) => {
+                program.command(name).action(() => undefined)
+            }
+            vi.doMock('./commands/inbox.js', () => ({
+                registerInboxCommand: registerNoop('inbox'),
+            }))
+            vi.doMock('./commands/update/index.js', () => ({
+                registerUpdateCommand: registerNoop('update'),
+            }))
+
+            process.argv = argv
+            await import('./index.js')
+
+            return stderrWriteSpy.mock.calls.map(([chunk]) => String(chunk))
+        }
+
+        it('writes the notice to stderr before running a command', async () => {
+            const written = await runEntrypoint(['node', 'tdc', 'inbox'], true)
+
+            expect(written).toEqual([
+                expect.stringContaining(
+                    'tdc has moved to @todoist/comms-cli. Run "tdc update" to switch.',
+                ),
+            ])
+        })
+
+        it('stays silent when stderr is not a terminal', async () => {
+            const written = await runEntrypoint(['node', 'tdc', 'inbox'], false)
+
+            expect(written).toEqual([])
+        })
+
+        it('stays silent for `tdc update`', async () => {
+            const written = await runEntrypoint(['node', 'tdc', 'update'], true)
+
+            expect(written).toEqual([])
+        })
+    })
+
     it('stops the early spinner before the view proxy parser writes parse errors', async () => {
         await expectSpinnerStoppedBeforeParseError([
             'node',

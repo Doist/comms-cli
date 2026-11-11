@@ -1,6 +1,6 @@
 {
     "name": "@doist/comms-cli",
-    "version": "4.1.3",
+    "version": "4.2.0",
     "description": "TypeScript CLI for Comms",
     "type": "module",
     "main": "dist/index.js",

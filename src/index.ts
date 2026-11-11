@@ -8,6 +8,7 @@ import { BaseCliError } from './lib/errors.js'
 import { getRequestedUserRef, isIdsOnlyMode, isJsonMode, isNdjsonMode } from './lib/global-args.js'
 import { preloadMarkdown } from './lib/markdown.js'
 import { formatError, formatErrorJson } from './lib/output.js'
+import { writeMovedNotice } from './lib/package-move.js'
 import { startEarlySpinner, stopEarlySpinner } from './lib/spinner.js'
 import { trackCommandUsage } from './lib/usage-tracking.js'
 
@@ -131,6 +132,14 @@ for (const [name, [description]] of Object.entries(commands)) {
 getRequestedUserRef()
 process.argv = [process.argv[0], process.argv[1], ...stripUserFlag(process.argv.slice(2))]
 
+// Detect which command is being invoked (resolve aliases first)
+const commandArg = process.argv
+    .slice(2)
+    .find((a) => !a.startsWith('-') && (a in commands || a in commandAliases))
+const commandName = commandArg ? (commandAliases[commandArg] ?? commandArg) : undefined
+
+writeMovedNotice(process.argv[2] === 'completion-server' ? 'completion-server' : commandName)
+
 // completion-server needs the command tree to walk for completions.
 // Only load the completion module + the specific command being completed
 // (extracted from COMP_LINE) to keep startup fast.
@@ -166,12 +175,6 @@ if (process.argv[2] === 'completion-server') {
         }),
     )
 } else {
-    // Detect which command is being invoked (resolve aliases first)
-    const commandArg = process.argv
-        .slice(2)
-        .find((a) => !a.startsWith('-') && (a in commands || a in commandAliases))
-    const commandName = commandArg ? (commandAliases[commandArg] ?? commandArg) : undefined
-
     if (commandName && commands[commandName]) {
         const loader = commands[commandName][1]
 
