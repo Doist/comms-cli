@@ -1,5 +1,5 @@
-import { CommsRequestError, type User } from '@doist/comms-sdk'
 import { attachStatusCommand } from '@todoist/cli-core/auth'
+import { CommsRequestError, type User } from '@todoist/comms-sdk'
 import chalk from 'chalk'
 import type { Command } from 'commander'
 import { createWrappedCommsClient } from '../../lib/api.js'

@@ -5,9 +5,9 @@ const sdkMocks = vi.hoisted(() => ({
     fetchNewCommsUrls: vi.fn(),
 }))
 
-vi.mock('@doist/comms-sdk', async (importActual) => ({
+vi.mock('@todoist/comms-sdk', async (importActual) => ({
     // errors.ts reads helpers from the SDK, so only the network call is faked.
-    ...(await importActual<typeof import('@doist/comms-sdk')>()),
+    ...(await importActual<typeof import('@todoist/comms-sdk')>()),
     fetchNewCommsUrls: sdkMocks.fetchNewCommsUrls,
 }))
 

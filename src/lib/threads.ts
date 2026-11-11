@@ -1,4 +1,4 @@
-import type { CommsApi, UnreadThread } from '@doist/comms-sdk'
+import type { CommsApi, UnreadThread } from '@todoist/comms-sdk'
 
 export type UnreadThreadMap = Map<string, UnreadThread>
 

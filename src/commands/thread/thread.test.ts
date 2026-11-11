@@ -1,13 +1,13 @@
 import { mkdtemp, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
-import { CommsApi, type CustomFetch, generateId } from '@doist/comms-sdk'
 import {
     captureConsole,
     captureStream,
     createTestProgram,
     mockStdin,
 } from '@todoist/cli-core/testing'
+import { CommsApi, type CustomFetch, generateId } from '@todoist/comms-sdk'
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
 
 const apiMocks = vi.hoisted(() => ({
@@ -2354,7 +2354,7 @@ describe('thread reply --file', () => {
 
         expect(client.attachments.upload).toHaveBeenCalledTimes(1)
         expect(client.attachments.upload).toHaveBeenCalledWith(
-            expect.objectContaining({ fileName: 'diagram.png' }),
+            expect.objectContaining({ fileName: 'diagram.png', workspaceId: 10 }),
         )
         expect(client.comments.createComment).toHaveBeenCalledWith(
             expect.objectContaining({
@@ -2489,6 +2489,9 @@ describe('thread create --file', () => {
         ])
 
         expect(client.attachments.upload).toHaveBeenCalledTimes(2)
+        expect(client.attachments.upload).toHaveBeenCalledWith(
+            expect.objectContaining({ workspaceId: 10 }),
+        )
         const args = client.threads.createThread.mock.calls[0][0] as {
             title: string
             content: string

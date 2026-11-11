@@ -8,7 +8,7 @@ A command-line interface for Comms, following the architecture and patterns esta
 - **Language**: TypeScript 5.x (strict mode)
 - **CLI Framework**: Commander.js
 - **Terminal Styling**: chalk
-- **API Client**: `@doist/comms-sdk`
+- **API Client**: `@todoist/comms-sdk`
 - **Testing**: vitest
 - **Formatting**: prettier
 - **Git Hooks**: lefthook

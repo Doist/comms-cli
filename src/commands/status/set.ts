@@ -1,4 +1,4 @@
-import type { SetStatusArgs } from '@doist/comms-sdk'
+import type { SetStatusArgs } from '@todoist/comms-sdk'
 import { getCommsClient } from '../../lib/api.js'
 import { formatDateTime, parseLocalDate } from '../../lib/dates.js'
 import { parseDuration } from '../../lib/duration.js'

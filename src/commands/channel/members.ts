@@ -1,5 +1,5 @@
-import { isRestrictedWorkspaceUser } from '@doist/comms-sdk'
 import { outputIds, resolveOutputMode } from '@todoist/cli-core'
+import { isRestrictedWorkspaceUser } from '@todoist/comms-sdk'
 import { getCurrentWorkspaceId, getWorkspaceGroups } from '../../lib/api.js'
 import type { ViewOptions } from '../../lib/options.js'
 import { colors, formatJson, formatNdjson, pluralize } from '../../lib/output.js'

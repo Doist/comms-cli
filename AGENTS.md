@@ -76,7 +76,7 @@ This is a TypeScript CLI (`tdc`) for Comms messaging, built with Commander.js.
 
 **Lib** (`src/lib/`):
 
-- `api.ts` - Singleton CommsApi client from `@doist/comms-sdk`, workspace/user caching
+- `api.ts` - Singleton CommsApi client from `@todoist/comms-sdk`, workspace/user caching
 - `refs.ts` - Reference parsing: accepts IDs (`id:<id>` or bare IDs when unambiguous), Comms URLs, or fuzzy names for workspaces/users/channels/groups
 - `output.ts` - JSON/NDJSON formatting with essential field filtering per entity type
 - `config.ts` - Persists config to `~/.config/comms-cli/config.json`

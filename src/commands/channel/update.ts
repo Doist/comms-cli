@@ -1,4 +1,4 @@
-import type { UpdateChannelArgs } from '@doist/comms-sdk'
+import type { UpdateChannelArgs } from '@todoist/comms-sdk'
 import { getCommsClient } from '../../lib/api.js'
 import { CliError } from '../../lib/errors.js'
 import type { MutationOptions } from '../../lib/options.js'

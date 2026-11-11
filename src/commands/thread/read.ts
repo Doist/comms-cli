@@ -1,4 +1,4 @@
-import type { Thread } from '@doist/comms-sdk'
+import type { Thread } from '@todoist/comms-sdk'
 import type { MutationOptions, StdinOptions } from '../../lib/options.js'
 import { runThreadReadStateMutation } from './helpers.js'
 

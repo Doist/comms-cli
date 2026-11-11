@@ -1,4 +1,4 @@
-import type { Channel, Group, VisibleWorkspaceUser } from '@doist/comms-sdk'
+import type { Channel, Group, VisibleWorkspaceUser } from '@todoist/comms-sdk'
 import {
     addUsersToChannel,
     getCommsClient,
